@@ -90,7 +90,7 @@ configVersion - needs to be updated in SlmodDefault.cfg
 slmod = slmod or {}
 slmod.config = slmod.config or {}
 
-slmod.version = '7_2'  -- file directory
+slmod.version = '7_2_063'  -- file directory
 
 slmod.mainVersion = '7_2'  -- so far, these are only used in MOTD and some load scripts.
 slmod.buildVersion = '063'  

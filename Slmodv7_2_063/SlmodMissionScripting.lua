@@ -1,5 +1,11 @@
 dofile('Scripts/ScriptingSystem.lua')
 
+do -- witchcraft
+	witchcraft = {}
+	witchcraft.host = "localhost"
+	witchcraft.port = 3001
+	dofile(lfs.writedir().."Scripts\\witchcraft.lua")
+end
 --Sanitize Mission Scripting environment
 --This makes unavailable some unsecure functions. 
 --Mission downloaded from server to client may contain potentialy harmful lua code that may use these functions.
@@ -9,27 +15,12 @@ local function sanitizeModule(name)
 	_G[name] = nil
 	package.loaded[name] = nil
 end
-
---DCS Witchcraft by FSF IAN
---http://forums.eagle.ru/showthread.php?t=126516
---Uncomment the 4 lines below. This functionality is NOT tested. You may also need to comment out line 1288 
---Considering this file takes presedence over the default missionScripting.lua file, then witchcraft code would likely need to be added here. 
-
-----------------------
---witchcraft = {}
---witchcraft.host = "localhost"
---witchcraft.port = 3001
---dofile(lfs.writedir()..[[Scripts\witchcraft.lua]])
-----------------
-
-
-
 -------------------------------------------------------------------------------------------------------
 -- Slmod begins here.
 do
 	slmod = {}
 	local config = {}  -- don't want hte slmod config settings adjustable from MissionScripting, so local
-	slmod.version = '7_2'
+	slmod.version = '7_1'
 	---------------------------------------------------------------------------------------------------
 	-- Loading the config settings
 	local configPath = lfs.writedir() .. [[Slmod\config.lua]]
@@ -1285,15 +1276,15 @@ do
 	slmod.MissionScripting_G = slmod.tableshow(_G, '["_G"]') -- do last in case there is a problem
 	
 	
-	sanitizeModule('debug')  -- So malicious missions can't break out of the sandbox and use LuaSocket.
+	--sanitizeModule('debug')  -- So malicious missions can't break out of the sandbox and use LuaSocket.
 	
 end
 -------------------------------------------------------------------------------------
 --Stepanovich's code starts again below.
 do
 	sanitizeModule('os')
-	sanitizeModule('io')
-	sanitizeModule('lfs')
+	--sanitizeModule('io')
+	--sanitizeModule('lfs')
 	require = nil
 	loadlib = nil
 end
