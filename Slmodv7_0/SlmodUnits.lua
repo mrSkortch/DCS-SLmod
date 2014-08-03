@@ -15,7 +15,7 @@ function slmod.getMissionUnitData()   --new import mission data function for Slm
 				for cntry_id, cntry_data in pairs(coa_data.country) do
 					
 					miz_units_tbl[#miz_units_tbl + 1] = '		[' --two tabs inside a coalition
-					miz_units_tbl[#miz_units_tbl + 1] = string.lower(slmod.basicSerialize(cntry_data.name))
+					miz_units_tbl[#miz_units_tbl + 1] = slmod.basicSerialize(cntry_data.name)
 					miz_units_tbl[#miz_units_tbl + 1] = '] = {\n' --starting a new country
 					
 					miz_units_tbl[#miz_units_tbl + 1] = '			["country_id_num"] = ' --three tabs inside a coutnry
@@ -121,7 +121,6 @@ function slmod.makeMissionUnitData()
 		slmod.allMissionUnitsByName = {}  -- just a listing of all missionUnitData by name.
 		
 		local lUnitsBase = slmod.activeUnitsBase -- just a local reference, easier to write.
-		--slmod.info(slmod.tableshow(slmod.missionUnitData))
 		
 		--Now, copy data from missionUnitData into the activeUnitsBase
 		for coaName, coa in pairs(slmod.missionUnitData) do
@@ -156,15 +155,12 @@ function slmod.makeMissionUnitData()
 			end
 		end
 		
-		--slmod.info(slmod.tableshow(slmod.activeUnitsBase))
-		--slmod.info(slmod.tableshow(slmod.allMissionUnitsByName))
 		
 		slmod.info('successfully completed slmod.getMissionUnitData()')
 		-- local miz_units_file = io.open(lfs.writedir() .. [[Logs\]] .. 'v6_mission_units.txt', 'w')
 		-- miz_units_file:write(slmod.serialize('slmod.missionUnitData', slmod.missionUnitData))
 		-- miz_units_file:close()
 		--print(mission_units[50].name)
-		
 		
 	else
 		slmod.error('error in slmod.getMissionUnitData(): ' .. tostring(mission_units_str))
@@ -311,7 +307,7 @@ Country names to be used in [c] and [-c] short-cuts:
 			end	
 			for coa, coa_tbl in pairs(l_munits) do
 				for country, country_table in pairs(coa_tbl) do
-					if country == string.lower(unit:sub(country_start)) then   -- match
+					if country == unit:sub(country_start) then   -- match
 						for unit_type, unit_type_tbl in pairs(country_table) do
 							if type(unit_type_tbl) == 'table' and (category == '' or unit_type == category) then 
 								for group_ind, group_tbl in pairs(unit_type_tbl) do
@@ -344,7 +340,7 @@ Country names to be used in [c] and [-c] short-cuts:
 			end	
 			for coa, coa_tbl in pairs(l_munits) do
 				for country, country_table in pairs(coa_tbl) do
-					if country == string.lower(unit:sub(country_start)) then   -- match
+					if country == unit:sub(country_start) then   -- match
 						for unit_type, unit_type_tbl in pairs(country_table) do
 							if type(unit_type_tbl) == 'table' and (category == '' or unit_type == category) then 
 								for group_ind, group_tbl in pairs(unit_type_tbl) do
@@ -694,7 +690,6 @@ function slmod.updateActiveUnits()  -- the coroutine to update active units tabl
 	-- start a new cycle...  beginning assumption: assume this function runs about 20 times a sec.
 	if slmod.activeUnitsBase then  -- only run if slmod.activeUnitsBase
 		local numUnits = #slmod.activeUnitsBase
-		--slmod.info(numUnits)
 		
 		local newActiveUnits = {}  -- the beginning of the NEW activeUnits tables.
 		local newActiveUnitsByName = {}
@@ -1046,15 +1041,11 @@ function slmod.makeUnitCategories()
 			end	
 			
 		elseif slmod.unitHasAttribute(unitTypeName, "Helicopters") then  
-			if slmod.unitHasAttribute(unitTypeName, "Attack helicopters") and unitTypeName ~= "UH-1H" and unitTypeName ~= "SH-60B" and unitTypeName ~= "Mi-8MT" and unitTypeName ~= "Mi-8MTV2"then
+			if slmod.unitHasAttribute(unitTypeName, "Attack helicopters") and unitTypeName ~= "UH-1H" and unitTypeName ~= "SH-60B" then
 				slmod.unitCategories['Helicopters']['Attack'][unitTypeName] = true
 				slmod.catsByUnitType[unitTypeName] = {'Helicopters', 'Attack'}
 				
-			elseif slmod.unitHasAttribute(unitTypeName, "Transport helicopters") or unitTypeName == "UH-1H" or unitTypeName == "SH-60B" or unitTypeName == "Mi-8MT" or unitTypeName == "Mi-8MTV2" then
-				if unitTypeName == 'Mi-8MTV2' then -- creates the Mi-8 exception because sigh
-					slmod.unitCategories['Helicopters']['Utility']["Mi-8MT"] = true
-					slmod.catsByUnitType["Mi-8MT"] = {'Helicopters', 'Utility'}
-				end
+			elseif slmod.unitHasAttribute(unitTypeName, "Transport helicopters") or unitTypeName == "UH-1H" or unitTypeName == "SH-60B" then
 				slmod.unitCategories['Helicopters']['Utility'][unitTypeName] = true
 				slmod.catsByUnitType[unitTypeName] = {'Helicopters', 'Utility'}
 			else

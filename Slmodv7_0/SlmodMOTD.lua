@@ -19,7 +19,6 @@ if slmod.config.MOTD_enabled then
 		['F-15C'] = '`/~ (the "tilde key")',
 		['Ka-50'] = 'Tab',
 		['Mi-8MT'] = 'Tab',
-		['Mi-8MTV2'] = 'Tab',
 		['MiG-29A'] = '`/~ (the "tilde key")',
 		['MiG-29G'] = '`/~ (the "tilde key")',
 		['MiG-29S'] = '`/~ (the "tilde key")',

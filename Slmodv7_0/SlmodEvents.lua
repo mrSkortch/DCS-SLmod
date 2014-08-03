@@ -5,19 +5,6 @@ do
 	local slmod_events_ind = 1
 	slmod = slmod or {}
 	slmod.rawEvents = nil
-	
-	local lUnit = Unit
-	local function GetUnitRTidByName(name)
-		local unit = lUnit.getByName(name)
-		local unit_rtid
-		if unit and unit.id_ then
-			return unit.id_	
-		end
-		if slmod.clients[name] then
-			return slmod.clients[name].rtid  -- either nil or a rtid.
-		end
-	end
-	
 	function slmod.getNextSlmodEvents()
 		
 		--from debriefing.lua, not sure what it's for though.  Need it for events.
@@ -45,64 +32,37 @@ do
 
 
 		if not slmod.rawEvents then
-			--print('no raw events')
 			slmod.rawEvents = {}
 			if not debriefing.addEvent_old then
-				--print('not addEventOld')
 				debriefing.addEvent_old = debriefing.addEvent
 				function debriefing.addEvent(event)
 					-- print('debriefing event:')
-					--print(slmod.oneLineSerialize(event))
+					-- print(slmod.oneLineSerialize(event))
 					if (('takeoff' == event.type) or ('land' == event.type) or ('base captured' == event.type)) and ( (event.place ~= nil) and (event.place ~= '') ) then
-						--print('do weird transl')
 						event.target = dtransl(event.place);
 					end
 					if slmod and slmod.deepcopy then
-						--print('slmod and deepcopy')
-						--print(event.initiator)
-						
 						local eventCopy = slmod.deepcopy(event)
-						
-						--print(GetUnitRTidByName(event.initiator))
-						if event.initiator then -- for mission start/stop events
-							eventCopy.initiatorID = GetUnitRTidByName(event.initiator)
-						end
-						
-						if eventCopy.type == 'shot' or eventCopy.type =='start shooting' or eventCopy.type == 'end shooting' then
-							-- print(eventCopy.type)
+						if eventCopy.type == 'shot' then
+							-- print('here1')
 							-- if slmod.lastShotEvent then
-							--print('slmod.lastShotEvent data:')
-							-- print(slmod.lastShotEvent.time)
-							-- print(slmod.lastShotEvent.initiatorID)
-						-- print(slmod.lastShotEvent.weapon)
-						-- print(slmod.lastShotEvent.weaponID)
+								-- print('slmod.lastShotEvent data:')
+								-- print(slmod.lastShotEvent.time)
+								-- print(slmod.lastShotEvent.initiatorID)
+								-- print(slmod.lastShotEvent.weapon)
+								-- print(slmod.lastShotEvent.weaponID)
 							-- end
-						--print(slmod.oneLineSerialize(slmod.lastShotEvent))
+							
+							
 						
 							if slmod.lastShotEvent and slmod.lastShotEvent.time == eventCopy.t and slmod.lastShotEvent.initiatorID == eventCopy.initiatorID then  -- a match!
-							---	print('last shot event')
 								if not slmod.lastShotEvent.isShell then
-								--	print('is shell false')
 									eventCopy['weaponID'] = slmod.lastShotEvent.weaponID  -- only do this for non-shells!
 								end
 								slmod.lastShotEvent = nil
 							end
-							local lShells
-							if eventCopy.type =='start shooting' or eventCopy.type == 'end shooting' then -- scripting engine shell enum
-								print('line92')
-								lShells = 0
-								for index, data in pairs(Unit.getByName(eventCopy.initiator):getAmmo()) do
-									if data.desc.category == 0 then
-										lShells = lShells + data.count
-									end
-								end
-								--print('lshells ' .. lShells)
-								eventCopy['numShells'] = lShells
-							end
 						end
-						
 						if eventCopy.type == 'hit' then
-							--print('hit')
 							if slmod.lastHitEvent and slmod.lastHitEvent.time == eventCopy.t and slmod.lastHitEvent.initiatorID == eventCopy.initiatorID then  -- a match!
 								if not slmod.lastHitEvent.isShell then
 									eventCopy['weaponID'] = slmod.lastHitEvent.weaponID
@@ -110,16 +70,10 @@ do
 								slmod.lastHitEvent = nil
 							end
 						end
-						
-						
-						
-						--print('add to raw events')
 						table.insert(slmod.rawEvents, eventCopy)
 					else
-						--print('else')
 						table.insert(slmod.rawEvents, event)
 					end
-					--print('return')
 					return debriefing.addEvent_old(event)
 				end
 			end		
@@ -245,8 +199,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 			local temp_event
 			for i = 1, #slmod_next_events do
 				temp_event = slmod.deepcopy(slmod_next_events[i])
-				--slmod.info('original event')
-				--slmod.info(slmod.tableshow(temp_event))
+				
 				------------------------------------------
 				--Add to list of killers, new for v6_0
 				slmod.deadUnits = slmod.deadUnits or {} --create the global dead units list
@@ -257,105 +210,63 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 					for i = #lslmod_events, 1, -1  do   --now look through all the previous slmod.events
 						local event = lslmod_events[i];
 						if 	event.type == 'hit' and event.target == killed_unit then  -- if this unit that just died was previously hit, add the unit that hit it to the table of killers and units killed.
-						--	slmod.info('insert killers and hit_times')
 							table.insert(slmod.deadUnits[#slmod.deadUnits].killers, event.initiator)  -- add the hit initiator to the table of units that hit this unit before it died.
 							table.insert(slmod.deadUnits[#slmod.deadUnits].hit_times, event.t)
 						end
 					end
 				end
-				
+
 				-- input extra slmod information
 				----------------------------------------------------------
 				
 				-- target information comes after a hit event
-				--slmod.info('check target')
-				if temp_event.type ~= 'birth' then
-					if type(temp_event['target']) == 'string' then
-						--slmod.info('target')
-						local ret_unit =  slmod.getUnitByName(temp_event['target'])
-						if type(ret_unit) ==  'table' then
-							temp_event['target_name'] = ret_unit.name
-							temp_event['target_mpname'] = ret_unit.initiatorPilotName
-							
-							if (ret_unit.x and ret_unit.y and ret_unit.z) then --check is probably not necessary
-								temp_event['target_x'] = ret_unit.x
-								temp_event['target_y'] = ret_unit.y
-								temp_event['target_z'] = ret_unit.z
-							end
-							
-							if temp_event['targetMissionID'] and type(temp_event['targetMissionID'])== 'string' then
-								temp_event['targetMissionID'] = tonumber(temp_event['targetMissionID'])
-							end
-							
-							temp_event['target_id'] = ret_unit.id
-							
-							
-							if ret_unit.objtype then --check is probably not necessary
-								temp_event['target_objtype'] = ret_unit.objtype
-							end
-							
-							if ret_unit.coalition then --check is probably not necessary
-								temp_event['target_coalition'] = ret_unit.coalition
-							end
+				if type(temp_event['target']) == 'string' then
+					local ret_unit =  slmod.getUnitByName(temp_event['target'])
+					if type(ret_unit) ==  'table' then
+						temp_event['target_name'] = ret_unit.name
+						temp_event['target_mpname'] = ret_unit.mpname
+						
+						if (ret_unit.x and ret_unit.y and ret_unit.z) then --check is probably not necessary
+							temp_event['target_x'] = ret_unit.x
+							temp_event['target_y'] = ret_unit.y
+							temp_event['target_z'] = ret_unit.z
+						end
+						
+						temp_event['target_id'] = ret_unit.id
+						
+						if ret_unit.objtype then --check is probably not necessary
+							temp_event['target_objtype'] = ret_unit.objtype
+						end
+						
+						if ret_unit.coalition then --check is probably not necessary
+							temp_event['target_coalition'] = ret_unit.coalition
 						end
 					end
-					
-					if ((type(temp_event['initiatorMissionID']) == 'string') and (type(tonumber(temp_event['initiatorMissionID'])) == 'number')) then
-						--slmod.info('convertToNumber')
-						temp_event['initiatorMissionID'] = tonumber(temp_event['initiatorMissionID'])
-					end
-					-- initiator info
-				--	slmod.info('check iniator')
-					if ((type(temp_event['initiatorMissionID']) == 'number') and (type(temp_event['initiator']) == 'string')) then
-						--slmod.info('valid mission Id')
-						local ret_unit =  slmod.getUnitByName(temp_event['initiator'])	
-						--slmod.info(slmod.tableshow(ret_unit))
-						if ((type(ret_unit) ==  'table') and (temp_event['initiator'] == ret_unit.name)) then -- just need to make sure that name == initiator
-							--slmod.info('valid unitName')
-							
-							temp_event['initiator_name'] = ret_unit.name
-							temp_event['initiator_mpname'] = ret_unit.initiatorPilotName
-							temp_event['initiatorID'] = ret_unit.id
-							if (ret_unit.x and ret_unit.y and ret_unit.z) then	
-								temp_event['initiator_x'] = ret_unit.x
-								temp_event['initiator_y'] = ret_unit.y
-								temp_event['initiator_z'] = ret_unit.z
-							end
-							if ret_unit.objtype then
-								temp_event['initiator_objtype'] = ret_unit.objtype
-							end
-							
-							if ret_unit.coalition then
-								temp_event['initiator_coalition'] = ret_unit.coalition
-							end
+				end
+				
+
+				-- initiator info
+				if ((type(temp_event['initiatorID']) == 'number') and (type(temp_event['initiator']) == 'string')) then
+					local ret_unit =  slmod.getUnitById(temp_event['initiatorID'])	
+					if ((type(ret_unit) ==  'table') and (temp_event['initiator'] == ret_unit.name)) then -- just need to make sure that name == initiator
+						temp_event['initiator_name'] = ret_unit.name
+						temp_event['initiator_mpname'] = ret_unit.mpname
+						if (ret_unit.x and ret_unit.y and ret_unit.z) then	
+							temp_event['initiator_x'] = ret_unit.x
+							temp_event['initiator_y'] = ret_unit.y
+							temp_event['initiator_z'] = ret_unit.z
+						end
+						if ret_unit.objtype then
+							temp_event['initiator_objtype'] = ret_unit.objtype
+						end
+						
+						if ret_unit.coalition then
+							temp_event['initiator_coalition'] = ret_unit.coalition
 						end
 					end
-				elseif temp_event.type == 'birth' then
-					if slmod.allMissionUnitsByName and slmod.activeUnitsBase and temp_event.type == 'birth' then
-						
-						local newUnit = {}
-						newUnit.groupId = temp_event.groupId
-						newUnit.group = temp_event.group
-						newUnit.countryName = temp_event.countryName
-						newUnit.countryId = temp_event.countryId
-						newUnit.name = temp_event.name
-						newUnit.mpname = temp_event.mpname
-						newUnit.skill = temp_event.skill
-						newUnit.unitId = temp_event.unitId
-						newUnit.objtype = temp_event.objtype
-						newUnit.coalition = temp_event.coalition
-						newUnit.category = temp_event.category
-						
-						local lUnitsBase = slmod.activeUnitsBase
-						lUnitsBase[#lUnitsBase + 1] = slmod.deepcopy(newUnit)
-						slmod.allMissionUnitsByName[newUnit.name] = slmod.deepcopy(newUnit)
-						
-					end
-				--slmod.activeUnitsBase[#slmod.activeUnitsBase + 1] = newUnit
 				end
 				--------------------------------------------------------------------
-				--slmod.info('final eventTable')
-				--slmod.info(slmod.tableshow(temp_event))
+				
 				t_insert(slmod.events, temp_event)  -- insert the event onto the end of slmod.events
 				
 				--------------------------------------------------------------------------------------------------------------------------------------
@@ -795,19 +706,15 @@ do
 		-- store latest event for preventing server crash when using net.get_unit_property in active units database building code.
 		slmod.lastEvent = event
 		
-		if event and (event.id == world.event.S_EVENT_SHOT or event.id == world.event.S_EVENT_SHOOTING_START or event.id == world.event.S_EVENT_SHOOTING_END) then
-			--print('shot event')
+		if event and event.id == world.event.S_EVENT_SHOT then
 			if event.weapon then
 				slmod.humanWeapons[event.weapon.id_] = nil  --erase this entry if it existed before.
 			end
 			-------------------------------------------------------------------
 			-- code for use in SlmodStats system and slmod.events
 			if event.weapon then
-				--print('event weapon')
-				--print(event.initiator)
+				
 				local initName = Unit.getName(event.initiator)
-				
-				
 				if initName then
 					if slmod.clients and slmod.clients[initName] and event.weapon and slmod.deepcopy then
 						slmod.humanWeapons[event.weapon.id_] = slmod.deepcopy(slmod.clients[initName])
@@ -815,24 +722,9 @@ do
 				end
 				
 				local isShell
-				local shellNum = 0
-				--print('shell check')
-				--if (pcall(Unit.hasAttribute, event.weapon, 'Bomb')) and (not (Unit.hasAttribute(event.weapon, 'Bomb') or Unit.hasAttribute(event.weapon, 'Missile') or Unit.hasAttribute(event.weapon, 'Rocket'))) then
-				if Weapon.getDesc(event.weapon).category == 0 then -- scripting engine shell enum
-				--	print('statement true')
+				if (pcall(Unit.hasAttribute, event.weapon, 'Bomb')) and (not (Unit.hasAttribute(event.weapon, 'Bomb') or Unit.hasAttribute(event.weapon, 'Missile') or Unit.hasAttribute(event.weapon, 'Rocket'))) then
 					isShell = true
-					--print('line824')
-					-- doesnt actually save anything
-					--[[lShells = 0
-					for index, data in pairs(Unit.getByName(eventCopy.initiator):getAmmo()) do
-						if data.desc.category == 0 then
-							lShells = lShells + data.count
-						end
-					end]]
-					--print('lshells ' .. lShells)
 				end
-				--print('add last shot event')
-				
 				slmod.lastShotEvent = {initiatorID = event.initiator.id_, time = event.time, weaponID = event.weapon.id_, isShell = isShell}
 	
 			end
@@ -844,7 +736,7 @@ do
 			--	print('tracking this weapon')
 
 				local weapon_pos = lObject.getPosition(event.weapon)
-				
+
 				table.insert(new_weapons, {weapon = event.weapon, prev_pos = weapon_pos.p, prev_ip = land.getIP(weapon_pos.p, weapon_pos.x, 200), initiatorID = event.initiator.id_, t = event.time })
 				if not associate_weapons_scheduled then
 					timer.scheduleFunction(associate_weapon_names, {}, timer.getTime() + 0.05)  --schedule it, wait a little bit of time for the info to percolate through.
@@ -896,76 +788,6 @@ do
 			end
 			-------------------------------------------------------------------
 		end
-		
-		------ birth logic
-		if slmod.rawEvents and #slmod.rawEvents > 2 then
-			if event.id == world.event.S_EVENT_BIRTH then -- Event births occuring after mission start
-				local lunit = event.initiator
-				if not lunit:getPlayerName() then -- only run logic on non clients
-					local newEvent = {}
-									
-					local lgroup = lunit:getGroup()
-					--local newUnit = {}
-					
-					local lCoa = tonumber(lunit:getCoalition())
-					
-					if lCoa == 1 then
-						newEvent.coalition = 'red'
-					elseif lCoa == 2 then
-						newEvent.coalition = 'blue'
-					else
-						newEvent.coalition  = 'neutral'
-					end
-									
-					
-					newEvent.name  = lunit:getName()
-					newEvent.unitId  = (lunit:getID())
-					
-					if not lunit:getPlayerName() then
-						newEvent.mpname = lunit:getName()
-					else
-						newEvent.mpname = lunit:getPlayerName()
-					end
-					 --at least, for now.
-					newEvent.objtype = lunit:getTypeName()
-					newEvent.group = lgroup:getName()
-					newEvent.groupId = tonumber(lgroup:getID())
-					newEvent.skill = "Random" -- cant find this out, so just say its random
-					newEvent.countryName = string.lower(country.name[tonumber(lunit:getCountry())])
-					newEvent.countryId= (lunit:getCountry())
-					
-					if tonumber(lunit:getCategory()) == 3 then
-						newEvent.category  = 'static'
-					else
-						local lCat = tonumber(lgroup:getCategory())
-						if lCat == 0 then
-							lCat = 'plane'
-						elseif lCat == 1 then
-							lCat = 'helicopter'
-						elseif lCat == 2 then
-							lCat = 'vehicle'
-						elseif lCat == 3 then
-							lCat = 'vehicle'
-						end
-						newEvent.category = lCat
-					end
-					--print(slmod.tableshow(newUnit))
-					
-					
-					
-					newEvent.type = 'birth'
-					newEvent.t = timer.getAbsTime()
-					newEvent.numtimes = 1
-					newEvent.initiator = lunit:getName()
-					
-					table.insert(slmod.rawEvents, newEvent)
-					--print(slmod.tableshow(newEvent))
-					--slmod.allMissionUnitsByName[newUnit.name] = newUnit
-					--slmod.activeUnitsBase[#slmod.activeUnitsBase + 1] = newUnit
-				end
-			end
-		end
-		
 		--print('running old_onEvent')
 		return slmod.old_onEvent(event)
 	end
