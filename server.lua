@@ -186,7 +186,7 @@ dofile('./Scripts/net/events.lua')
 -- load Slmod
 --[[]]
 do
-	local loadVersion = '7_2'
+	local loadVersion = '7_2_063'
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'.. loadVersion .. '/SlmodConfig.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'.. loadVersion .. '/SlmodUtils.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'.. loadVersion .. '/SlmodEvents.lua')
