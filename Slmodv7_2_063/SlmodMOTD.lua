@@ -23,12 +23,16 @@ if slmod.config.MOTD_enabled then
 		['MiG-29A'] = '`/~ (the "tilde key")',
 		['MiG-29G'] = '`/~ (the "tilde key")',
 		['MiG-29S'] = '`/~ (the "tilde key")',
-		['P-51D'] = 'RCtrl + M',
+		['P-51D'] = 'Tab',
 		['Su-25'] =  '`/~ (the "tilde key")',
 		['Su-25T'] =  '`/~ (the "tilde key")',
 		['Su-27'] = '`/~ (the "tilde key")',
 		['Su-33'] = '`/~ (the "tilde key")',
 		['UH-1H'] = 'Tab',
+		['F-86F Sabre'] = 'Tab',
+		['F-86F'] = 'Tab',
+		['FW-190D9'] = 'Tab',
+		['TF-51D'] = = 'Tab',
 	}
 	
 	local function getChatKey(id) -- id is client id.
