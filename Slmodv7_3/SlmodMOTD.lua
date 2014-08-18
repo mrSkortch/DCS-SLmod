@@ -33,6 +33,7 @@ if slmod.config.MOTD_enabled then
 		['F-86F'] = 'Tab',
 		['FW-190D9'] = 'Tab',
 		['TF-51D'] = 'Tab',
+		['MiG-21Bis'] = 'Tab',
 	}
 	
 	local function getChatKey(id) -- id is client id.
