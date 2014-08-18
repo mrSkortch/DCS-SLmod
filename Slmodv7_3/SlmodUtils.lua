@@ -719,7 +719,7 @@ function slmod.getUnitByName(name)
 end	
 
 function slmod.flagIsTrue(flag)
-	if flag > 0 then
+	if tonumber(flag) > 0 then
 		local ret_str, ret_bool = net.dostring_in('mission', 'return tostring(c_flag_is_true(' .. tostring(flag) .. '))')
 		if ret_bool then
 			if ret_str == 'true' then
@@ -741,23 +741,17 @@ function slmod.typeCheck(type_tbl, var_tbl)
 	if ((type(type_tbl) == 'table') and (type(var_tbl) == 'table')) then
 		for type_tbl_ind = 1, #type_tbl do
 			if type(type_tbl[type_tbl_ind]) == 'table' then
-
 				local one_passed_check = false
-							
 				for j = 1, #type_tbl[type_tbl_ind] do
-					
 					local passed_type_tbl
 					local passed_var_tbl
 					if ((type_tbl[type_tbl_ind][j] == 'table_s') or (type_tbl[type_tbl_ind][j] == 'table_n')) then
-
 						passed_type_tbl = {type_tbl[type_tbl_ind][j]}
 						passed_var_tbl = {var_tbl[type_tbl_ind]}
 					else
 						passed_type_tbl = type_tbl[type_tbl_ind][j]
 						passed_var_tbl = var_tbl[type_tbl_ind]
 					end
-
-					
 					if slmod.typeCheck(passed_type_tbl, passed_var_tbl) then 
 						one_passed_check = true
 					end
@@ -800,13 +794,8 @@ function slmod.typeCheck(type_tbl, var_tbl)
 			elseif type(var_tbl[type_tbl_ind]) ~= type_tbl[type_tbl_ind] then
 				check_passed = false
 			end
-		
 		end
 	elseif type(var_tbl) ~= type_tbl then
-		--print(var_tbl)
-		--print(type(var_tbl))
-		--print(type_tbl)
-		--print('type(var_tbl) ~= type_tbl')
 		check_passed = false
 	end
 	return check_passed

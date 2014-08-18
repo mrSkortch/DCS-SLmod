@@ -1,11 +1,12 @@
 dofile('Scripts/ScriptingSystem.lua')
-
+--[[
 do -- witchcraft
 	witchcraft = {}
 	witchcraft.host = "localhost"
 	witchcraft.port = 3001
 	dofile(lfs.writedir().."Scripts\\witchcraft.lua")
 end
+]]
 --Sanitize Mission Scripting environment
 --This makes unavailable some unsecure functions. 
 --Mission downloaded from server to client may contain potentialy harmful lua code that may use these functions.
@@ -20,7 +21,7 @@ end
 do
 	slmod = {}
 	local config = {}  -- don't want hte slmod config settings adjustable from MissionScripting, so local
-	slmod.version = '7_1'
+	slmod.version = '7_3'
 	---------------------------------------------------------------------------------------------------
 	-- Loading the config settings
 	local configPath = lfs.writedir() .. [[Slmod\config.lua]]
@@ -1276,15 +1277,15 @@ do
 	slmod.MissionScripting_G = slmod.tableshow(_G, '["_G"]') -- do last in case there is a problem
 	
 	
-	--sanitizeModule('debug')  -- So malicious missions can't break out of the sandbox and use LuaSocket.
+	sanitizeModule('debug')  -- So malicious missions can't break out of the sandbox and use LuaSocket.
 	
 end
 -------------------------------------------------------------------------------------
 --Stepanovich's code starts again below.
 do
 	sanitizeModule('os')
-	--sanitizeModule('io')
-	--sanitizeModule('lfs')
+	sanitizeModule('io')
+	sanitizeModule('lfs')
 	require = nil
 	loadlib = nil
 end

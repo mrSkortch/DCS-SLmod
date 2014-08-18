@@ -15,7 +15,7 @@ if slmod.config.MOTD_enabled then
 	local chatKeyByModule = {
 		['A-10A'] = '`/~ (the "tilde key")',
 		['CA'] = '`/~ (the "tilde key")',
-		['A-10C'] = 'RCtrl + M',
+		['A-10C'] = 'Tab',
 		['F-15C'] = '`/~ (the "tilde key")',
 		['Ka-50'] = 'Tab',
 		['Mi-8MT'] = 'Tab',
@@ -32,7 +32,7 @@ if slmod.config.MOTD_enabled then
 		['F-86F Sabre'] = 'Tab',
 		['F-86F'] = 'Tab',
 		['FW-190D9'] = 'Tab',
-		['TF-51D'] = = 'Tab',
+		['TF-51D'] = 'Tab',
 	}
 	
 	local function getChatKey(id) -- id is client id.

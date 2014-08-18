@@ -663,6 +663,9 @@ end
 
 --replacement for command_check_start_loop
 function slmod.chat_cmd_net(cmd_text, flag, chat_ind, stopflag, coa)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if (not slmod.typeCheck({'string', 'number', 'number', {'number', 'nil'}, {'string', 'nil'}}, { cmd_text, flag, chat_ind, stopflag, coa })) then
 		slmod.error('invalid variable type in slmod.chat_cmd_net', true)
 		return
@@ -1224,6 +1227,9 @@ end
 
 --Detects line of sight
 function slmod.units_LOS_net(unitset1, altoffset1, unitset2, altoffset2, flag, stopflag, interval, checks, radius)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if slmod.typeCheck({'table_s', 'number', 'table_s', 'number', 'number', {'number', 'nil'}, {'number', 'nil'}, {'number', 'nil'}, {'number', 'nil'}}, { unitset1, altoffset1, unitset2, altoffset2, flag, stopflag, interval, checks, radius }) == false then
 		slmod.error('invalid variable type in slmod.units_LOS_net', true)
 		return
@@ -1409,6 +1415,9 @@ end]=]
 end
 
 function slmod.num_dead_gt_net(units, numdead, flag, stopflag)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if (not slmod.typeCheck({'table_s', 'number', 'number', {'number', 'nil'}}, { units, numdead, flag, stopflag })) then
 		slmod.error('invalid variable type in slmod.num_dead_gt_net', true)
 		return
@@ -1481,6 +1490,9 @@ end
 
 -- Units in moving zones
 function slmod.units_in_moving_zones_net(units, zone_units, radius, flag, stopflag, zone_type, req_num, interval)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if slmod.typeCheck({'table_s', 'table_s', 'number', 'number', {'number', 'nil'}, {'string', 'nil'}, {'number', 'nil'}, {'number', 'nil'}}, { units, zone_units, radius, flag, stopflag, zone_type, req_num, interval }) == false then
 		slmod.error('invalid variable type in slmod.units_in_moving_zones_net', true)
 		return
@@ -1599,6 +1611,9 @@ end
 
 -- Units in zones
 function slmod.units_in_zones_net(units, zones, flag, stopflag, zone_type, req_num, interval)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if slmod.typeCheck({'table_s', 'table_s', 'number',  {'number', 'nil'}, {'string', 'nil'}, {'number', 'nil'}, {'number', 'nil'}}, { units, zones, flag, stopflag, zone_type, req_num, interval }) == false then
 		slmod.error('invalid variable type in slmod.units_in_zones_net', true)
 		return
@@ -1722,6 +1737,9 @@ function slmod.mapobj_destroyed_net(id, flag, evnt_ind, percent, numdead)
 end
 
 function slmod.mapobj_dead_in_zone_net(zone, flag, evnt_ind, tot_dead, stopflag, numdead)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	--Type-check for security:
 	if slmod.typeCheck({'string', 'number', 'number', 'number', {'number', 'nil'}, {'number', 'nil'}}, { zone, flag, evnt_ind, tot_dead, stopflag, numdead }) ~= true then
 		slmod.error('invalid variable type in slmod.mapobj_dead_in_zone_net', true)
@@ -1771,6 +1789,9 @@ end
 
 
 function slmod.units_hitting_net(init_units, tgt_units, flag, evnt_ind, stopflag, msg, display_units, display_time, display_mode, coa, mpname)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if slmod.typeCheck({'table_s', 'table_s', 'number', 'number', {'number', 'nil'}, {'string', 'nil'}, {'string', 'nil'}, {'number', 'nil'}, {'string', 'nil'}, {'string', 'nil'}, {'boolean', 'nil'}}, { init_units, tgt_units, flag, evnt_ind, stopflag, msg, display_units, display_time, display_mode, coa, mpname }) ~= true then
 		slmod.error('invalid variable type in slmod.units_hitting_net', true)--stopflag         --msg        --display_units    --display_time     --display_mode     --coa               --mpname
@@ -1903,14 +1924,15 @@ Some weapon names, as named in the events system (1.1.1.0, may have changed in t
 "AGM-88 HARM"
 ]]--
 function slmod.units_firing_net(init_units, flag, evnt_ind, stopflag, weapons, msg, display_units, display_time, display_mode, coa, mpname)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if slmod.typeCheck({'table_s', 'number', 'number', {'number', 'nil'}, {'table_s', 'nil'}, {'string', 'nil'}, {'string', 'nil'}, {'number', 'nil'}, {'string', 'nil'}, {'string', 'nil'}, {'boolean', 'nil'}}, { init_units, flag, evnt_ind, stopflag, weapons, msg, display_units, display_time, display_mode, coa, mpname }) ~= true then
 														--stopflag			--weapons			--msg			--display_units		--display_time		--display_mode	  --coa                 --mpname
 		slmod.error('invalid variable type in slmod.units_firing_net', true)
 		return
 	end
-	
 	if ((stopflag == nil) or (stopflag == -1) or (not slmod.flagIsTrue(stopflag))) then
-		
 		stopflag = stopflag or -1
 		display_time = display_time or 5
 		display_mode = display_mode or 'echo'
@@ -2003,6 +2025,9 @@ end
 
 
 function slmod.units_crashed_net(units, flag, evnt_ind, stopflag)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if slmod.typeCheck({'table_s', 'number', 'number', {'number', 'nil'}}, {units,  flag, evnt_ind, stopflag} ) ~= true then
 		slmod.error('invalid variable type in slmod.units_crashed_net', true)
@@ -2071,6 +2096,9 @@ end
 
 
 function slmod.pilots_dead_net(units, flag, evnt_ind, stopflag)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if slmod.typeCheck({'table_s', 'number', 'number', {'number', 'nil'}}, {units,  flag, evnt_ind, stopflag}) ~= true then
 		slmod.error('invalid variable type in slmod.pilots_dead_net', true)
@@ -2105,6 +2133,9 @@ end
 
 
 function slmod.units_killed_by_net(dead_units, killer_units, flag, dead_ind, stopflag, last_to_hit, time_limit)   --last to hit- number value.  If nil or <1, then any unit ever to hit this unit is considered a killer.  if a positive value, the only the last last_to_hit units that hit this unit are considered killers.
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if slmod.typeCheck({'table_s', 'table_s', 'number', 'number', {'number', 'nil'}, {'number', 'nil'}, {'number', 'nil'}}, {dead_units, killer_units, flag, dead_ind, stopflag, last_to_hit, time_limit}) ~= true then
 		slmod.error('Slmod: invalid variable input in slmod.units_killed_by_net')--stopflag     --last_to_hit   --time_limit
@@ -2191,6 +2222,9 @@ end
 
 
 function slmod.weapons_impacting_in_zones_net(init_units, zones, weapons, flag, stopflag)   
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if not slmod.typeCheck({{'string', 'table_s'}, {'string', 'table_s'}, {'table_s', 'string'}, 'number', {'number', 'nil'}}, {init_units, zones, weapons, flag, stopflag}) then
 		slmod.error('invalid variable type in slmod.weapons_impacting_in_zones_net', true)
@@ -2251,6 +2285,9 @@ end
 
 
 function slmod.weapons_impacting_in_moving_zones_net(init_units, zone_units, radius, weapons, flag, stopflag)   
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if not slmod.typeCheck({{'string', 'table_s'}, {'string', 'table_s'}, 'number', {'string', 'table_s'}, 'number', {'number', 'nil'}}, {init_units, zone_units, radius, weapons, flag, stopflag}) then
 		slmod.error('invalid variable type in slmod.weapons_impacting_in_moving_zones_net', true)
@@ -2307,6 +2344,9 @@ end
 
 
 function slmod.weapons_in_zones_net(init_units, zones, weapons, flag, stopflag, zone_type)   
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if not slmod.typeCheck({{'string', 'table_s'}, {'string', 'table_s'}, {'table_s', 'string'}, 'number', {'number', 'nil'}, {'string', 'nil'}}, {init_units, zones, weapons, flag, stopflag, zone_type}) then
 		slmod.error('invalid variable type in slmod.weapons_in_zones_net', true)
@@ -2381,6 +2421,9 @@ end
 
 
 function slmod.weapons_in_moving_zones_net(init_units, zone_units, radius, weapons, flag, stopflag, zone_type)   
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if not slmod.typeCheck({{'string', 'table_s'}, {'string', 'table_s'}, 'number', {'string', 'table_s'}, 'number', {'number', 'nil'}, {'string', 'nil'}}, {init_units, zone_units, radius, weapons, flag, stopflag, zone_type}) then
 		slmod.error('invalid variable type in slmod.weapons_in_moving_zones_net', true)
