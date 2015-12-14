@@ -89,7 +89,7 @@ do
 							end
 							local lShells
 							if eventCopy.type =='start shooting' or eventCopy.type == 'end shooting' then -- scripting engine shell enum
-								print('line92')
+								--print('line92')
 								lShells = 0
 								for index, data in pairs(Unit.getByName(eventCopy.initiator):getAmmo()) do
 									if data.desc.category == 0 then

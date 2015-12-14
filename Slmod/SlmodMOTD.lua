@@ -38,7 +38,8 @@ if slmod.config.MOTD_enabled then
 	
 	local function getChatKey(id) -- id is client id.
 		if id then
-			local side, unitId = net.get_unit(id)  -- get side and unitId
+			local side = net.get_player_info(id, 'side')
+			local unitId = net.get_player_info(id, 'slot')  -- get side and unitId
 			if unitId then -- if in a unit.
 				if is_BC(unitId) then  -- if it is a CA slot
 					return chatKeyByModule['CA']
