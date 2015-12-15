@@ -38,15 +38,17 @@ if slmod.config.MOTD_enabled then
 	
 	local function getChatKey(id) -- id is client id.
 		if id then
+
 			local side = net.get_player_info(id, 'side')
 			local unitId = net.get_player_info(id, 'slot')  -- get side and unitId
+
 			if unitId then -- if in a unit.
 				if is_BC(unitId) then  -- if it is a CA slot
 					return chatKeyByModule['CA']
 				else -- not a CA slot.
 					unitId = tonumber(unitId)
 					if unitId and unitId > 0 then
-						local unitName = tostring(net.get_unit_property(unitId, 3))  -- get Unit's ME name
+						local unitName = tostring(DCS.getUnitProperty(unitId, 3))  -- get Unit's ME name
 						if unitName then
 							local unitData = slmod.allMissionUnitsByName[unitName]
 							if unitData then

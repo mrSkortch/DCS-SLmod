@@ -332,10 +332,10 @@ do
 			local fields = {}
 			while s do
 				field_s, sep, s = GetNextNumField(s)
-				-- print(field_s)
-				-- print(sep)
-				-- print(s)
-				-- print('\n')
+				-- net.log(field_s)
+				-- net.log(sep)
+				-- net.log(s)
+				-- net.log('\n')
 				if field_s then
 					field = {}
 					field['val'] = field_s
@@ -628,13 +628,13 @@ do
 				local lat_hemi = s:sub((string.find(s, '[NS]')), (string.find(s, '[NS]')))
 				local lon_hemi = s:sub((string.find(s, '[EW]')), (string.find(s, '[EW]')))
 				if LLVar == 'XNXE' then
-					-- print('original string: ')
-					-- print(s)
+					-- net.log('original string: ')
+					-- net.log(s)
 					lat_s = s:sub(1, (string.find(s, '[NS]')) - 1)
 					lon_s = s:sub( (string.find(s, '%d', (string.find(s, '[NS]')) + 1)), s:len() - 1)
-					-- print('lat_s and lon_s')
-					-- print(lat_s)
-					-- print(lon_s)
+					-- net.log('lat_s and lon_s')
+					-- net.log(lat_s)
+					-- net.log(lon_s)
 					lat_fields = GetFields(lat_s)
 					lon_fields = GetFields(lon_s)
 				elseif LLVar == 'NXEX' then
@@ -822,17 +822,17 @@ do
 	]]
 
 	local function cmdMatch(cmd, s)  --determines if s is a version of cmd and returns variables from the message
-		--print('into cmdMatch')
-		-- print(type(cmd))
-		-- print(#cmd)
+		--net.log('into cmdMatch')
+		--net.log(type(cmd))
+		--net.log(#cmd)
 		local vars = {}
 		if not cmd[1] then --just protecting against empty cmd
-			--print('here1')
+			--net.log('here1')
 			return -1
 		end
 		-- need to first make sure that s can actually be a cmd
 		if not s:find('[^ ]') then -- if no non-spaces found
-			--print('here2')
+			--net.log('here2')
 			return -1
 		end
 		
@@ -923,7 +923,7 @@ do
 		
 		do  -- do some simple checks first.  Maybe remove this logic later.
 			if #s_words < 1 then  -- just a dumb check. one can never be too safe
-				--print('here3')
+				--net.log('here3')
 				return -1
 			end
 			
@@ -934,7 +934,7 @@ do
 				if cmd[1].varname then -- add to vars table
 					vars[cmd[1].varname] = s_original
 				end
-				--print('here4')
+				--net.log('here4')
 				return 1, vars
 			elseif cmd[1].type == 'word' then
 			
@@ -943,7 +943,7 @@ do
 				-- first element of cmd must be a word word (or text as above), and required, so we can save a some computation time here
 				local cmd_word_ind, exactmatch = word_match(s_words[1], cmd[1])
 				if not cmd_word_ind then
-					--print('here5')
+					--net.log('here5')
 					return -1
 				elseif #s_words == 1 and #cmd == 1 then  --match with a single word
 					if cmd[1].varname then -- it had a varname, so need to add it to rawvars table
@@ -955,31 +955,31 @@ do
 						
 						
 						if exactmatch then --exact match
-							--print('here6')
+							--net.log('here6')
 							return 1, vars
 						else --NOT an exact match
-							--print('here7')
+							--net.log('here7')
 							return 0, vars
 						end
 						
 					end
 					
 					--It wasn't a variable, so no vars table required.			
-					--print('here6')
+					--net.log('here6')
 					if exactmatch then --exact match
-						--print('here8')
+						--net.log('here8')
 						return 1
 					else --NOT an exact match
-						--print('here9')
+						--net.log('here9')
 						return 0
 					end
 				end
 				if #cmd == 1 then --s_words had 2 or more words, and cmd had only 1, not a match
-					--print('here10')
+					--net.log('here10')
 					return -1
 				end
 			else
-				--print('here11')
+				--net.log('here11')
 				return -1 -- first command type not 'word' or 'text'.
 			end
 		
@@ -996,7 +996,7 @@ do
 				local cmd_word_ind, exactmatch = word_match(s_words[s_ind], cmd[cmd_ind])
 				if not cmd_word_ind then -- cmd is a word and it doesn't match
 					if cmd[cmd_ind].required then --no match on required word
-						--print('here12')
+						--net.log('here12')
 						return -1
 					else  --not required, it could be the next cmd
 						cmd_ind = cmd_ind + 1 --move on to the next cmd.
@@ -1036,7 +1036,7 @@ do
 					elseif #cmd > cmd_ind and (word_match(s_words[s_ind], cmd[cmd_ind + 1])) then -- THIS s_word matches the word for next cmd
 						cmd_ind = cmd_ind + 1
 					else  -- ok, so, this wasn't the last s_word, the next s_word didn't match the next cmd word, and this s_word didn't match the next cmd word 
-						--print('here13')
+						--net.log('here13')
 						return -1 --ok, is this necessary?
 					end	
 				end	
@@ -1146,18 +1146,20 @@ do
 			----------------------------------------------------------------------------------------
 			-- text command
 			elseif cmd[cmd_ind].type == 'text' and (cmd_ind == #cmd) then  --next cmd is raw text entry, and the last command- text can only be last variable
-				--print('into the text type command')
+				--net.log('into the text type command')
 				local s_original_lower = s_original:lower()
 				local pstart, pend = s_original_lower:find(s_words[s_ind - 1])  -- should find the index of the previous s_word within the original s
 				if cmd[cmd_ind].varname then -- add to vars table
-					vars[cmd[cmd_ind].varname] = s_original:sub(pend + 2, s_original:len())
-					--print('adding ' .. s_original:sub(pend + 2, s_original:len()) .. ' to vars')
+					vars[cmd[cmd_ind].varname] = s_original:sub(pend + 2, s_original:len())-- THIS FUCKER RIGHT HERE IS THE PROBLEM!
+					
+					
+					--net.log('adding ' .. s_original:sub(pend + 2, s_original:len()) .. ' to vars')
 				end
 				cmd_ind = cmd_ind + 1  -- should break out of loop, there can only be one text cmd and it must be the last one.
 
 			-----------------------------------------------------------------------------------------	
 			else -- not number, text, coords, or text, never ever should happen.
-				--print('here14')
+				--net.log('here14')
 				return -1
 			end
 		end
@@ -1173,7 +1175,7 @@ do
 		if cmd_ind <= #cmd then -- look for any remaining required cmds
 			for i = cmd_ind, #cmd do
 				if cmd[i].required == true then
-					--print('here15')
+					--net.log('here15')
 					return -1 -- there was a required cmd that wasn't used, return -1
 				end
 				
@@ -1181,17 +1183,17 @@ do
 		end
 		
 		if s_ind ~= #s_words + 1 and cmd[#cmd].type ~= 'text' then -- should be this value to have ended while loop?
-			--print('here16')
+			--net.log('here16')
 			return -1 -- s_words not properly accounted for in cmd.
 		end
 		
 		if #rawvars == 0 then -- no rawvars, go ahead and return
-			--print('here13')
+			--net.log('here13')
 			if not part_match then
-				--print('here17')
+				--net.log('here17')
 				return 1, vars
 			else
-				--print('here18')
+				--net.log('here18')
 				return 0, vars
 			end
 		else -- there are some variables that need convertin
@@ -1199,14 +1201,14 @@ do
 				if rawvars[i].type == 'coords' then
 				
 					local err_code, coords_msg, coords = getCoords(rawvars[i].value)
-					--print(rawvars[i].value)
-					--print(str_msg)
+					--net.log(rawvars[i].value)
+					--net.log(str_msg)
 					if err_code == 1 and type(coords) == 'table' then -- looks like it was successful
 						vars[rawvars[i].varname] = coords
 						vars['coords_msgs'] = vars['coords_msgs'] or {}
 						table.insert(vars['coords_msgs'], coords_msg)  -- allows coordinate messages to be returned
 					else
-						--print('here19')
+						--net.log('here19')
 						return -1
 					end
 				elseif rawvars[i].type == 'number' then
@@ -1217,28 +1219,28 @@ do
 						elseif not rawvars[i].validrange then -- no validrange specified
 							vars[rawvars[i].varname] = num
 						else
-							--print('here20')
+							--net.log('here20')
 							return -1 -- not within validrange
 						end
 					else
-						--print('here21')
+						--net.log('here21')
 						return -1  --failed tonumber conversion
 					
 					end
 					
 				else
-					--print('here22')
+					--net.log('here22')
 					return -1 --should never get here
 				end	
 			end
 		end
 		--if still here, there there are variables that need to be returned.
-		--print('here18')
+		--net.log('here18')
 		if not part_match then
-			--print('here23')
+			--net.log('here23')
 			return 1, vars
 		else
-			--print('here24')
+			--net.log('here24')
 			return 0, vars
 		end
 		

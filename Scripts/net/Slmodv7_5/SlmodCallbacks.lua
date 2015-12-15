@@ -12,7 +12,7 @@ slmod.recvDataCntr = 1  -- index of last command + 1
 slmod.func_old = slmod.func_old or {}
 
 --redefine on_process
-slmod.func_old.on_process = slmod.func_old.on_process or server.on_process -- using a global just in case I make a reload_slmod work again
+slmod.func_old.on_process = slmod.func_old.on_process or onSimulationFrame -- using a global just in case I make a reload_slmod work again
 
 do
 	
@@ -113,29 +113,78 @@ do
 	sandbox.slmod['weapons_in_zones_net'] = slmod.weapons_in_zones_net
 	sandbox.slmod['weapons_in_moving_zones_net'] = slmod.weapons_in_moving_zones_net
 	
+	--creating slmod.clients and banning code.
+
+--modifying on_net_start
+do
+
+	----------------------------------------------------------
+	-- code to protect Slmod from running too early or too late, piggy-backs onto netview.
+	--ghetto, but will work for now.
+	function on_net_start() end
+	local function createNetviewDetector()
+		local modifyNetviewString = [[slmod = slmod or {}
+
+if not slmod.oldNetviewStart then  -- if this is the first time this code is running this game session
+	slmod.oldNetviewStart = netview.start
+	function netview.start()
+		slmod.netview = true
+		return slmod.oldNetviewStart()
+	end
+
+	slmod.oldNetviewStop = netview.stop
+	function netview.stop()
+		slmod.netview = false
+		return slmod.oldNetviewStop()
+	end
+end
+
+function slmod.getNetview()
+	return tostring(slmod.netview)
+end]]
+		local str, err = net.dostring_in('config', modifyNetviewString)
+		slmod.info('Modifying netview... results: ' .. tostring(str) .. ', ' .. tostring(err))
+	end
+	----------------------------------------------------------
 	
+	slmod.func_old.on_net_start = slmod.func_old.on_net_start or on_net_start -- find alt.
+	on_net_start = function()
+		createNetviewDetector()  -- prevents slmod from running too early or too late.
+		slmod.clients = slmod.clients or {}
+		slmod.clients[1] = {id = 1, name = net.get_name(1), ucid = slmod.config.host_ucid or 'host' }  -- server host
+		return slmod.func_old.on_net_start()
+	end
+
+end
 	
 	local prevExecTime = 0  -- for once-every-second code.
 	
+	local runF = false
 	
 	local function getNetview()
-		local str, err = net.dostring_in('config', 'return slmod.getNetview()')
-		if err then
-			if str == 'true' then
-				return true
-			elseif str == 'false' then
-				return false
-			end  -- else will return nil, could be useful to detect code errors.
+		if DCS.isMultiplayer() == true and DCS.isServer() == true then
+			if runF == false then
+				on_net_start()
+				runF = true
+			end			
+			local str, err = net.dostring_in('config', 'return slmod.getNetview()')
+			if err then
+				if str == 'true' then
+					return true
+				elseif str == 'false' then
+					return false
+				end  -- else will return nil, could be useful to detect code errors.
+			end
 		end
 	end
 
-	function server.on_process()
-		if getNetview() then  -- only run if netview is running.  Netview seems to know the proper times as to when the
+	function onSimulationFrame() -- onProcess or onSimFrame ?
+		if getNetview() == true then  -- only run if netview is running.  Netview seems to know the proper times as to when the
 	                                -- game is fully started, and when the game is beginning to stop.
 			---------------------------------------------------------------------------------------------------------------
 			-- data passing code
-
-			if net.get_model_time() > 0 then  -- must check this to prevent a possible CTD by using a_do_script before the game is ready to use a_do_script.
+			--net.log('netViewTrue')
+			if DCS.getModelTime() > 0 then  -- must check this to prevent a possible CTD by using a_do_script before the game is ready to use a_do_script.
 				local str, err = net.dostring_in('mission', 'return a_do_script(\'slmod.sendData()\')')  -- using LuaSocket, sends any data from Slmod mission scripting components to slmod.config.udp_port.
 			end
 			
@@ -156,7 +205,7 @@ do
 				if not err then
 					slmod.recvData[#slmod.recvData + 1] = cmd
 					dataSent = true
-					--print('recieved data: ' .. cmd)
+					--net.log('recieved data: ' .. cmd)
 				end
 			until err
 					
@@ -177,7 +226,7 @@ do
 							for i = 1, #slmod.recvCmds[cmdNum] do
 								fcnString = fcnString .. slmod.recvCmds[cmdNum][i]
 							end
-							--print(fcnString)
+							--net.log(fcnString)
 							local f, err = loadstring(fcnString)
 							if f then
 								setfenv(f, sandbox)
@@ -216,18 +265,18 @@ do
 			-- do the updateActiveUnits coroutine...
 			slmod.coroutines = slmod.coroutines or {}
 			if not slmod.coroutines.updateActiveUnits then
-				slmod.coroutines.updateActiveUnits = {co = coroutine.create(slmod.updateActiveUnits), startTime = net.get_real_time(), lastRun = net.get_real_time()}
+				slmod.coroutines.updateActiveUnits = {co = coroutine.create(slmod.updateActiveUnits), startTime = DCS.getRealTime(), lastRun = DCS.getRealTime()}
 				coroutine.resume(slmod.coroutines.updateActiveUnits.co)
 			else  -- the coroutine did exist.
-				if net.get_real_time() - slmod.coroutines.updateActiveUnits.lastRun >= 0.05 then -- 20 times a second...
+				if DCS.getRealTime() - slmod.coroutines.updateActiveUnits.lastRun >= 0.05 then -- 20 times a second...
 					if not slmod.missionEndEvent() then  -- if the last event was not an end mission event...
 						if coroutine.status(slmod.coroutines.updateActiveUnits.co) == 'dead' then -- it's finished
-							if net.get_real_time() - slmod.coroutines.updateActiveUnits.startTime >= 3 then  -- make sure at least 3 seconds have elapsed.
+							if DCS.getRealTime() - slmod.coroutines.updateActiveUnits.startTime >= 3 then  -- make sure at least 3 seconds have elapsed.
 								slmod.coroutines.updateActiveUnits = nil -- erase it, ready for next cycle to start.
 							end
 						else  -- it's not done.
 							coroutine.resume(slmod.coroutines.updateActiveUnits.co)
-							slmod.coroutines.updateActiveUnits.lastRun = net.get_real_time()
+							slmod.coroutines.updateActiveUnits.lastRun = DCS.getRealTime()
 						end
 					end
 				end
@@ -260,7 +309,7 @@ do
 				end
 
 				------------- DO ANY DO ONCE CODE AT T>1 ----------------------------------------------------
-				if slmod.do_once_code and net.get_model_time() > 1 then
+				if slmod.do_once_code and DCS.getModelTime() > 1 then
 					net.dostring_in('server', 'slmod.track_weapons()')  -- start weapons tracking
 					slmod.doOnceTest1() -- do any tests
 					slmod.do_once_code = false
@@ -287,31 +336,34 @@ do
 				slmod_pause_forced turned off when override is toggled
 			]]
 			
-			if slmod.config.pause_when_empty and (net.get_real_time() > slmod.mission_start_time + 8) then -- 8 second window to hopefully always avoid the CTD
-				if not net.is_paused() then
+
+			if slmod.config.pause_when_empty and (DCS.getRealTime() > slmod.mission_start_time + 8) then -- 8 second window to hopefully always avoid the CTD
+				if DCS.getPause() == false then
 					slmod_pause_forced = false  -- turn off the forced pause if the server is not paused for any reason.
 				end
 				
 				if not slmod_pause_override then 
-					if (not slmod.num_clients or slmod.num_clients == 0) and not net.is_paused() then
-						net.pause()
-					elseif slmod.num_clients and slmod.num_clients > 0 and net.is_paused() and (not slmod_pause_forced) then
-						net.resume()
+					if (slmod.num_clients and slmod.num_clients == 1 or not slmod.num_clients) and DCS.getPause() == false then
+						DCS.setPause(true)
+					elseif slmod.num_clients and slmod.num_clients > 1 and DCS.getPause() == true and (not slmod_pause_forced) then
+						DCS.setPause(false)
 					end
 				end
+				
 			end
 			return slmod.func_old.on_process()
 		end
 	end
+	
 end
 
 
 
 -- redefine on_mission
-slmod.func_old.on_mission = slmod.func_old.on_mission or server.on_mission
-function server.on_mission(filename)
-	slmod.current_mission = filename
-	slmod.mission_start_time = net.get_real_time()  --needed to prevent CTD caused by C Lua API on net.pause and net.resume
+slmod.func_old.on_mission = slmod.func_old.on_mission or onMissionLoadBegin --onMissionLoadBegin
+function onMissionLoadBegin(filename)
+	slmod.current_mission = filename or 'slmod_testing.miz'
+	slmod.mission_start_time = DCS.getRealTime()  --needed to prevent CTD caused by C Lua API on net.pause and net.resume
 	slmod.mission_started = true
 	slmod.do_once_code = true
 	
@@ -325,19 +377,16 @@ function server.on_mission(filename)
 	return slmod.func_old.on_mission(filename)
 end
 
---redefine on_chat
-slmod.func_old.on_chat = slmod.func_old.on_chat or server.on_chat -- old_on_chat should be an upvalue of on_chat, using the "or" just in case I make a reload_slmod work again
-function server.on_chat(id, msg, all)  --new definition
-	--print('got into new on_chat')
+slmod.func_old.onPlayerTrySendChat = slmod.func_old.onPlayerTrySendChat or onPlayerTrySendChat -- old_on_chat should be an upvalue of on_chat, using the "or" just in case I make a reload_slmod work again
+function onPlayerTrySendChat(id, msg, all)  --new definition
+	local realString = string.sub(msg, 1, msg:len() - 1)
 	-- the old, slmod_on_chat functionality:
 	slmod.chat_table = slmod.chat_table or {}
-	table.insert(slmod.chat_table, { id = id, msg = msg, all = all })
+	table.insert(slmod.chat_table, { id = id, msg = realString, all = all })
 	
 	--new functionality
-	local suppress = slmod.doMenuCommands(id, msg)
-	
-	-------------------------------------------------
-	-- Chat logging
+	local suppress = slmod.doMenuCommands(id, realString)
+
 	if slmod.chatLogFile and slmod.clients[id] then  -- client better exist in slmod clients!
 		local clientInfo = table.concat({'{name  = ', slmod.basicSerialize(tostring(slmod.clients[id].name)), ', ucid = ', slmod.basicSerialize(tostring(slmod.clients[id].ucid)), ', ip = ',  slmod.basicSerialize(tostring(slmod.clients[id].addr)), ', id = ', tostring(id),  '}'})
 
@@ -350,7 +399,7 @@ function server.on_chat(id, msg, all)  --new definition
 				logline = logline .. ' to coalition'
 			end
 			
-			if suppress then
+			if suppress then -- do you see the violence inheirited in the system?
 				logline = logline .. ' (output suppressed by Slmod)\n'
 			else
 				logline = logline .. '\n'
@@ -364,108 +413,72 @@ function server.on_chat(id, msg, all)  --new definition
 	elseif not slmod.clients[id] then
 		slmod.error('chat message from non-existent client in slmod.clients!')
 	end
-	-------------------------------------------------
 	
 	if suppress then
 		return  -- don't go any further- suppress any further on_chat.
 	else
-		return slmod.func_old.on_chat(id, msg, all)  -- do the original on_chat
+		return realString  -- do the original on_chat
 	end
 end
 
 -----------------------------------------------------------------------------------------
---creating slmod.clients and banning code.
-
---modifying on_net_start
-do
-
-	----------------------------------------------------------
-	-- code to protect Slmod from running too early or too late, piggy-backs onto netview.
-	--ghetto, but will work for now.
-	local function createNetviewDetector()
-		local modifyNetviewString = [[slmod = slmod or {}
-
-if not slmod.oldNetviewStart then  -- if this is the first time this code is running this game session
-	slmod.oldNetviewStart = netview.start
-	function netview.start()
-		slmod.netview = true
-		return slmod.oldNetviewStart()
-	end
-
-	slmod.oldNetviewStop = netview.stop
-	function netview.stop()
-		slmod.netview = false
-		return slmod.oldNetviewStop()
-	end
-end
-
-function slmod.getNetview()
-	return tostring(slmod.netview)
-end]]
-		local str, err = net.dostring_in('config', modifyNetviewString)
-		slmod.info('Modifying netview... results: ' .. tostring(str) .. ', ' .. tostring(err))
-	end
-	----------------------------------------------------------
-	
-	slmod.func_old.on_net_start = slmod.func_old.on_net_start or server.on_net_start
-	server.on_net_start = function()
-		createNetviewDetector()  -- prevents slmod from running too early or too late.
-		slmod.clients = slmod.clients or {}
-		slmod.clients[1] = {id = 1, name = net.get_name(1), ucid = slmod.config.host_ucid or 'host' }  -- server host
-		return slmod.func_old.on_net_start()
-	end
-
-end
 --modify on_connect
-slmod.func_old.on_connect = slmod.func_old.on_connect or server.on_connect
-server.on_connect = function(id, addr, port, name, ucid)
-	slmod.bannedIps = slmod.bannedIps or {}
-	slmod.bannedUcids = slmod.bannedUcids or {}
-	
-	if slmod.bannedIps[addr] then
-		return "You are banned from this server.", false
-	end
-	
-	if slmod.bannedUcids[ucid] then
-		return "You are banned from this server.", false
-	end
+slmod.func_old.on_connect = slmod.func_old.on_connect or onPlayerConnect
+onPlayerConnect = function(id, name)
 
-	if not slmod.autoAdminOnConnect(ucid) then
-		return 'You are autobanned from this server', false
-	end
-	
 	slmod.clients = slmod.clients or {} --should not be necessary.
-	slmod.clients[id] = {id = id, addr = addr, name = name, ucid = ucid, ip = addr}
+	slmod.clients[id] = {id = id, addr = net.get_player_info(id, 'ipaddr'), name = net.get_player_info(id, 'name'), ucid = net.get_player_info(id, 'ucid'), ip = net.get_player_info(id, 'ipaddr')}
 	
 	if not slmod.num_clients then
 		slmod.num_clients = 1
 	else
 		slmod.num_clients = slmod.num_clients + 1
 	end
+	return slmod.func_old.on_connect(id)
+end 
+
+slmod.func_old.onPlayerTryConnect = slmod.func_old.on_connect or onPlayerTryConnect
+onPlayerTryConnect = function(addr, name, ucid)
+
+	slmod.bannedIps = slmod.bannedIps or {}
+	slmod.bannedUcids = slmod.bannedUcids or {}
+
+	if slmod.bannedIps[addr] then
+		return false, "You are banned from this server."
+	end
+
+	if slmod.bannedUcids[ucid] then
+		return false, "You are banned from this server."
+	end
 	
-	return slmod.func_old.on_connect(id, addr, port, name, ucid)
+	if not slmod.autoAdminOnConnect(ucid) then
+		return false, 'You are autobanned from this server'
+	end
+
+
+	return true
 end
 
 -- modify on_set_unit
-slmod.func_old.on_set_unit = slmod.func_old.on_set_unit or server.on_set_unit
-server.on_set_unit = function(id, side, unit)
+slmod.func_old.on_set_unit = slmod.func_old.on_set_unit or onPlayerChangeSlot
+onPlayerChangeSlot = function(id)
 	if slmod.stats.onSetUnit then
-		slmod.stats.onSetUnit(id)
-	end
-
-	if SlmodMOTDMenu then  -- right now, simple MOTD- send it to player when they select unit.
-		if slmod.clients[id] and (not slmod.clients[id].motdTime or net.get_real_time() - slmod.clients[id].motdTime > 5) then
-			slmod.clients[id].motdTime = net.get_real_time()
-			slmod.scheduleFunctionByRt(SlmodMOTDMenu.show, {SlmodMOTDMenu, id, {clients = {id}}}, net.get_real_time() + 0.1)
+			slmod.stats.onSetUnit(id)
 		end
-	end
-	
-	return slmod.func_old.on_set_unit(id, side, unit)
+
+		if SlmodMOTDMenu then  -- right now, simple MOTD- send it to player when they select unit.
+			if slmod.clients[id] and (not slmod.clients[id].motdTime or DCS.getRealTime() - slmod.clients[id].motdTime > 5) then
+				slmod.clients[id].motdTime = DCS.getRealTime()
+				slmod.scheduleFunctionByRt(SlmodMOTDMenu.show, {SlmodMOTDMenu, id, {clients = {id}}}, DCS.getRealTime() + 0.1)
+			end
+		end
+		
+		return slmod.func_old.on_set_unit(id)
 end
 
 --modify on_disconnect
-slmod.func_old.on_disconnect = slmod.func_old.on_disconnect or server.on_disconnect
-server.on_disconnect = function(id, err)
+slmod.func_old.on_disconnect = slmod.func_old.on_disconnect or onPlayerDisconnect
+onPlayerDisconnect = function(id, err)
 	slmod.clients = slmod.clients or {}  --should not be necessary.
 	if slmod.clients[id] then
 		slmod.clients[id] = nil

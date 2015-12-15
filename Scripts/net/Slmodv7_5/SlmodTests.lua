@@ -62,9 +62,9 @@ function slmod.doOnceTest1()  -- called ONCE at t = 1 after mission start
 	
 	
 	
-	-- local err, bool = net.dostring_in('mission', "print(\"TESTING a_do_script!\"); print(a_do_script(\"print('testing 123'); return 'test'\"))")
-	-- print(err)
-	-- print(bool)
+	-- local err, bool = net.dostring_in('mission', "net.log(\"TESTING a_do_script!\"); net.log(a_do_script(\"net.log('testing 123'); return 'test'\"))")
+	-- net.log(err)
+	-- net.log(bool)
 end
 
 
@@ -147,19 +147,19 @@ function slmod.onProcessTest1()  -- called every 1 second
 	---DOESN'T WORK except when scriptman calls this via a function?! (Perhaps change all references of scriptman to refer to this data?)  probably not, it's probably already like this.  Hmmm..
 	-- local mizstr, mizerr = net.dostring_in('mission', [[mission["coalition"]["blue"]["country"][9]["vehicle"]["group"][1]["tasks"][1]["params"]["action"]["params"]["command"] = 'output(\'SUCCESSFULLY MODIFIED SCRIPT!\')']])
 	--net.dostring_in('mission', "a_ai_task(\"scriptman\", 1)")
-	-- print('mizstr and mizerr')
-	-- print(mizstr)
-	-- print(mizerr)
+	-- net.log('mizstr and mizerr')
+	-- net.log(mizstr)
+	-- net.log(mizerr)
 	------------------------------------------------------------------------------------------------
 	--NEXT: see what happens if I make a phony group with a script action.
 	
 	
 	
 	---------WORKS!  Trigger function modification.---------------------
-	-- local mizstr, mizerr = net.dostring_in('mission', 'mission["trig"]["actions"][1] = function () print(\'modified the trigger!!!\') end')
-	-- print('mizstr and mizerr')
-	-- print(mizstr)
-	-- print(mizerr)
+	-- local mizstr, mizerr = net.dostring_in('mission', 'mission["trig"]["actions"][1] = function () net.log(\'modified the trigger!!!\') end')
+	-- net.log('mizstr and mizerr')
+	-- net.log(mizstr)
+	-- net.log(mizerr)
 	---------------------------------------------------
 
 end
@@ -188,13 +188,13 @@ end]=======]
 
 	-- REPLACE WITH LOAD_IN_EXPORT
 	local success, load_success = net.dostring_in('export', ReturnWeapons_string)
-	print(success)
+	net.log(success)
 	--Keep re-trying to load until successful
 	if load_success == false then
-		print('unable to load into export')
-		slmod.schedule_dostring_in('net', 'slmod.create_ReturnWeapons()', net.get_model_time() + 0.1)
+		net.log('unable to load into export')
+		slmod.schedule_dostring_in('net', 'slmod.create_ReturnWeapons()', DCS.getModelTime() + 0.1)
 	else
-		print('successfully loaded ReturnWeapons function')	
+		net.log('successfully loaded ReturnWeapons function')	
 	end
 
 end
@@ -238,22 +238,22 @@ function slmod.makeCLSIDsTbl()
 	end]]
 	
 	local str, err = net.dostring_in('server', CLSIDs_fnc_str)
-	print('slmod.makeCLSIDsTbl result:')
-	print(str)
-	print(err)
+	net.log('slmod.makeCLSIDsTbl result:')
+	net.log(str)
+	net.log(err)
 end
 
 function slmod.getWeaponsFromExport()
 	local retstr, err = net.dostring_in('export', "return ReturnWeapons()")
-	print('trying to output weapons')
+	net.log('trying to output weapons')
 	if err then
 		local f = io.open(lfs.writedir() .. [[Logs\]] .. 'exportweapons.txt', 'w')
 		f:write(retstr)
 		f:close()	
 		f = nil
-		print('file made')
+		net.log('file made')
 	else
-		print('unable to output, reason: ' .. retstr)
+		net.log('unable to output, reason: ' .. retstr)
 	end
 end
 

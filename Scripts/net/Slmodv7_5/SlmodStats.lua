@@ -1282,14 +1282,15 @@ end]]
 	----------------------------------------------------------------------------------------------------------
 	-- tracks flight times.
 	function slmod.stats.trackFlightTimes(prevTime)  -- call every 10 seconds, tracks flight time.
-		slmod.scheduleFunction(slmod.stats.trackFlightTimes, {net.get_model_time()}, net.get_model_time() + 10)  -- schedule first to avoid a Lua error.
+		slmod.scheduleFunction(slmod.stats.trackFlightTimes, {DCS.getModelTime()}, DCS.getModelTime() + 10)  -- schedule first to avoid a Lua error.
 		
 		inAirClients = {}  -- reset upvalue inAirClients table.
 		if prevTime and slmod.config.enable_slmod_stats then  -- slmod.config.enable_slmod_stats may be disabled after the mission has already started.
-			local dt = net.get_model_time() - prevTime
+			local dt = DCS.getModelTime() - prevTime
 			-- first, update all client flight times.
 			for id, client in pairs(slmod.clients) do -- for each player (including host)
-				local side, unitId = net.get_unit(id)  -- get side and unitId
+				local side = net.get_player_info(id, 'side')
+				local unitId = net.get_player_info(id, 'slot')  -- get side and unitId
 
 				if unitId then -- if in a unit.
 					if is_BC(unitId) then  -- if it is a CA slot
@@ -1312,7 +1313,7 @@ end]]
 					else -- not a CA slot.
 						unitId = tonumber(unitId)
 						if unitId and unitId > 0 then
-							unitName = tostring(net.get_unit_property(unitId, 3))  -- get Unit's ME name
+							unitName = tostring(DCS.getUnitProperty(unitId, 3))  -- get Unit's ME name
 							if unitName then
 								local retStr = net.dostring_in('server', table.concat({'return slmod.getStatsUnitInfo(', slmod.basicSerialize(unitName), ')'}))  -- get if the unit is in air, and the unit's name.
 								if retStr and retStr ~= '' then
@@ -1402,7 +1403,7 @@ end]]
 								--slmod.info('weapon found')
 								local weapon
 								if event.type == 'end shooting' then
-								--	slmod.info('gun check')
+									--slmod.info('gun check')
 									weapon = 'guns'
 									--- this is code to check the number of rounds fired. 
 									local shootingCount = 0 -- required for P-51D or other types that have multiple shooting events
@@ -1925,7 +1926,7 @@ end]]
 				----------------------------------------------------------------------------------------------------------
 				if event.type == 'land' then  -- check if this is the valid name.
 					if event.initiator and hitHumans[event.initiator] then
-						landedUnits[event.initiator] = net.get_model_time()
+						landedUnits[event.initiator] = DCS.getModelTime()
 					end
 				end -- end of land
 				----------------------------------------------------------------------------------------------------------
@@ -1965,7 +1966,7 @@ end]]
 			end  -- end of while loop.
 			
 			-- If a hitHuman lands and comes to a stop after landing without dying, remove them from hit units.
-			local currentTime = net.get_model_time()
+			local currentTime = DCS.getModelTime()
 			for unitName, landTime in pairs(landedUnits) do
 				if slmod.activeUnitsByName[unitName] then
 					if currentTime - landTime > 10 then  -- start checking to see if the unit is stationary.
@@ -1994,7 +1995,7 @@ end]]
 					
 					suppressDeath[unitName] = true
 					runDeathLogic(unitName)
-					slmod.scheduleFunction(unsuppressDeath, {unitName}, net.get_model_time() + 10)-- allow this unit to die again in 10 seconds.
+					slmod.scheduleFunction(unsuppressDeath, {unitName}, DCS.getModelTime() + 10)-- allow this unit to die again in 10 seconds.
 					landedUnits[unitName] = nil  -- may or may not be nil.
 				end
 			end	
@@ -2562,7 +2563,7 @@ end]]
 					if page1 and page2 then
 						--slmod.info(msg)
 						slmod.scopeMsg(page1, self.options.display_time/2, self.options.display_mode, {clients = {clientId}})
-						slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, net.get_model_time() + self.options.display_time/2)
+						slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, DCS.getModelTime() + self.options.display_time/2)
 					end
 				else
 					slmod.error('in fullStatsMeVars.onSelect, requester with UCID ' .. tostring(requester.ucid) .. ' does not exist in stats!')
@@ -2758,7 +2759,7 @@ end]]
 						if page1 and page2 then
 							--slmod.info(msg)
 							slmod.scopeMsg(page1, self.options.display_time/2, self.options.display_mode, {clients = {clientId}})
-							slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, net.get_model_time() + self.options.display_time/2)
+							slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, DCS.getModelTime() + self.options.display_time/2)
 						end
 					end
 				end
@@ -2828,7 +2829,7 @@ end]]
 							if page1 and page2 then
 								--slmod.info(msg)
 								slmod.scopeMsg(page1, self.options.display_time/2, self.options.display_mode, {clients = {clientId}})
-								slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, net.get_model_time() + self.options.display_time/2)
+								slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, DCS.getModelTime() + self.options.display_time/2)
 							end
 						end
 					end

@@ -155,7 +155,7 @@ do
 		local display_mode = slmod.config.admin_display_mode or 'text'
 		local display_time = slmod.config.admin_display_time or 30
 		local LoadMenu = SlmodMenu.create({showCmds = LoadShowCommands, scope = {clients = {id}}, options = {display_time = display_time, display_mode = display_mode, title = 'Mission listing in ' .. path .. ' (you have two minutes to make a choice):', privacy = {access = true, show = true}}, items = LoadItems})
-		slmod.scheduleFunctionByRt(SlmodMenu.destroy, {LoadMenu}, net.get_real_time() + 120)  --scheduling self-destruct of this menu in two minutes.
+		slmod.scheduleFunctionByRt(SlmodMenu.destroy, {LoadMenu}, DCS.getRealTime() + 120)  --scheduling self-destruct of this menu in two minutes.
 		
 		local miz_cntr = 1
 		for file in lfs.dir(path) do
@@ -194,8 +194,8 @@ do
 						AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
 					end
 					
-					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" is loading the mission: "' .. self.filename .. '".' }, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
-					slmod.scheduleFunctionByRt(net.load_mission, {path .. self.filename}, net.get_real_time() + 5)
+					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" is loading the mission: "' .. self.filename .. '".' }, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+					slmod.scheduleFunctionByRt(net.load_mission, {path .. self.filename}, DCS.getRealTime() + 5)
 				end
 				LoadItems[miz_cntr] = SlmodMenuItem.create(LoadVars) 
 				miz_cntr = miz_cntr + 1
@@ -288,9 +288,9 @@ do
 								net.kick(banId, 'You were banned from the server.')
 								slmod.update_banned_clients({ucid = slmod.clients[banId].ucid, name = self.name, ip = slmod.clients[banId].addr or slmod.clients[banId].ip}, {name = admin.name, ucid = admin.ucid})
 								
-								slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. admin.name .. '" banned player "' .. self.name .. '" from the server.'}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+								slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. admin.name .. '" banned player "' .. self.name .. '" from the server.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 							else
-								slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: no player with a client id of ' .. tostring(self.id) .. ' exists!', 1, 'chat', {clients = {client_id}}}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+								slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: no player with a client id of ' .. tostring(self.id) .. ' exists!', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 							end
 						end
 						-- confusing:  now self is back to the submenu.
@@ -369,9 +369,9 @@ do
 									adminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
 								end
 								
-								slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. adminName .. '" kicked player "' .. self.name .. '" from the server.'}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+								slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. adminName .. '" kicked player "' .. self.name .. '" from the server.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 							else
-								slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: no player with a client id of ' .. tostring(self.id) .. ' exists!', 1, 'chat', {clients = {client_id}}}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+								slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: no player with a client id of ' .. tostring(self.id) .. ' exists!', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 							end
 						end
 						-- confusing:  now self is back to the submenu.
@@ -402,7 +402,7 @@ do
 				idBanMenu:setScope(newscope)
 				idBanMenu:updateBanItems()
 			end
-			slmod.scheduleFunctionByRt(update_scope, {},  net.get_real_time() + 0.5)
+			slmod.scheduleFunctionByRt(update_scope, {},  DCS.getRealTime() + 0.5)
 		end
 		
 		
@@ -477,7 +477,7 @@ do
 				}
 			} 
 		AdminKickVars.onSelect = function(self, vars, client_id)
-			--print('in onSelect')
+			--net.log('in onSelect')
 			local playername = vars.playername or ''
 			for key, val in pairs(slmod.clients) do -- skips host
 				if val.name and type(val.name) == 'string' and val.name == playername and val.id and val.id ~= 1 then
@@ -492,11 +492,11 @@ do
 						AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
 					end
 					
-					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. AdminName .. '" kicked player "' .. val.name .. '" from the server.'}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. AdminName .. '" kicked player "' .. val.name .. '" from the server.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 					return
 				end
 			end
-			slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '".', 1, 'chat', {clients = {client_id}}}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+			slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '".', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminKickVars)  -- add the item into the items table.
@@ -564,7 +564,7 @@ do
 				}
 			} 
 		AdminBanVars.onSelect = function(self, vars, client_id)
-			--print('in onSelect')
+			--net.log('in onSelect')
 			local playername = vars.playername or ''
 			for id, client in pairs(slmod.clients) do -- skips host
 				if client.name and type(client.name) == 'string' and client.name == playername and client.id and client.id ~= 1 then
@@ -579,11 +579,11 @@ do
 					net.kick(id, 'You were banned from the server.')
 					slmod.update_banned_clients({ucid = slmod.clients[id].ucid, name = client.name, ip = slmod.clients[id].addr or slmod.clients[id].ip}, {name = admin.name, ucid = admin.ucid})
 					
-					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. admin.name .. '" banned player "' .. client.name .. '" from the server.'}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. admin.name .. '" banned player "' .. client.name .. '" from the server.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 					return
 				end
 			end
-			slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '".', 1, 'chat', {clients = {client_id}}}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+			slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '".', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminBanVars)  -- add the item into the items table.
@@ -650,7 +650,7 @@ do
 				}
 			} 
 		AdminUnbanVars.onSelect = function(self, vars, client_id)
-			--print('in onSelect')
+			--net.log('in onSelect')
 			local playername = vars.playername or ''
 			local ip_cntr = 0
 			local ucid_cntr = 0
@@ -684,9 +684,9 @@ do
 					AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
 				end
 				
-				slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: admin "' .. AdminName .. '" removed ' .. tostring(ip_cntr) .. ' IPs and ' .. tostring(ucid_cntr) .. ' UCIDs associated with player name "' .. playername .. '" from the ban list.', 1, 'chat', AdminUnbanVars.menu.scope}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+				slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: admin "' .. AdminName .. '" removed ' .. tostring(ip_cntr) .. ' IPs and ' .. tostring(ucid_cntr) .. ' UCIDs associated with player name "' .. playername .. '" from the ban list.', 1, 'chat', AdminUnbanVars.menu.scope}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 			else
-				slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '" in banned clients.', 1, 'chat', {clients = {client_id}}}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+				slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '" in banned clients.', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 			end
 		end
 		
@@ -719,7 +719,6 @@ do
 				}
 			} 
 		AddAdminVars.onSelect = function(self, vars, client_id)
-			--print('in onSelect')
 			if vars.playername and type(vars.playername) == 'string' and vars.playername:len() > 0 then
 				local playername = vars.playername
 				for key, val in pairs(slmod.clients) do
@@ -736,12 +735,12 @@ do
 							AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
 						end
 						
-						slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: admin "' .. AdminName .. '" added player "' .. val.name .. '" to the list of admins.', 1, 'chat', AddAdminVars.menu.scope}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+						slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: admin "' .. AdminName .. '" added player "' .. val.name .. '" to the list of admins.', 1, 'chat', AddAdminVars.menu.scope}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 						slmod.scopeMsg('Slmod: you were granted server admin status by admin "' .. AdminName .. '".', 1, 'chat', {clients = {val.id}})
 						return
 					end
 				end
-				slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '" in currently connected clients.', 1, 'chat', {clients = {client_id}}}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+				slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '" in currently connected clients.', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 			end
 		end
 		
@@ -774,7 +773,7 @@ do
 				}
 			} 
 		RemoveAdminVars.onSelect = function(self, vars, client_id)
-			--print('in onSelect')
+			--net.log('in onSelect')
 			local playername = vars.playername or ''
 			local ucid_cntr = 0
 			for ucid, name in pairs(Admins) do
@@ -795,9 +794,9 @@ do
 					AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
 				end
 				
-				slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: admin "' .. AdminName .. '" removed ' .. tostring(ucid_cntr) .. ' UCIDs associated with player name "' .. playername .. '" from the list of server admins.', 1, 'chat', RemoveAdminVars.menu.scope}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+				slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: admin "' .. AdminName .. '" removed ' .. tostring(ucid_cntr) .. ' UCIDs associated with player name "' .. playername .. '" from the list of server admins.', 1, 'chat', RemoveAdminVars.menu.scope}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 			else
-				slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '" in server admins.', 1, 'chat', {clients = {client_id}}}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+				slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '" in server admins.', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 			end
 		end
 		
@@ -850,15 +849,15 @@ do
 				AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
 			end
 			
-			if net.is_paused() then
-				net.resume()
-				slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" unpaused the game.'}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+			if DCS.getPause() then
+				DCS.setPause(false)
+				slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" unpaused the game.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 			else
-				net.pause()
+				DCS.setPause(true)
 				if not slmod_pause_override then 
 					slmod_pause_forced = true
 				end
-				slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" paused the game.'}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+				slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" paused the game.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 			end
 		end
 		
@@ -925,10 +924,10 @@ do
 				slmod_pause_forced = false --toggle off pause forced when override enabled/disabled.
 				
 				if not slmod_pause_override then
-					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" has enabled manual pause control.  The server will NOT pause when empty!'}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" has enabled manual pause control.  The server will NOT pause when empty!'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 					slmod_pause_override = true
 				else
-					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" has disabled manual pause control.  The server will pause when empty.'}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" has disabled manual pause control.  The server will pause when empty.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 					slmod_pause_override = false
 				end
 			end
@@ -985,8 +984,8 @@ do
 				AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
 			end
 			
-			slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" is restarting the mission.'}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
-			slmod.scheduleFunctionByRt(net.load_mission, {slmod.current_mission}, net.get_real_time() + 5)
+			slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" is restarting the mission.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+			slmod.scheduleFunctionByRt(net.load_mission, {slmod.current_mission}, DCS.getRealTime() + 5)
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(ReloadVars)  -- add the item into the items table.
@@ -1066,10 +1065,10 @@ do
 			end
 			if slmod.config.enable_slmod_stats then
 				slmod.config.enable_slmod_stats = false
-				slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" has disabled stats tracking.'}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+				slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" has disabled stats tracking.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 			else
 				slmod.config.enable_slmod_stats = true
-				slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" has enabled stats tracking.'}, net.get_real_time() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+				slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" has enabled stats tracking.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 			end
 		end
 		
@@ -1093,7 +1092,7 @@ do
 
 			local PasswordItems = {}
 			local PasswordMenu = SlmodMenu.create({ showCmds = PasswordShowCommands, scope = {clients = {id}}, options = {display_time = 5, display_mode = 'chat', title = 'Please enter the password to register you as a server admin (your next chat message in this mission will not be publicly displayed).', privacy = {access = true, show = true}}, items = PasswordItems})
-			--slmod.scheduleFunctionByRt(SlmodMenu.destroy, {PasswordMenu}, net.get_real_time() + 120)  --scheduling self-destruct of this menu in two minutes.
+			--slmod.scheduleFunctionByRt(SlmodMenu.destroy, {PasswordMenu}, DCS.getRealTime() + 120)  --scheduling self-destruct of this menu in two minutes.
 			
 			local PasswordVars = {}
 			PasswordVars.menu = PasswordMenu
@@ -1110,15 +1109,15 @@ do
 				}
 			} 
 			PasswordVars.onSelect = function(self, vars, client_id)	
-				slmod.scheduleFunctionByRt(SlmodMenu.destroy, {PasswordMenu}, net.get_real_time() + 0.1) -- Schedule first, incase Lua error below.
+				slmod.scheduleFunctionByRt(SlmodMenu.destroy, {PasswordMenu}, DCS.getRealTime() + 0.1) -- Schedule first, incase Lua error below.
 				local password = vars.password
 				if password and password == slmod.config.admin_register_password then
 					slmod.scopeMsg('Slmod: player "' .. tostring(net.get_name(client_id)) .. '" has registered as a server admin.', 1, 'chat', SlmodAdminMenu.scope)
-					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: you have been registered as an admin on this server.', 1, 'chat', {clients = {client_id}}}, net.get_real_time() + 0.1)
+					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: you have been registered as an admin on this server.', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)
 					update_admins(slmod.clients[client_id])
 				else
 					slmod.scopeMsg('Slmod: player "' .. tostring(net.get_name(client_id)) .. '" attempted to register as server admin with invalid password.', 1, 'chat', SlmodAdminMenu.scope)
-					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: invalid password. DO NOT ATTEMPT TO RE-ENTER THE PASSWORD.  Type "-reg" again in chat to start over again!', 1, 'chat', {clients = {client_id}}}, net.get_real_time() + 0.1)
+					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: invalid password. DO NOT ATTEMPT TO RE-ENTER THE PASSWORD.  Type "-reg" again in chat to start over again!', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)
 				end
 			end
 

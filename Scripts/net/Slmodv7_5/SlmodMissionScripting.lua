@@ -21,7 +21,7 @@ end
 do
 	slmod = {}
 	local config = {}  -- don't want hte slmod config settings adjustable from MissionScripting, so local
-	slmod.version = '7_3'
+	slmod.version = '7_5'
 	---------------------------------------------------------------------------------------------------
 	-- Loading the config settings
 	local configPath = lfs.writedir() .. [[Slmod\config.lua]]

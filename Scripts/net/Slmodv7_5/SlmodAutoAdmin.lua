@@ -15,7 +15,7 @@ do
 	local function delayedKick(id, ucid, kickMsg, delay)
 		delay = delay or 10
 		kickMsg = kickMsg or 'You were kicked.'
-		slmod.scheduleFunctionByRt(checkedKick, {id, ucid, kickMsg}, net.get_real_time() + delay)
+		slmod.scheduleFunctionByRt(checkedKick, {id, ucid, kickMsg}, DCS.getRealTime() + delay)
 	end
 	
 	

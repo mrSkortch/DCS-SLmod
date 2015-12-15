@@ -73,7 +73,7 @@ SlmodDebugger now disabled by default
 - Added .getItems method to SlmodMenu.
 - MOTD default message now detects if you are a server admin.
 - Added -help menu
-- fixed crash on exit bug (had to detect whether the last event to occur was "END MISSION" before running coroutine).  The crash was caused by net.get_unit_property used after the server has already shut down.
+- fixed crash on exit bug (had to detect whether the last event to occur was "END MISSION" before running coroutine).  The crash was caused by DCS.getUnitProperty used after the server has already shut down.
 
 ]]
 
@@ -90,14 +90,14 @@ configVersion - needs to be updated in SlmodDefault.cfg
 slmod = slmod or {}
 slmod.config = slmod.config or {}
 
-slmod.version = '7_4'  -- file directory
+slmod.version = '7_5'  -- file directory
 
-slmod.mainVersion = '7_4'  -- so far, these are only used in MOTD and some load scripts.
-slmod.buildVersion = '065'  
+slmod.mainVersion = '7_5'  -- so far, these are only used in MOTD and some load scripts.
+slmod.buildVersion = '070'  
 
 slmod.configVersion = '21'  -- as new options as are added to SlmodConfig, this will change.
 
-print('SLMOD INIT: Loading Slmodv' .. tostring(slmod.mainVersion) .. '_' .. slmod.buildVersion .. '...')
+net.log('SLMOD INIT: Loading Slmodv' .. tostring(slmod.mainVersion) .. '_' .. slmod.buildVersion .. '...')
 do
 	local config_dir = lfs.writedir() .. [[Slmod\]]
 	
@@ -117,7 +117,7 @@ do
 	function slmod.error(msg, chat)
 		msg = tostring(msg)
 		local newMsg = 'SLMOD ERROR: ' .. msg
-		print(newMsg)
+		net.log(newMsg)
 		if chat and slmod.basicChat then
 			slmod.basicChat(newMsg)
 		end
@@ -130,7 +130,7 @@ do
 	function slmod.warning(msg, chat)
 		msg = tostring(msg)
 		local newMsg = 'SLMOD WARNING: ' .. msg
-		print(newMsg)
+		net.log(newMsg)
 		if chat and slmod.basicChat then
 			slmod.basicChat(newMsg)
 		end
@@ -143,7 +143,7 @@ do
 	function slmod.info(msg, chat)
 		msg = tostring(msg)
 		local newMsg = 'SLMOD INFO: ' .. msg
-		print(newMsg)
+		net.log(newMsg)
 		if chat and slmod.basicChat then
 			slmod.basicChat(newMsg)
 		end
@@ -175,9 +175,9 @@ do
 			new_oldf:close()
 			new_oldf = nil
 		end
-		--print('here1')
+		--net.log('here1')
 		local newf = io.open(config_dir .. 'config.lua', 'w')
-		--print('here2')
+		--net.log('here2')
 		local defaultf = io.open(lfs.writedir() .. 'Scripts/net/Slmodv' .. slmod.version .. '/SlmodDefault.cfg', 'r')
 		if defaultf and newf then
 			local default_settings = defaultf:read('*all')

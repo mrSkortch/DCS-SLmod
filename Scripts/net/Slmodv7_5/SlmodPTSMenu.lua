@@ -85,35 +85,35 @@ PTSMenu = {
 				
 				local msg_string =  net.dostring_in('server', 'return get_coords_msg_string(\'LL\', ' .. slmod.basicSerialize(self.msg) .. ', ' .. slmod.oneLineSerialize(self.group) .. ', ' .. tostring(self.numdigits) .. ')')
 				if msg_string and msg_string ~= '' then
-					slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg_string, display_time, display_mode, scope}, net.get_real_time() + 0.1)
+					slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg_string, display_time, display_mode, scope}, DCS.getRealTime() + 0.1)
 				else
-					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Unable to show task.', display_time, display_mode, scope}, net.get_real_time() + 0.1)
+					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Unable to show task.', display_time, display_mode, scope}, DCS.getRealTime() + 0.1)
 				end
 			elseif self.task_type == 'msg_MGRS' then
 				
 				local msg_string =  net.dostring_in('server', 'return get_coords_msg_string(\'MGRS\', ' .. slmod.basicSerialize(self.msg) .. ', ' .. slmod.oneLineSerialize(self.group) .. ', ' .. tostring(self.numdigits) .. ')')
 				if msg_string and msg_string ~= '' then
-					slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg_string, display_time, display_mode, scope}, net.get_real_time() + 0.1)
+					slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg_string, display_time, display_mode, scope}, DCS.getRealTime() + 0.1)
 				else
-					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Unable to show task.', display_time, display_mode, scope}, net.get_real_time() + 0.1)
+					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Unable to show task.', display_time, display_mode, scope}, DCS.getRealTime() + 0.1)
 				end
 			elseif self.task_type == 'msg_out' then
 				
-				slmod.scheduleFunctionByRt(slmod.scopeMsg, {self.msg, display_time, display_mode, scope}, net.get_real_time() + 0.1)
+				slmod.scheduleFunctionByRt(slmod.scopeMsg, {self.msg, display_time, display_mode, scope}, DCS.getRealTime() + 0.1)
 			
 			elseif self.task_type == 'msg_leading_LL' then
 				local msg_string =  net.dostring_in('server', 'return get_leading_msg_string(\'LL\', ' .. slmod.basicSerialize(self.msg) .. ', ' .. slmod.oneLineSerialize(self.group) .. ', ' .. slmod.basicSerialize(self.direction) .. ', ' .. tostring(self.radius) .. ', ' .. tostring(self.numdigits) .. ')')
 				if msg_string and msg_string ~= '' then
-					slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg_string, display_time, display_mode, scope}, net.get_real_time() + 0.1)
+					slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg_string, display_time, display_mode, scope}, DCS.getRealTime() + 0.1)
 				else
-					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Unable to show task.', display_time, display_mode, scope}, net.get_real_time() + 0.1)
+					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Unable to show task.', display_time, display_mode, scope}, DCS.getRealTime() + 0.1)
 				end
 			elseif self.task_type == 'msg_leading_MGRS' then
 				local msg_string =  net.dostring_in('server', 'return get_leading_msg_string(\'MGRS\', ' .. slmod.basicSerialize(self.msg) .. ', ' .. slmod.oneLineSerialize(self.group) .. ', ' .. slmod.basicSerialize(self.direction) .. ', ' .. tostring(self.radius) .. ', ' .. tostring(self.numdigits) .. ')')
 				if msg_string and msg_string ~= '' then
-					slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg_string, display_time, display_mode, scope}, net.get_real_time() + 0.1)
+					slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg_string, display_time, display_mode, scope}, DCS.getRealTime() + 0.1)
 				else
-					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Unable to show task.', display_time, display_mode, scope}, net.get_real_time() + 0.1)
+					slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Unable to show task.', display_time, display_mode, scope}, DCS.getRealTime() + 0.1)
 				end
 			end
 		end
