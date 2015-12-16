@@ -116,7 +116,7 @@ end
 
 --Import all the mission units to a global table 
 function slmod.makeMissionUnitData()
-	local mission_units_str, call_err = net.dostring_in('mission', 'return slmod.getMissionUnitData()')-- NOTE THIS DOES NOT WORK I NEED TO LOOK AT THIS BECAUSE IT IS IMPORTANT AND CAUSING ERRORS!
+	local mission_units_str, call_err = net.dostring_in('mission', 'return slmod.getMissionUnitData()')
 	if call_err == true then
 		dostring('slmod.missionUnitData = ' .. mission_units_str)
 		

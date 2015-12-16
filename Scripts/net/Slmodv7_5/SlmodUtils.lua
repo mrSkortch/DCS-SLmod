@@ -635,7 +635,7 @@ function slmod.tableprint(tbl, loc, indent, tableshow_tbls) --based on slmod.ser
 					tableshow_tbls[val] = loc ..  '[' .. slmod.basicSerialize(ind) .. ']'
 					line = line .. tostring(val) .. ' '
 					net.log(line)
-					slmod.tableprint.log(val,  loc .. '[' .. slmod.basicSerialize(ind).. ']', indent .. '    ', tableshow_tbls)
+					slmod.tableprint(val,  loc .. '[' .. slmod.basicSerialize(ind).. ']', indent .. '    ', tableshow_tbls)
 				end
 			elseif type(val) == 'function' then
 				if debug and debug.getinfo then
@@ -660,7 +660,7 @@ function slmod.tableprint(tbl, loc, indent, tableshow_tbls) --based on slmod.ser
 					
 				end
 			else
-				net.log('slmod: slmod.tableprint.log: unable to serialize value type ' .. slmod.basicSerialize(type(val)) .. ' at index ' .. tostring(ind))
+				net.log('slmod: slmod.tableprint: unable to serialize value type ' .. slmod.basicSerialize(type(val)) .. ' at index ' .. tostring(ind))
 			end
 		end
 		net.log(indent .. '},')
@@ -856,13 +856,13 @@ function slmod.basicChat(msg, coa)  --new internal function for generating chat,
 		destcoa = 2
 	end
 	
-	local side = net.get_player_info(client_id, 'side')
+	local side = net.get_player_info(1, 'side')
 	if ((destcoa == 0) or ((type(side) == 'number') and (side == destcoa))) then
 		net.recv_chat(msg)  -- send to host
 	end
 	
 	for i = 2, 200 do  --hopefully client index never gets above 200!  I guess there is not a table of clients anywhere, at least, I can't find it! This is kinda sloppy, maybe I need to log client indexes as they connect so I know for sure what the max index is?
-		local side = net.get_player_info(client_id, 'side')
+		local side = net.get_player_info(i, 'side')
 		if ((destcoa == 0) or ((type(side) == 'number') and (side == destcoa))) then
 			net.send_chat_to(msg, i, i)
 		end

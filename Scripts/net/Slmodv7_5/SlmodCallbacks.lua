@@ -12,7 +12,19 @@ slmod.recvDataCntr = 1  -- index of last command + 1
 slmod.func_old = slmod.func_old or {}
 
 --redefine on_process
-slmod.func_old.on_process = slmod.func_old.on_process or onSimulationFrame -- using a global just in case I make a reload_slmod work again
+--slmod.func_old.on_process = slmod.func_old.on_process or onSimulationFrame -- using a global just in case I make a reload_slmod work again
+
+local function event_hook(entryName, hook)
+     local originalFunc = _G[entryName]
+    if originalFunc then 
+        _G[entryName] = function(...)
+            hook(...)
+            originalFunc(...)
+        end
+    else
+        _G[entryName] = hook
+    end
+end
 
 do
 	
@@ -121,39 +133,39 @@ do
 	----------------------------------------------------------
 	-- code to protect Slmod from running too early or too late, piggy-backs onto netview.
 	--ghetto, but will work for now.
-	function on_net_start() end
+	--function on_net_start() end
 	local function createNetviewDetector()
 		local modifyNetviewString = [[slmod = slmod or {}
 
-if not slmod.oldNetviewStart then  -- if this is the first time this code is running this game session
-	slmod.oldNetviewStart = netview.start
-	function netview.start()
-		slmod.netview = true
-		return slmod.oldNetviewStart()
-	end
+		if not slmod.oldNetviewStart then  -- if this is the first time this code is running this game session
+			slmod.oldNetviewStart = netview.start
+			function netview.start()
+				slmod.netview = true
+				return slmod.oldNetviewStart()
+			end
 
-	slmod.oldNetviewStop = netview.stop
-	function netview.stop()
-		slmod.netview = false
-		return slmod.oldNetviewStop()
-	end
-end
+			slmod.oldNetviewStop = netview.stop
+			function netview.stop()
+				slmod.netview = false
+				return slmod.oldNetviewStop()
+			end
+		end
 
-function slmod.getNetview()
-	return tostring(slmod.netview)
-end]]
+		function slmod.getNetview()
+			return tostring(slmod.netview)
+		end]]
 		local str, err = net.dostring_in('config', modifyNetviewString)
 		slmod.info('Modifying netview... results: ' .. tostring(str) .. ', ' .. tostring(err))
 	end
 	----------------------------------------------------------
 	
-	slmod.func_old.on_net_start = slmod.func_old.on_net_start or on_net_start -- find alt.
-	on_net_start = function()
+	--slmod.func_old.on_net_start = slmod.func_old.on_net_start or on_net_start -- find alt.
+	event_hook('on_net_start', function()
 		createNetviewDetector()  -- prevents slmod from running too early or too late.
 		slmod.clients = slmod.clients or {}
 		slmod.clients[1] = {id = 1, name = net.get_name(1), ucid = slmod.config.host_ucid or 'host' }  -- server host
-		return slmod.func_old.on_net_start()
 	end
+	)
 
 end
 	
@@ -176,11 +188,12 @@ end
 				end  -- else will return nil, could be useful to detect code errors.
 			end
 		end
+		return false
 	end
 
-	function onSimulationFrame() -- onProcess or onSimFrame ?
+	event_hook('onSimulationFrame', function()
 		if getNetview() == true then  -- only run if netview is running.  Netview seems to know the proper times as to when the
-	                                -- game is fully started, and when the game is beginning to stop.
+	        -- game is fully started, and when the game is beginning to stop.
 			---------------------------------------------------------------------------------------------------------------
 			-- data passing code
 			--net.log('netViewTrue')
@@ -310,6 +323,7 @@ end
 
 				------------- DO ANY DO ONCE CODE AT T>1 ----------------------------------------------------
 				if slmod.do_once_code and DCS.getModelTime() > 1 then
+					--net.log('do once')
 					net.dostring_in('server', 'slmod.track_weapons()')  -- start weapons tracking
 					slmod.doOnceTest1() -- do any tests
 					slmod.do_once_code = false
@@ -329,12 +343,12 @@ end
 					
 				end
 			end
-			--[[ pause logic:
-			IF the pause when empty feature is enabled
-				slmod_pause_forced continuously turned off when unpaused
-				slmod_pause_forced is enabled if override is off and the server is paused with the admin pause command
-				slmod_pause_forced turned off when override is toggled
-			]]
+			-- pause logic:
+			--IF the pause when empty feature is enabled
+				--slmod_pause_forced continuously turned off when unpaused
+				--slmod_pause_forced is enabled if override is off and the server is paused with the admin pause command
+				--slmod_pause_forced turned off when override is toggled
+			
 			
 
 			if slmod.config.pause_when_empty and (DCS.getRealTime() > slmod.mission_start_time + 8) then -- 8 second window to hopefully always avoid the CTD
@@ -351,17 +365,19 @@ end
 				end
 				
 			end
-			return slmod.func_old.on_process()
+			
 		end
-	end
 	
+	end
+	--slmod.func_old.on_process()
+	)
 end
 
 
 
 -- redefine on_mission
-slmod.func_old.on_mission = slmod.func_old.on_mission or onMissionLoadBegin --onMissionLoadBegin
-function onMissionLoadBegin(filename)
+--slmod.func_old.on_mission = slmod.func_old.on_mission or onMissionLoadBegin --onMissionLoadBegin
+event_hook('onMissionLoadBegin', function(filename)
 	slmod.current_mission = filename or 'slmod_testing.miz'
 	slmod.mission_start_time = DCS.getRealTime()  --needed to prevent CTD caused by C Lua API on net.pause and net.resume
 	slmod.mission_started = true
@@ -374,11 +390,11 @@ function onMissionLoadBegin(filename)
 		until err
 	end
 	
-	return slmod.func_old.on_mission(filename)
-end
+	return --slmod.func_old.on_mission(filename)
+end)
 
-slmod.func_old.onPlayerTrySendChat = slmod.func_old.onPlayerTrySendChat or onPlayerTrySendChat -- old_on_chat should be an upvalue of on_chat, using the "or" just in case I make a reload_slmod work again
-function onPlayerTrySendChat(id, msg, all)  --new definition
+--slmod.func_old.onPlayerTrySendChat = slmod.func_old.onPlayerTrySendChat or onPlayerTrySendChat -- old_on_chat should be an upvalue of on_chat, using the "or" just in case I make a reload_slmod work again
+event_hook('onPlayerTrySendChat', function(id, msg, all)  --new definition
 	local realString = string.sub(msg, 1, msg:len() - 1)
 	-- the old, slmod_on_chat functionality:
 	slmod.chat_table = slmod.chat_table or {}
@@ -419,13 +435,13 @@ function onPlayerTrySendChat(id, msg, all)  --new definition
 	else
 		return realString  -- do the original on_chat
 	end
-end
+end)
 
 -----------------------------------------------------------------------------------------
 --modify on_connect
-slmod.func_old.on_connect = slmod.func_old.on_connect or onPlayerConnect
-onPlayerConnect = function(id, name)
-
+--slmod.func_old.on_connect = slmod.func_old.on_connect or onPlayerConnect
+event_hook('onPlayerConnect', function(id, name)
+	--net.log('onConnect')
 	slmod.clients = slmod.clients or {} --should not be necessary.
 	slmod.clients[id] = {id = id, addr = net.get_player_info(id, 'ipaddr'), name = net.get_player_info(id, 'name'), ucid = net.get_player_info(id, 'ucid'), ip = net.get_player_info(id, 'ipaddr')}
 	
@@ -434,12 +450,12 @@ onPlayerConnect = function(id, name)
 	else
 		slmod.num_clients = slmod.num_clients + 1
 	end
-	return slmod.func_old.on_connect(id)
-end 
+	return --slmod.func_old.on_connect(id)
+end )
 
-slmod.func_old.onPlayerTryConnect = slmod.func_old.on_connect or onPlayerTryConnect
-onPlayerTryConnect = function(addr, name, ucid)
-
+--slmod.func_old.onPlayerTryConnect = slmod.func_old.on_connect or onPlayerTryConnect
+event_hook('onPlayerTryConnect',function(addr, name, ucid)
+	--net.log('ontryconnect')
 	slmod.bannedIps = slmod.bannedIps or {}
 	slmod.bannedUcids = slmod.bannedUcids or {}
 
@@ -457,11 +473,12 @@ onPlayerTryConnect = function(addr, name, ucid)
 
 
 	return true
-end
+end)
 
 -- modify on_set_unit
-slmod.func_old.on_set_unit = slmod.func_old.on_set_unit or onPlayerChangeSlot
-onPlayerChangeSlot = function(id)
+--slmod.func_old.on_set_unit = slmod.func_old.on_set_unit or onPlayerChangeSlot
+event_hook('onPlayerChangeSlot', function(id)
+	--net.log('on change slot')
 	if slmod.stats.onSetUnit then
 			slmod.stats.onSetUnit(id)
 		end
@@ -473,21 +490,20 @@ onPlayerChangeSlot = function(id)
 			end
 		end
 		
-		return slmod.func_old.on_set_unit(id)
-end
+		return --slmod.func_old.on_set_unit(id)
+end)
 
 --modify on_disconnect
-slmod.func_old.on_disconnect = slmod.func_old.on_disconnect or onPlayerDisconnect
-onPlayerDisconnect = function(id, err)
+--slmod.func_old.on_disconnect = slmod.func_old.on_disconnect or onPlayerDisconnect
+event_hook('onPlayerDisconnect', function(id, err)
 	slmod.clients = slmod.clients or {}  --should not be necessary.
 	if slmod.clients[id] then
 		slmod.clients[id] = nil
 		slmod.num_clients = slmod.num_clients - 1
 	end
 
-	return slmod.func_old.on_disconnect(id, err)
-end
-
+	return --slmod.func_old.on_disconnect(id, err)
+end)
 -- this is actually called every time the server closes- not when the game shuts down!
 --[[ modify on_net_stop to close files.
 slmod.func_old.on_net_stop = slmod.func_old.on_net_stop or server.on_net_stop
