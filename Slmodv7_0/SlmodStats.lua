@@ -30,7 +30,7 @@ do
 		
 		end
 		if not stats then  -- only loads stats when the server is started.
-			slmod.info('no stats, loading stats from file.')
+			--slmod.info('no stats, loading stats from file.')
 			local prevStatsF = io.open(statsDir .. '\\SlmodStats.lua', 'r')
 			if prevStatsF then
 				local statsS = prevStatsF:read('*all')
@@ -98,7 +98,6 @@ do
 	-- call this function each time a value in stats needs to be changed...
 	-- t: the table in stats that this value belongs under
 	function slmod.stats.changeStatsValue(t, key, newValue)
-		--slmod.info('changeStatsValue')
 		if not t then
 			slmod.error('Invalue stats table specified!')
 			return
@@ -788,49 +787,14 @@ end]]
 	end
 	
 	local shells = {}
-	-- hit events
-	shells["30mm HE"] = true -- What the Mi-8 gunpod fired apparently
+	shells["30mm HE"] = true
 	shells["30mm AP"] = true
-	shells["12.7mm"] = true -- Also mi-8 gunpod hit event
+	shells["12.7mm"] = true
 	shells["23mm HE"] = true  -- could be a problem.... Su-25 gun pods stuck on.
 	shells["30mm TP"] = true
 	shells["20mm HE"] = true
-	shells["PKT_7_62"] = true -- mi8 gunpod hit event
-	shells["M134 7.62"] = true -- Huey hit event
-	shells["MG_20x82_HEI_T"] = true --fw190
-	shells["MG_20x82_API"] = true  --fw190
-	shells["GSH 23 HE"] = true -- Mig-21
-	shells["GSH 23 AP"] = true -- Mig-21
-	
-	-- shooting start and shooting end events
-	shells["M_2_L1"] = true -- P-51D events... sigh
-	shells["M_2_L2"] = true
-	shells["M_2_L3"] = true
-	shells["M_2_R1"] = true
-	shells["M_2_R2"] = true
-	shells["M_2_R3"] = true
-	shells["GSh_23_SPUU22"] = true -- Su-25 gunpod
-	shells["GSh_30_1"] = true -- Su-27/33, Mig-29A/S/G
-	shells["GSh_30_2"] = true --Su-25A/T
-	shells["2A42"] = true --Ka-50
-	shells["GSh_23_UPK"] = true -- Ka-50 Gunpod (I think)
-	shells["GAU_8"] = true -- A-10A shooting start and end shows as this
-	shells["YakB_12_7"] = true -- Mi8 gunpod shooting event 50 cal
-	shells["GSHG_7_62"] = true -- Mi8 gunpod shooting event
-	shells["AP_30_PLAMYA"] = true -- mi8 Grenade pod shot event. 
-	shells["M_134"] = true -- Huey shooting event
-	shells["M_60"] = true
-	shells["m3_browning"] = true --F86
-	shells["MG_151_20"] = true --Fw190
-	shells["MG_131"] = true --Fw190
-	shells["GSH_23"] = true --Mig-21
-	
-	
-	
 	
 	local function isShell(weaponName)  -- determines if the weapon was a shell.
-		--slmod.info(weaponName)
-		--slmod.info(shells[weaponName])
 		return shells[weaponName]
 	end
 	
@@ -957,7 +921,6 @@ end]]
 			end
 			--slmod.info(deadStatsCat)
 			if not deadStatsCat or (not deadStatsCat == 'Buildings') then -- need to find the type.
-				--slmod.info(slmod.tableshow( slmod.catsByUnitType))
 				if slmod.catsByUnitType[deadObjType] then
 					local types = slmod.catsByUnitType[deadObjType]
 					deadStatsCat = types[1]
@@ -1368,138 +1331,32 @@ end]]
 		end -- if prevTime and slmod.config.enable_slmod_stats then
 	end -- end of flight time tracking.
 	----------------------------------------------------------------------------------------------------------
-	-- gunsTracking code maybe. or add it to slmodevents...
-	--[[
-	local gunsFired = {}
-	local function checkGunAmmo()
 	
-	end]]
+
 	----------------------------------------------------------------------------------------------------------
 	-- events tracking
 	function slmod.stats.trackEvents()  -- called every second from server.onProcess
 		local human_hits
 		local ranhuman_hits = false
 		if slmod.config.enable_slmod_stats then  -- slmod.config.enable_slmod_stats may be disabled after the mission has already started.
+			
 			--Now do slmod.events-based stats.
 			while #slmod.events >= eventInd do
 				local event = slmod.events[eventInd]
-				--slmod.info('checking ' .. eventInd)
 				eventInd = eventInd + 1  -- increment NOW so if there is a Lua error, I'm not stuck forever on this event.
-				--slmod.info(slmod.tableshow(event))
+				
 				
 				
 				----------------------------------------------------------------------------------------------------------
 				--- Shot events
-				--if (event.type == 'shot' or event.type == 'start shooting') and event.initiator_name and event.initiator_mpname and event.initiator_name ~= event.initiator_mpname then  -- human shot event
-				if (event.type == 'shot' or event.type == 'end shooting' or event.type == 'start shooting') and event.initiator and event.initiatorPilotName and event.initiator ~= event.initiatorPilotName then  -- human shot event
-					--slmod.info('shotting')
+				if (event.type == 'shot' or event.type == 'start shooting') and event.initiator_name and event.initiator_mpname and event.initiator_name ~= event.initiator_mpname then  -- human shot event
 					if slmod.clientsByRtId then
-						--slmod.info('clientsByRtId')
 						local client = slmod.clientsByRtId[event.initiatorID]
 						if client then
-							--slmod.info('clientfound')
-							if event.weapon or event.type == 'end shooting' or event.type == 'start shooting' then
-								--slmod.info('weapon found')
+							if event.weapon or event.type == 'start shooting' then
 								local weapon
-								if event.type == 'end shooting' then
-								--	slmod.info('gun check')
+								if event.type == 'start shooting' then
 									weapon = 'guns'
-									--- this is code to check the number of rounds fired. 
-									local shootingCount = 0 -- required for P-51D or other types that have multiple shooting events
-									local endShootCount = 0
-									local lastEvent = 'end shooting'
-									local endLoop = false
-									local endIndex
-									local foundMatches = false
-									
-									for i = (eventInd - 1), 4, -1 do
-										if event.initiator == slmod.events[i].initiator then -- finds the first start shooting event from the current end shootingfor the initiator
-										--	slmod.info('found')
-										--	slmod.info(i)
-											if slmod.events[i].type == 'end shooting' then
-												--slmod.info('end shot +')
-												endShootCount = endShootCount + 1
-												lastEvent = 'end shooting'
-											elseif slmod.events[i].type == 'start shooting' then
-												--slmod.info('start shot +')
-												shootingCount = shootingCount + 1
-												lastEvent = 'start shooting'
-											end
-											--[[ If the shot events are equal.
-											if the 
-											
-											]]
-											if endShootCount == shootingCount and shootingCount > 0 then -- if the shot count is the same
-											--	slmod.info('equal')
-											--	slmod.info(i)
-												--local otherLastEvent = slmod.events[i].type
-												local actualEndShootCount = 1
-												local actualStartShootCount = 0
-												local newLastEvent = 'end shooting'
-												local iterating = 0
-												for x = i, i - 10, -1 do -- iterate back a few just to check
-													--slmod.info(x)
-													
-													if slmod.events[i].initiator == slmod.events[x].initiator then -- same initiators 
-													--	slmod.info(slmod.events[x].type)
-														iterating = iterating + 1
-														if slmod.events[x].type == 'start shooting' then
-															actualStartShootCount = actualStartShootCount + 1
-													--		slmod.info('startShotFound')
-															endIndex = x
-														elseif slmod.events[x].type == 'end shooting' then
-															if actualStartShootCount > 0 then
-															--	slmod.info('alternate')
-																endLoop = true
-																--foundMatches = true
-																break
-															else
-															actualEndShootCount = actualEndShootCount + 1
-														--	slmod.info('endShotFound')
-															end
-														else
-													--		slmod.info('something happened')
-														end
-													elseif x == 3 then
-														iterating = iterating + 1
-													end
-
-													--slmod.info('start shot total ' .. actualStartShootCount)
-													--slmod.info('end shot total ' ..actualEndShootCount)
-													if actualStartShootCount ==  actualEndShootCount and slmod.events[x-1].type ~= 'start shooting' then
-													--	slmod.info('found, break out')
-														foundMatches = true
-														endLoop = true
-														break
-													end
-													if x == 3 then
-														endLoop = true
-														break													
-													end
-													
-												end
-												--[[if switchedState == true and type(endIndex) == 'number' then
-													event.numtimes = slmod.events[endIndex].numShells - event.numShells - (shootingCount + endShootCount + 1)
-													endLoop = true
-												end]]
-											end
-										end
-
-											 -- rewrite numtimes to now equal new shells.
-											
-										
-										
-										if i == 3 or endLoop == true then -- mayday mayday mayday just in case
-											--slmod.info('oh shit')
-											break
-										end
-									end
-									--slmod.info('used index: ' .. endIndex)
-									if foundMatches == true and type(endIndex) == 'number' then
-										--slmod.info('add num')
-										event.numtimes = slmod.events[endIndex].numShells - event.numShells - (shootingCount + endShootCount - 2)
-									end
-									--slmod.info(event.numtimes)
 								else
 									weapon = event.weapon
 									-------------------
@@ -1513,20 +1370,16 @@ end]]
 										weapon = clusterBombs[weapon].name
 									end
 								end
-								--slmod.info(weapon)
-								--slmod.info('global stats')
+	
 								if not stats[client.ucid].weapons[weapon] then  -- this weapon not in this client's database, add it.
-									--slmod.info('add weapon type')
 									slmod.stats.changeStatsValue(stats[client.ucid].weapons, weapon, {shot = 0, hit = 0, numHits = 0, kills= 0})
 								end
 								if event.numtimes then  -- there should ALWAYS be a numtimes.
-									--slmod.info('numtimes exists')
 									slmod.stats.changeStatsValue(stats[client.ucid].weapons[weapon], 'shot', stats[client.ucid].weapons[weapon].shot + event.numtimes)
 								else
-									--slmod.info('no numtimes')
 									slmod.stats.changeStatsValue(stats[client.ucid].weapons[weapon], 'shot', stats[client.ucid].weapons[weapon].shot + 1)
 								end
-								--slmod.info('mission stats')
+								
 								----------------------------------------------------------------------------------------------------------------
 								-- mission stats
 								if slmod.config.enable_mission_stats then
@@ -1540,9 +1393,9 @@ end]]
 									end
 								end
 								----------------------------------------------------------------------------------------------------------------
-								--slmod.info('human shots')
+								
 								-- Now, add to humanShots
-								humanShots[event.initiator] = weapon   -- for this initiator, store the name of the last weapon fired.
+								humanShots[event.initiator_name] = weapon   -- for this initiator, store the name of the last weapon fired.
 								
 								if event.weaponID then  -- add to tracked weapons.  Right now, only bombs, rockets, and missiles will have an ID.
 									trackedWeapons[event.weaponID] = event.weaponID
@@ -1560,14 +1413,14 @@ end]]
 				----------------------------------------------------------------------------------------------------------
 				-- hit events
 				if event.type == 'hit' and event.target then
-					--slmod.info('eventTypeHit')
+					--slmod.info('here1')
 					local tgtName = event.target  -- dependable at least.
 					local tgtClient
 					local tgtUCID
 					local tgtSide
 					local tgtCategory
 					local tgtTypeName
-					local initName = event.initiator  -- may not be dependable.
+					local initName = event.initiator_name  -- may not be dependable.
 					local initClient
 					local initUCID
 					local initSide
@@ -1593,7 +1446,6 @@ end]]
 					--------------------------------------------
 					-- Gather target information.
 					if slmod.clientsByName[tgtName] or slmod.oldClientsByName[tgtName] then
-						--slmod.info('get target info')
 						if slmod.clientsByName[tgtName] then
 							tgtClient = slmod.deepcopy(slmod.clientsByName[event.target])
 						else
@@ -1604,14 +1456,14 @@ end]]
 						tgtCategory = slmod.allMissionUnitsByName[tgtName].category  -- could end up getting a nil index error here, maybe protect for robustness later.
 						tgtTypeName = slmod.allMissionUnitsByName[tgtName].objtype
 					else -- target is AI unit/STATIC/building/w/e
-						--slmod.info('target is not client')
+						--slmod.info(tgtName)
 						if slmod.allMissionUnitsByName[tgtName] then  
 							tgtSide = slmod.allMissionUnitsByName[tgtName].coalition
 							tgtCategory = slmod.allMissionUnitsByName[tgtName].category
 							tgtTypeName = slmod.allMissionUnitsByName[tgtName].objtype
 							--slmod.info('here2')
 						else
-							slmod.error('error in stats, could not match target unit in hit event with a mission editor unit name.  Could it be a map object? Event Index: ' .. eventInd)
+							--slmod.error('error in stats, could not match target unit in hit event with a mission editor unit name.  Could it be a map object?')
 							
 						end
 						
@@ -1621,7 +1473,7 @@ end]]
 					
 					-- code for "killed by Building" compensation.
 					if event.initiatorID == 0 then -- possible hit by a human
-						--slmod.info('killed by building')
+						--slmod.info('here3')
 						if not ranhuman_hits then  -- first, see if I can get new human_hits from main simulation env.
 							local str, err = net.dostring_in('server', 'return slmod.getLatestHumanHits()')
 							if err then
@@ -1660,8 +1512,8 @@ end]]
 							end
 							
 						end
-					elseif initName and event.initiatorPilotName and initName ~= event.initiatorPilotName then  -- almost certainly human, and ALIVE.
-						--slmod.info('client fired shot')
+					elseif initName and event.initiator_mpname and initName ~= event.initiator_mpname then  -- almost certainly human, and ALIVE.
+						--slmod.info('here6')
 						initClient = slmod.clientsByRtId[event.initiatorID]
 						if initClient then
 							initUCID = initClient.ucid
@@ -1676,7 +1528,7 @@ end]]
 					-- OK, now we have data on target and initiator- hopefully, 99.999% accurate data!
 					
 					if initClient then  -- a human initiated hit
-						--slmod.info('human caused hit')
+						
 						-- first, handle the case of nil weapon.  Happens due to a bug in DCS, and is very difficult to solve this bug fully.
 						-- for now, just assume that the weapon is the last weapon the human fired.
 						if (not weapon) and initName and humanShots[initName] then
@@ -1735,10 +1587,8 @@ end]]
 										----------------------------------------------------------------------------------------------------------------
 									end
 									
-									if (event.weaponID and trackedWeapons[event.weaponID]) or weapon == 'guns' then  -- this is the first time this weapon hit something.
-										if weapon ~= 'guns' then
-											trackedWeapons[event.weaponID] = nil
-										end
+									if event.weaponID and trackedWeapons[event.weaponID] then  -- this is the first time this weapon hit something.
+										trackedWeapons[event.weaponID] = nil
 										slmod.stats.changeStatsValue(stats[initUCID].weapons[weapon], 'hit', stats[initUCID].weapons[weapon].hit + 1)
 										
 										----------------------------------------------------------------------------------------------------------------
@@ -1863,7 +1713,7 @@ end]]
 								end
 							
 							else
-								slmod.error('SlmodStats error- either tgtSide or initSide does not exist for hit event!')
+								--slmod.error('SlmodStats error- either tgtSide or initSide does not exist for hit event!')
 							end
 							
 						end
@@ -1883,11 +1733,6 @@ end]]
 				end -- end of hit events.
 				----------------------------------------------------------------------------------------------------------
 				
-				--[[if event.type == 'birth' then
-					slmod.info('here')
-					slmod.info(#slmod.allMissionUnitsByName)
-				
-				end]]
 				
 				----------------------------------------------------------------------------------------------------------
 				if event.type == 'dead' or event.type == 'crash' then
@@ -1990,7 +1835,7 @@ end]]
 			-- NOW, check to see if any hitHumans are non-existant.
 			for unitName, hits in pairs(hitHumans) do
 				if not unitIsAlive(unitName) then
-					--slmod.info('SlmodStats- hit client unitName: ' .. unitName .. ', hits[#hits]: ' .. slmod.oneLineSerialize(hits[#hits]) .. '  no longer exists, running death logic.')
+					slmod.info('SlmodStats- hit client unitName: ' .. unitName .. ', hits[#hits]: ' .. slmod.oneLineSerialize(hits[#hits]) .. '  no longer exists, running death logic.')
 					
 					suppressDeath[unitName] = true
 					runDeathLogic(unitName)

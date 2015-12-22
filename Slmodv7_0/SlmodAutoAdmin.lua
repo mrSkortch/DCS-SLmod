@@ -98,7 +98,6 @@ do
 				--slmod.info('score after team hits: ' .. tostring(score))
 				-- score team kills
 				if autoAdmin.teamKill.enabled and pStats.friendlyKills then  -- score team Kills
-					--slmod.info('has teamkills')
 					local lastAIKillTime  -- a time.
 					local lastHumanKillTime
 					for killInd = 1, #pStats.friendlyKills do
@@ -107,13 +106,11 @@ do
 							local timeSince = toDays(curTime - kill.time)
 							local weight = getWeight(autoAdmin.teamKill.decayFunction, timeSince)
 							if kill.human then -- a human was kill
-							--	slmod.info('killed human')
 								if not lastHumanKillTime or ((kill.time - lastHumanKillTime) > autoAdmin.teamKill.minPeriodHuman) then  -- count this kill
 									lastHumanKillTime = kill.time
 									score = score + weight*autoAdmin.teamKill.penaltyPointsHuman
 								end
 							else
-								--slmod.info('killed norm')
 								if not lastAIKillTime or ((kill.time - lastAIKillTime) > autoAdmin.teamKill.minPeriodAI) then  -- count this kill
 									lastAIKillTime = kill.time
 									score = score + weight*autoAdmin.teamKill.penaltyPointsAI
@@ -125,7 +122,6 @@ do
 				--slmod.info('score after team kills: ' .. tostring(score))
 				-- score collision hits
 				if autoAdmin.teamCollisionHit.enabled and pStats.friendlyCollisionHits then 
-					--slmod.info('FF colision')
 					local lastAIColHitTime
 					local lastHumanColHitTime
 					for colHitInd = 1, #pStats.friendlyCollisionHits do
@@ -134,13 +130,11 @@ do
 							local timeSince = toDays(curTime - colHit.time)
 							local weight = getWeight(autoAdmin.teamCollisionHit.decayFunction, timeSince)
 							if colHit.human then -- a human was colHit
-								--slmod.info('colide human')
 								if not lastHumanColHitTime or ((colHit.time - lastHumanColHitTime) > autoAdmin.teamCollisionHit.minPeriodHuman) then  -- count this colHit
 									lastHumanColHitTime = colHit.time
 									score = score + weight*autoAdmin.teamCollisionHit.penaltyPointsHuman
 								end
 							else  -- an AI was collided with
-								--slmod.info('colide robot')
 								if not lastAIColHitTime or ((colHit.time - lastAIColHitTime) > autoAdmin.teamCollisionHit.minPeriodAI) then  -- count this colHit
 									lastAIColHitTime = colHit.time
 									score = score + weight*autoAdmin.teamCollisionHit.penaltyPointsAI
@@ -235,7 +229,7 @@ do
 								slmod.stats.changeStatsValue(stats[ucid], 'numTimesAutoBanned', 1)
 							end
 						end
-						--slmod.info('AutoAdmin: refusing connection for player with ucid "' .. ucid .. '", player is autobanned.')
+						slmod.info('AutoAdmin: refusing connection for player with ucid "' .. ucid .. '", player is autobanned.')
 						return false --- the player should remain banned
 					end
 				end
