@@ -14,17 +14,7 @@ slmod.func_old = slmod.func_old or {}
 --redefine on_process
 --slmod.func_old.on_process = slmod.func_old.on_process or onSimulationFrame -- using a global just in case I make a reload_slmod work again
 
-local function event_hook(entryName, hook)
-     local originalFunc = _G[entryName]
-    if originalFunc then 
-        _G[entryName] = function(...)
-            hook(...)
-            originalFunc(...)
-        end
-    else
-        _G[entryName] = hook
-    end
-end
+local slmodCall = {}
 
 do
 	
@@ -160,12 +150,12 @@ do
 	----------------------------------------------------------
 	
 	--slmod.func_old.on_net_start = slmod.func_old.on_net_start or on_net_start -- find alt.
-	event_hook('on_net_start', function()
+	function slmodCall.on_net_start()
 		createNetviewDetector()  -- prevents slmod from running too early or too late.
 		slmod.clients = slmod.clients or {}
 		slmod.clients[1] = {id = 1, name = net.get_name(1), ucid = slmod.config.host_ucid or 'host' }  -- server host
 	end
-	)
+	
 
 end
 	
@@ -176,7 +166,7 @@ end
 	local function getNetview()
 		if DCS.isMultiplayer() == true and DCS.isServer() == true then
 			if runF == false then
-				on_net_start()
+				slmodCall.on_net_start()
 				runF = true
 			end			
 			local str, err = net.dostring_in('config', 'return slmod.getNetview()')
@@ -191,7 +181,7 @@ end
 		return false
 	end
 
-	event_hook('onSimulationFrame', function()
+	function slmodCall.onSimulationFrame()
 		if getNetview() == true then  -- only run if netview is running.  Netview seems to know the proper times as to when the
 	        -- game is fully started, and when the game is beginning to stop.
 			---------------------------------------------------------------------------------------------------------------
@@ -370,15 +360,16 @@ end
 	
 	end
 	--slmod.func_old.on_process()
-	)
+	
 end
 
 
 
 -- redefine on_mission
 --slmod.func_old.on_mission = slmod.func_old.on_mission or onMissionLoadBegin --onMissionLoadBegin
-event_hook('onMissionLoadBegin', function(filename)
-	slmod.current_mission = filename or 'slmod_testing.miz'
+function slmodCall.onMissionLoadBegin()
+	
+	slmod.current_mission = DCS.getMissionName()
 	slmod.mission_start_time = DCS.getRealTime()  --needed to prevent CTD caused by C Lua API on net.pause and net.resume
 	slmod.mission_started = true
 	slmod.do_once_code = true
@@ -391,12 +382,20 @@ event_hook('onMissionLoadBegin', function(filename)
 	end
 	
 	return --slmod.func_old.on_mission(filename)
-end)
+end
 
 --slmod.func_old.onPlayerTrySendChat = slmod.func_old.onPlayerTrySendChat or onPlayerTrySendChat -- old_on_chat should be an upvalue of on_chat, using the "or" just in case I make a reload_slmod work again
-event_hook('onPlayerTrySendChat', function(id, msg, all)  --new definition
-	local realString = string.sub(msg, 1, msg:len() - 1)
-	-- the old, slmod_on_chat functionality:
+function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
+	local function cut_tail_spaces(str)
+		local tail = string.find(str, '%s+$')  -- find where trailing spaces start
+		if tail then
+			return string.sub(str, 1, tail-1)  -- cut if there are any
+		else
+			return str
+		end
+	end
+	local realString = cut_tail_spaces(msg)
+
 	slmod.chat_table = slmod.chat_table or {}
 	table.insert(slmod.chat_table, { id = id, msg = realString, all = all })
 	
@@ -407,8 +406,8 @@ event_hook('onPlayerTrySendChat', function(id, msg, all)  --new definition
 		local clientInfo = table.concat({'{name  = ', slmod.basicSerialize(tostring(slmod.clients[id].name)), ', ucid = ', slmod.basicSerialize(tostring(slmod.clients[id].ucid)), ', ip = ',  slmod.basicSerialize(tostring(slmod.clients[id].addr)), ', id = ', tostring(id),  '}'})
 
 		local logline
-		if msg ~= '/mybad' then
-			logline = 'CHAT: ' .. os.date('%b %d %H:%M:%S ') .. clientInfo .. ' said "' .. msg .. '"'
+		if realString ~= '/mybad' then
+			logline = 'CHAT: ' .. os.date('%b %d %H:%M:%S ') .. clientInfo .. ' said "' .. realString .. '"'
 			if all then
 				logline = logline .. ' to all'
 			else
@@ -435,12 +434,12 @@ event_hook('onPlayerTrySendChat', function(id, msg, all)  --new definition
 	else
 		return realString  -- do the original on_chat
 	end
-end)
+end
 
 -----------------------------------------------------------------------------------------
 --modify on_connect
 --slmod.func_old.on_connect = slmod.func_old.on_connect or onPlayerConnect
-event_hook('onPlayerConnect', function(id, name)
+function slmodCall.onPlayerConnect(id, name)
 	--net.log('onConnect')
 	slmod.clients = slmod.clients or {} --should not be necessary.
 	slmod.clients[id] = {id = id, addr = net.get_player_info(id, 'ipaddr'), name = net.get_player_info(id, 'name'), ucid = net.get_player_info(id, 'ucid'), ip = net.get_player_info(id, 'ipaddr')}
@@ -451,10 +450,10 @@ event_hook('onPlayerConnect', function(id, name)
 		slmod.num_clients = slmod.num_clients + 1
 	end
 	return --slmod.func_old.on_connect(id)
-end )
+end 
 
 --slmod.func_old.onPlayerTryConnect = slmod.func_old.on_connect or onPlayerTryConnect
-event_hook('onPlayerTryConnect',function(addr, name, ucid)
+function slmodCall.onPlayerTryConnect(addr, name, ucid)
 	--net.log('ontryconnect')
 	slmod.bannedIps = slmod.bannedIps or {}
 	slmod.bannedUcids = slmod.bannedUcids or {}
@@ -473,11 +472,11 @@ event_hook('onPlayerTryConnect',function(addr, name, ucid)
 
 
 	return true
-end)
+end
 
 -- modify on_set_unit
 --slmod.func_old.on_set_unit = slmod.func_old.on_set_unit or onPlayerChangeSlot
-event_hook('onPlayerChangeSlot', function(id)
+function slmodCall.onPlayerChangeSlot(id)
 	--net.log('on change slot')
 	if slmod.stats.onSetUnit then
 			slmod.stats.onSetUnit(id)
@@ -491,11 +490,11 @@ event_hook('onPlayerChangeSlot', function(id)
 		end
 		
 		return --slmod.func_old.on_set_unit(id)
-end)
+end
 
 --modify on_disconnect
 --slmod.func_old.on_disconnect = slmod.func_old.on_disconnect or onPlayerDisconnect
-event_hook('onPlayerDisconnect', function(id, err)
+function slmodCall.onPlayerDisconnect(id, err)
 	slmod.clients = slmod.clients or {}  --should not be necessary.
 	if slmod.clients[id] then
 		slmod.clients[id] = nil
@@ -503,7 +502,7 @@ event_hook('onPlayerDisconnect', function(id, err)
 	end
 
 	return --slmod.func_old.on_disconnect(id, err)
-end)
+end
 -- this is actually called every time the server closes- not when the game shuts down!
 --[[ modify on_net_stop to close files.
 slmod.func_old.on_net_stop = slmod.func_old.on_net_stop or server.on_net_stop
@@ -519,5 +518,7 @@ server.on_net_stop = function()
 	return slmod.func_old.on_net_stop()
 end
 ]]
+
+DCS.setUserCallbacks(slmodCall)
 
 slmod.info('SlmodCallbacks.lua loaded')
