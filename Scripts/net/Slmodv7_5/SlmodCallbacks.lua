@@ -386,6 +386,7 @@ end
 
 --slmod.func_old.onPlayerTrySendChat = slmod.func_old.onPlayerTrySendChat or onPlayerTrySendChat -- old_on_chat should be an upvalue of on_chat, using the "or" just in case I make a reload_slmod work again
 function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
+	--net.log('chat: ' .. msg)
 	local function cut_tail_spaces(str)
 		local tail = string.find(str, '%s+$')  -- find where trailing spaces start
 		if tail then
@@ -430,7 +431,7 @@ function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
 	end
 	
 	if suppress then
-		return  -- don't go any further- suppress any further on_chat.
+		return '' -- don't go any further- suppress any further on_chat.
 	else
 		return realString  -- do the original on_chat
 	end
