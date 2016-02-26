@@ -1259,10 +1259,10 @@ function slmod.coord.tostring(coords) --converts Slmod-format coords into a stri
 end
 
 function slmod.create_coord()
-
 	local coord_string = [=[-- Server functions ---------------
+
 if not coord.LOtoMGRS then
-	net.log('creating coord.LOtoMGRS')
+	--slmod.info('creating coord.LOtoMGRS')
 	coord.LOtoMGRS = function(point) -- creating the missing one.
 		local lat, lon = coord.LOtoLL(point)	
 		return coord.LLtoMGRS(lat, lon)	
@@ -1270,7 +1270,7 @@ if not coord.LOtoMGRS then
 end
 
 if not coord.LLtoMGRS then
-	net.log('creating coord.LLtoMGRS')
+	--slmod.info('creating coord.LLtoMGRS')
 	coord.LLtoMGRS = function(lat, lon) -- creating the missing one.
 		local LL = {}
 		LL.lat = lat
@@ -1381,7 +1381,6 @@ end
 ----------------------------------]=]
 
 	local ret_str, ret_err = net.dostring_in('server', coord_string)
-
 end
 
 

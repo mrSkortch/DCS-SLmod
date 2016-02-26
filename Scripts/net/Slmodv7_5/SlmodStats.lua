@@ -834,7 +834,12 @@ end]]
 		return shells[weaponName]
 	end
 	
+	local acft = {} -- exceptions list. For some reason mig-29A is not matching with below code because it is displayed as Mig-29.
+	-- Temp fix
+	acft['mig-29'] = true
+	
 	local function isAircraft(weaponName)  -- determines if the weapon was a aircraft.
+
 		if weaponName and weaponName:len() > 1 then
 			for planeCat, planes in pairs(slmod.unitCategories.Planes) do
 				for plane, trashVal in pairs(planes) do
@@ -849,6 +854,9 @@ end]]
 						return true
 					end
 				end
+			end
+			if acft[weaponName] then
+				return true
 			end
 		end
 		return false
@@ -2025,7 +2033,10 @@ end]]
 	-- ***BEGINNING OF STATS USER INTERFACE***
 	
 	-- inserts and overwrites string "ins" into string s at location loc without changing length.
-	local function stringInsert(s, ins, loc)
+	local function stringInsert(s, ins, loc) -- WHY DO YOU HAVE TO MESS WITH THE FORMATTING? DAMN YOU. DAMN YOU ALL TO HELL!
+		--net.log('insert')
+		--net.log(s)
+		--net.log(ins)
 		local sBefore
 		if loc > 1 then
 			sBefore = s:sub(1, loc-1)
@@ -2035,9 +2046,11 @@ end]]
 		local sAfter
 		if (loc + ins:len() + 1) <= s:len() then
 			sAfter = s:sub(loc + ins:len() + 1)
+			
 		else
 			sAfter = ''
 		end
+		--net.log(table.concat({sBefore, ins, sAfter}))
 		return table.concat({sBefore, ins, sAfter})
 	end
 	
@@ -2080,7 +2093,7 @@ end]]
 				
 				sTbl[#sTbl + 1] = string.format('%.1f', totalTime/3600)
 				
-				sTbl[#sTbl + 1] = ' hours | PvP KILL/DEATH: '
+				sTbl[#sTbl + 1] = ' hours | PvP K/D: '
 				sTbl[#sTbl + 1] = tostring(pStats.PvP.kills)
 				sTbl[#sTbl + 1] = '/'
 				sTbl[#sTbl + 1] = tostring(pStats.PvP.losses)
@@ -2166,7 +2179,7 @@ end]]
 					line = stringInsert(line, totalTime, 49)  -- insert totalTime
 					p1Tbl[#p1Tbl + 1] = line
 				end
-				p1Tbl[#p1Tbl + 1] = '\nKILLS:\n     GROUND                PLANES                HELOS                 SHIPS                 BUILDINGS\n'
+				p1Tbl[#p1Tbl + 1] = '\nKILLS:\n     GROUND                PLANES                HELOS                 SHIPS             BUILDINGS\n'
 				local vehicleKills = pStats.kills['Ground Units']
 				local planeKills = pStats.kills['Planes']
 				local heloKills = pStats.kills['Helicopters']
@@ -2179,6 +2192,11 @@ end]]
 				local shipKillsStrings = makeKillsColumn(shipKills)
 				local buildingKillsStrings = makeKillsColumn(buildingKills)
 				
+				--slmod.info(slmod.tableshow(vehicleKillsStrings))
+				--slmod.info(slmod.tableshow(planeKillsStrings))
+				--slmod.info(slmod.tableshow(heloKillsStrings))
+				--slmod.info(slmod.tableshow(shipKillsStrings))
+				--slmod.info(slmod.tableshow(buildingKillsStrings))
 				-- probably could simplify this to just base columns off of #vehicleKillsStrings
 				local maxSize = 0
 				if #vehicleKillsStrings > maxSize then
@@ -2199,40 +2217,50 @@ end]]
 				
 				
 				for i = 1, maxSize do
-					local line = '                                                                                                                             \n'
+					--net.log(i)
+					local line = '                                                                                                                    \n'
 					if vehicleKillsStrings[i] then
+						--net.log('vehicle')
 						line = stringInsert(line, vehicleKillsStrings[i], 5)
 					end
+					--net.log(line)
 					if planeKillsStrings[i] then
-						line = stringInsert(line, planeKillsStrings[i], 28)
+						--net.log('planes')
+						line = stringInsert(line, planeKillsStrings[i], 24) --28
 					end
+					--net.log(line)
 					if heloKillsStrings[i] then
-						line = stringInsert(line, heloKillsStrings[i], 50)
+						--net.log('helo')
+						line = stringInsert(line, heloKillsStrings[i], 46) -- 50
 					end
+					--net.log(line)
 					if shipKillsStrings[i] then
-						line = stringInsert(line, shipKillsStrings[i], 72)
-					end				
+						--net.log('ships')
+						line = stringInsert(line, shipKillsStrings[i], 66) --72
+					end		
+					--net.log(line)					
 					if buildingKillsStrings[i] then
-						line = stringInsert(line, buildingKillsStrings[i], 94)
+						--net.log('buildings')
+						line = stringInsert(line, buildingKillsStrings[i], 88) --92
 					end								
-				
+					--net.log(line)
 					p1Tbl[#p1Tbl + 1] = line
 				end
 							
 				p1Tbl[#p1Tbl + 1] = '---------------------------------------------------------------------------------------------------------------------------\n'
 				
-				local totalsLine = 'TOTALS:                                                                                                                       '
+				local totalsLine = 'TOTALS:                                                                                                             '
 				totalsLine = stringInsert(totalsLine, tostring(vehicleKills.total), 10)
 				totalsLine = stringInsert(totalsLine, tostring(planeKills.total), 36)
 				totalsLine = stringInsert(totalsLine, tostring(heloKills.total), 62)
 				totalsLine = stringInsert(totalsLine, tostring(shipKills.total), 88)
-				totalsLine = stringInsert(totalsLine, tostring(buildingKills.total), 114)
+				totalsLine = stringInsert(totalsLine, tostring(buildingKills.total), 110)
 				p1Tbl[#p1Tbl + 1] = totalsLine
 				
 				
-				p1Tbl[#p1Tbl + 1] = '\n\nFRIENDLY FIRE:\n    Friendly fire hits: '
+				p1Tbl[#p1Tbl + 1] = '\n\nFRIENDLY FIRE:\n              hits: '
 				p1Tbl[#p1Tbl + 1] = tostring(#pStats.friendlyHits)
-				p1Tbl[#p1Tbl + 1] = ';  Friendly fire kills: '
+				p1Tbl[#p1Tbl + 1] = ';        kills: '
 				p1Tbl[#p1Tbl + 1] = tostring(#pStats.friendlyKills)
 				p1Tbl[#p1Tbl + 1] = ';  Friendly collision hits: '
 				
@@ -2285,12 +2313,12 @@ end]]
 				table.sort(weaponNames)  -- put in alphabetical order
 				
 				for i = 1, #weaponNames do
-					local line = '                                                                                                                           \n'
+					local line = '                                                                                                                     \n'
 					line = stringInsert(line, weaponNames[i], 1)
 					line = stringInsert(line, 'fired = ' .. tostring(pStats.weapons[weaponNames[i]].shot), 22)
 					line = stringInsert(line, 'hit = ' .. tostring(pStats.weapons[weaponNames[i]].hit), 44)
 					line = stringInsert(line, 'kills = ' .. tostring(pStats.weapons[weaponNames[i]].kills), 66)
-					line = stringInsert(line, 'object hits = ' .. tostring(pStats.weapons[weaponNames[i]].numHits), 88)
+					line = stringInsert(line, 'object hits = ' .. tostring(pStats.weapons[weaponNames[i]].numHits), 84)
 					p2Tbl[#p2Tbl + 1] = line
 				end
 				
