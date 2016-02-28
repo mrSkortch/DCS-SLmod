@@ -35,9 +35,8 @@ do
 	--- warns and eventually kicks a player if his ping is too high
 	local function warnClient(id)
 		local client = slmod.pingCheck.clients[id]
-
-		local scope = {}
-		scope.client = client.id
+		local show_scope = {}
+		show_scope["clients"] = {id}
 
 		-- get ping/warning limit configuration
 		local maxPing = slmod.pingCheck.config.max_ping
@@ -50,8 +49,8 @@ do
 			net.kick(client.id, "Your ping is too high (".. client.avgPing ..", max: ".. maxPing ..")")
 			slmod.info("Player ".. client.name .." got kicked for a too high ping (".. client.avgPing ..", max: ".. maxPing ..")")
 		else
-			slmod.scopeMsg("Your ping is too high (".. client.avgPing ..", max: ".. maxPing ..")", 10, scope)
-			slmod.scopeMsg("Warning ".. client.warnings .."/".. warnLimit .." before getting kicked", 10, scope)
+			slmod.scopeMsg("Your ping is too high (".. client.avgPing ..", max: ".. maxPing ..")", 10, show_scope)
+			slmod.scopeMsg("Warning ".. client.warnings .."/".. warnLimit .." before getting kicked", 10, show_scope)
 		end
 
 		client.lastWarnTime = DCS.getModelTime()
@@ -82,7 +81,7 @@ do
 		for id, client in pairs(slmod.pingCheck.clients) do
 			local curPing = net.get_player_info(id, 'ping')
 			
-			client.avgPing = (client.ping + curPing + client.avgPing)/3
+			client.avgPing = math.floor((client.ping + curPing + client.avgPing)/3)
 			client.ping = curPing
 
 			local warnRepeatTime = slmod.pingCheck.config.warning_repeat_time
