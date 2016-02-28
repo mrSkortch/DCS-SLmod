@@ -288,10 +288,15 @@ end
 			------------------------------------------------------------Every second if server and slmod enabled ---------------------------------------------------------------------------
 			if math.abs(curExecTime - prevExecTime) >= 1 then --do every second
 				prevExecTime = curExecTime
+
 				--------------------------------------------------------
 				--Add clients to server env and ucids/names to clients.
 				slmod.updateClients()
-				
+
+				-- Check pings
+				if slmod.pingCheck.config.enabled then
+					slmod.pingCheck.heartbeat()
+				end
 				
 				---------------------------------------------------------------
 				-- events
@@ -450,6 +455,7 @@ function slmodCall.onPlayerConnect(id, name)
 	else
 		slmod.num_clients = slmod.num_clients + 1
 	end
+
 	return --slmod.func_old.on_connect(id)
 end 
 
@@ -501,6 +507,8 @@ function slmodCall.onPlayerDisconnect(id, err)
 		slmod.clients[id] = nil
 		slmod.num_clients = slmod.num_clients - 1
 	end
+
+	pingCheck.onDisconnect(id)
 
 	return --slmod.func_old.on_disconnect(id, err)
 end
