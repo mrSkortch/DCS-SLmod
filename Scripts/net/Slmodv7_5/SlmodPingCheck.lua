@@ -21,8 +21,6 @@ do
 				newClient['warnings'] = 0
 				newClient['lastWarnTime'] = 0
 				slmod.pingCheck.clients[newClient.id] = newClient
-
-				slmod.info("client connect: ".. id .." name: ".. newClient.name)
 			end
 		end
 
