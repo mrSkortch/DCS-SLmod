@@ -297,7 +297,7 @@ end
 				if slmod.pingCheck.config.enabled then
 					slmod.pingCheck.heartbeat()
 				end
-				
+
 				---------------------------------------------------------------
 				-- events
 				slmod.addSlmodEvents()
@@ -507,8 +507,6 @@ function slmodCall.onPlayerDisconnect(id, err)
 		slmod.clients[id] = nil
 		slmod.num_clients = slmod.num_clients - 1
 	end
-
-	pingCheck.onDisconnect(id)
 
 	return --slmod.func_old.on_disconnect(id, err)
 end
