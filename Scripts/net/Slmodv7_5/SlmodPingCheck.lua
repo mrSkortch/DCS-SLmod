@@ -49,10 +49,15 @@ do
             net.kick(client.id, "Your ping is too high (".. client.avgPing ..", max: ".. maxPing ..")")
             kickMsg = "Player ".. client.name .." got kicked for a too high ping (current: ".. client.ping ..", average: ".. client.avgPing ..", max: ".. maxPing ..")"
             slmod.info(kickMsg)
-            slmod.scopeMsg(kickMsg, 10, 'chat', nil)
+
+            if slmod.pingCheck.config.warning_msg then
+                slmod.scopeMsg(kickMsg, 10, 'chat', nil)
+            end
         else
-            slmod.scopeMsg("Your ping is too high (current: ".. client.ping ..", average: ".. client.avgPing ..", max: ".. maxPing ..")", 10, 'chat', show_scope)
-            slmod.scopeMsg("Warning ".. client.warnings .."/".. warnLimit .." before getting kicked", 10, 'chat', show_scope)
+            if slmod.pingCheck.config.warning_msg then
+                slmod.scopeMsg("Your ping is too high (current: ".. client.ping ..", average: ".. client.avgPing ..", max: ".. maxPing ..")", 10, 'chat', show_scope)
+                slmod.scopeMsg("Warning ".. client.warnings .."/".. warnLimit .." before getting kicked", 10, 'chat', show_scope)
+            end
         end
  
         client.lastWarnTime = DCS.getModelTime()
