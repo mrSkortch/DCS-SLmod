@@ -93,9 +93,9 @@ slmod.config = slmod.config or {}
 slmod.version = '7_5'  -- file directory
 
 slmod.mainVersion = '7_5'  -- so far, these are only used in MOTD and some load scripts.
-slmod.buildVersion = '074'  
+slmod.buildVersion = '076'  
 
-slmod.configVersion = '21'  -- as new options as are added to SlmodConfig, this will change.
+slmod.configVersion = '22'  -- as new options as are added to SlmodConfig, this will change.
 
 net.log('SLMOD INIT: Loading Slmodv' .. tostring(slmod.mainVersion) .. '_' .. slmod.buildVersion .. '...')
 do

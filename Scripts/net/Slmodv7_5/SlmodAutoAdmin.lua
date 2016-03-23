@@ -18,7 +18,25 @@ do
 		slmod.scheduleFunctionByRt(checkedKick, {id, ucid, kickMsg}, DCS.getRealTime() + delay)
 	end
 	
+	if autoAdmin.kickBanDelay.kickDelay then
+		if type(autoAdmin.kickBanDelay.kickDelay) == 'string' and tonumber(type(autoAdmin.kickBanDelay.kickDelay)) then
+			autoAdmin.kickBanDelay.kickDelay = tonumber(autoAdmin.kickBanDelay.kickDelay)
+		end
+		
+		if autoAdmin.kickBanDelay.kickDelay < 10 then
+			autoAdmin.kickBanDelay.kickDelay = 10
+		end
+	end
 	
+	if autoAdmin.kickBanDelay.banDelay then
+		if type(autoAdmin.kickBanDelay.banDelay) == 'string' and tonumber(type(autoAdmin.kickBanDelay.banDelay)) then
+			autoAdmin.kickBanDelay.banDelay = tonumber(autoAdmin.kickBanDelay.banDelay)
+		end
+		
+		if autoAdmin.kickBanDelay.banDelay < 10 then
+			autoAdmin.kickBanDelay.banDelay = 10
+		end
+	end
 	
 	--------------------------------------------------------------------------------------------------------------
 	-- evaluate AutoAdmin rules... CALL THIS FUNCTION USING PCALL.   Users might mess up their config files!
@@ -271,7 +289,7 @@ do
 						net.dostring_in('server', 'Object.destroy({id_ = ' .. tostring(client.rtid) .. '})')
 					end
 					
-					delayedKick(client.id, client.ucid, 'You were autobanned from the server.', 5)
+					delayedKick(client.id, client.ucid, 'You were autobanned from the server.', autoAdmin.kickBanDelay.banDelay)
 					
 					--net.kick(client.id, 'You were autobanned from the server.')
 					slmod.info('Player "' .. tostring(client.name) .. '" is getting autobanned.', true)  -- this will output in chat too.
@@ -293,7 +311,7 @@ do
 						net.dostring_in('server', 'Object.destroy({id_ = ' .. tostring(client.rtid) .. '})')
 					end
 					
-					delayedKick(client.id, client.ucid, 'You were autokicked from the server.', 5)
+					delayedKick(client.id, client.ucid, 'You were autokicked from the server.', autoAdmin.kickBanDelay.kickDelay)
 					--net.kick(client.id, 'You were autokicked from the server.')
 					slmod.info('Player "' .. tostring(client.name) .. '" is getting autokicked.', true)  -- this will output in chat too.
 					return
