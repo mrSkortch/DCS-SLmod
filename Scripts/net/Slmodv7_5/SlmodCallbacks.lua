@@ -291,7 +291,11 @@ end
 				--------------------------------------------------------
 				--Add clients to server env and ucids/names to clients.
 				slmod.updateClients()
-				
+
+				-- Check pings
+				if slmod.pingCheck.config.enabled then
+					slmod.pingCheck.heartbeat()
+				end
 				
 				---------------------------------------------------------------
 				-- events
