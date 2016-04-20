@@ -963,7 +963,7 @@ function slmod.scopeChat(msg, scope, numtimes, interval)  --new internal functio
 	
 	for i = 2, 200 do  -- at some point, I may need to revisit this assumption about clients id not getting higher than 200.. there is no clients table at the moment- make one?
 		if slmod.clientInScope(i, scope) then
-			net.send_chat_to(msg, i, i)
+			net.send_chat_to(msg, i, 1)
 		end
 	end
 	
