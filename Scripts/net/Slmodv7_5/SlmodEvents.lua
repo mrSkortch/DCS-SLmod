@@ -901,7 +901,8 @@ do
 		if slmod.rawEvents and #slmod.rawEvents > 2 then
 			if event.id == world.event.S_EVENT_BIRTH then -- Event births occuring after mission start
 				local lunit = event.initiator
-				if not lunit:getPlayerName() then -- only run logic on non clients
+				
+                if ((Object.getCategory(lunit) == 1 and not lunit:getPlayerName()) or Object.getCategory(lunit) ~= 1) then -- only run logic on non clients
 					local newEvent = {}
 									
 					local lgroup = lunit:getGroup()
@@ -921,11 +922,12 @@ do
 					newEvent.name  = lunit:getName()
 					newEvent.unitId  = (lunit:getID())
 					
-					if not lunit:getPlayerName() then
-						newEvent.mpname = lunit:getName()
-					else
-						newEvent.mpname = lunit:getPlayerName()
-					end
+					if Object.getCategory(lunit) == 1 and lunit:getPlayerName() then
+                        newEvent.mpname = lunit:getPlayerName()
+                    else
+                        newEvent.mpname = lunit:getName()
+                    end
+
 					 --at least, for now.
 					newEvent.objtype = lunit:getTypeName()
 					newEvent.group = lgroup:getName()
