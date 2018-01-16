@@ -14,6 +14,9 @@ do
 	local statsF -- stats file handle; upvalue of slmod.stats.resetStatsFile.
     local metaStatsF -- metaStats file handle
     
+    local misStats = {}  -- by-mission stats
+    local misStatsF  -- mission stats file
+    
     local missionStatsDir = slmod.config.mission_stats_files_dir or lfs.writedir() .. [[Slmod\Mission Stats\]]
     if missionStatsDir:sub(missionStatsDir:len(), missionStatsDir:len()) ~= '\\' and missionStatsDir:sub(missionStatsDir:len(), missionStatsDir:len()) ~= '/' then
         missionStatsDir = missionStatsDir .. '\\'
@@ -120,6 +123,7 @@ do
             fileF = io.open(lstatsDir .. fileName, 'w')
             fileF:write(newStatsS)
             fileF:close()
+            fileF = nil
         elseif not l then
             
             --Now, stats should be opened, or if not run, at least backed up..  Now, write over the old stats and return a file handle.
@@ -291,14 +295,14 @@ do
 	-- Interlude: **BEGINNING OF MISSION STATS**
 	-- needs to be up here for upvalues to be seen by lower functions.
 	
-	local misStats = {}  -- by-mission stats
+
 	local misStatFileName 
 	-------------------------------------------------------------------------------------------------------
 	-- Create misStatsTableKeys database
 	local misStatsTableKeys = {}  -- stores strings that corresponds to table indexes within misStats... needed for updating file.
 	misStatsTableKeys[misStats] = 'misStats'
 	
-	local misStatsF  -- mission stats file
+	
 
 	-- call this function each time a value in stats needs to be changed...
 	-- t: the table in misStats that this value belongs under
@@ -403,7 +407,8 @@ do
             end
             if slmod.config.write_mission_stats_files then
 				if misStatsF then  -- close if open from previous.
-					misStatsF:close()
+					slmod.info('nilify')
+                    misStatsF:close()
 					misStatsF = nil
 				end
 				
