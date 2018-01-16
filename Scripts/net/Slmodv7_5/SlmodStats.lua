@@ -70,7 +70,7 @@ do
 		end
 
 		if not statData then  -- only loads stats when the server is started.
-			slmod.info('no stats, loading from file: ' .. lstatsDir .. fileName)
+			slmod.info('no ' .. envName .. ' , loading from file: ' .. lstatsDir .. fileName)
 			
             local prevStatsF = io.open(lstatsDir .. fileName, 'r')
 			if prevStatsF then
@@ -89,7 +89,6 @@ do
 						slmod.error('unable to load Stats, reason: ' .. tostring(err2))
 						makeBackup(statsS)
 					else
-						slmod.info('check env')
                         if env[envName] then
 							slmod.info('loading stats file ' .. lstatsDir .. lName)
                             --slmod.info('using '.. lName .. ' as defined in ' .. lstatsDir .. lName)
@@ -411,7 +410,7 @@ do
 				local err  -- misStatsF already local
 				local missionName = 'UNKNOWN MISSION'
 				if slmod.current_mission then
-					local strInd = slmod.current_mission:len() - 4
+					local strInd = slmod.current_mission:len()
 					while strInd > 1 do
 						local char = slmod.current_mission:sub(strInd, strInd)
 						if char == '\\' or char == '/' then
@@ -420,7 +419,7 @@ do
 						end	
 						strInd = strInd - 1
 					end
-					missionName = slmod.current_mission:sub(strInd, slmod.current_mission:len() - 4)
+					missionName = slmod.current_mission:sub(strInd, slmod.current_mission:len())
 				end
 				
 

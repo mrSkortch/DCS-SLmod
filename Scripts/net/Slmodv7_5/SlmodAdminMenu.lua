@@ -1074,6 +1074,61 @@ do
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(toggleStatsVars)  -- add the item into the items table.
 		-------------------------------------------------------------------------------------------------------
+         --==================
+        -- Admin Alert Message Command
+        --==================
+        local AdminAlertVars = {}
+		AdminAlertVars.menu = SlmodAdminMenu
+		AdminAlertVars.description = 'Say in chat "-admin alert <message>" to display an admin message in chat and triggered messages'
+		AdminAlertVars.active = true
+		AdminAlertVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		AdminAlertVars.selCmds = {
+				[1] = {
+					[1] = { 
+						type = 'word', 
+						text = '-admin',
+						required = true
+					}, 
+					[2] = { 
+						type = 'word',
+						text = 'alert',
+						required = true
+						},
+					[3] = {
+						type = 'text',  -- new match type- ALL remaining text from chat message!  Can only be the last variable.
+						varname = 'message',
+						required = true,
+					},
+				}
+			} 
+        AdminAlertVars.onSelect = function(self, vars, client_id)
+			--net.log('in onSelect')
+			local message = vars.message or ''
+					
+            local AdminName
+            if client_id == 1 then
+                AdminName = net.get_name(1)
+            elseif slmod.clients[client_id] and slmod.clients[client_id].ucid and Admins[slmod.clients[client_id].ucid] then
+                AdminName = Admins[slmod.clients[client_id].ucid]
+            else
+                AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
+            end
+            
+            local displayTime = 10
+            if type(message) == 'string' then 
+                for w in string.gmatch(message, "%w+") do
+                    displayTime = displayTime + 1
+                end
+            end
+            
+            local msg = 'Admin Alert Message From: ' .. AdminName .. '\n\n' .. message
+            
+			slmod.msg_out_net(msg, displayTime, 'echo')
+
+
+		end
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminAlertVars)  -- add the item into the items table.
 
 		update_scope()   -- keep scope updated with all connected server admins.
 	end
@@ -1177,6 +1232,8 @@ do
 		end
 		
 		AdminRegisterItems[1] = SlmodMenuItem.create(AdminRegisterVars)  -- add the item into the items table.
+        
+       
 
 	end
 	------------------------------------------------------------------------------------------------------------
