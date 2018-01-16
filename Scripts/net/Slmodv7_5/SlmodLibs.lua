@@ -2674,7 +2674,7 @@ function slmod.reset()
 
 	if slmod.stats.reset then  -- if this function doesn't exist, then slmod stats are completely disabled.
 		slmod.stats.reset()
-		slmod.stats.resetStatsFile()
+		slmod.stats.resetFile()
 		slmod.stats.createGetStatsUnitInfo()
 		slmod.stats.create_weaponIsActive()
 		slmod.stats.create_unitIsStationary()

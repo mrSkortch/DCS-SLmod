@@ -98,7 +98,7 @@ do
 		end,
 		
 		getWeaponsReport = function(self)
-			local weapons = 
+			local weapons 
 		end,
 
 

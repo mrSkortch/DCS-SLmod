@@ -905,7 +905,13 @@ do
                 if ((Object.getCategory(lunit) == 1 and not lunit:getPlayerName()) or Object.getCategory(lunit) ~= 1) then -- only run logic on non clients
 					local newEvent = {}
 									
-					local lgroup = lunit:getGroup()
+					local lgroup
+                    if lunit:getCategory() == 3 then
+                        lgroup = StaticObject.getByName(lunit:getName())
+                    else
+                        lgroup  = lunit:getGroup()
+                    end
+                     
 					--local newUnit = {}
 					
 					local lCoa = tonumber(lunit:getCoalition())
