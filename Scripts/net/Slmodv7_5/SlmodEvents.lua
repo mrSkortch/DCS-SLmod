@@ -906,7 +906,7 @@ do
 					local newEvent = {}
 									
 					local lgroup
-                    if lunit:getCategory() == 3 then
+                    if lunit:getCategory() == 3 or lunit:getCategory() == 6 then
                         lgroup = StaticObject.getByName(lunit:getName())
                     else
                         lgroup  = lunit:getGroup()
@@ -942,7 +942,7 @@ do
 					newEvent.countryName = string.lower(country.name[tonumber(lunit:getCountry())])
 					newEvent.countryId= (lunit:getCountry())
 					
-					if tonumber(lunit:getCategory()) == 3 then
+					if tonumber(lunit:getCategory()) == 3 or tonumber(lunit:getCategory()) == 6 then
 						newEvent.category  = 'static'
 					else
 						local lCat = tonumber(lgroup:getCategory())
