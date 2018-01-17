@@ -6,20 +6,25 @@ do
 	local stats = slmod.stats.getStats()
 	local autoAdmin = slmod.config.autoAdmin
     
-    if slmod.exemptAll then -- append external exemption all list to the local one
-        for id, data in pairs(slmod.exemptAll) do
-            if not autoAdmin.exemptionList[id] then
-                autoAdmin.exemptionList[id] = data
+
+    function slmod.appendAutoAdminExemptList()
+       slmod.info('append exemptAll')
+       if slmod.exemptAll then -- append external exemption all list to the local one
+            for id, data in pairs(slmod.exemptAll) do
+                if not autoAdmin.exemptionList[id] then
+                    autoAdmin.exemptionList[id] = data
+                end
             end
         end
-    end
-    
-    if slmod.exemptAutoAdmin then
-        for id, data in pairs(slmod.exemptAutoAdmin) do -- check if anyone is only on the exempt autoAdmin list
-            if not autoAdmin.exemptionList[id] then
-                autoAdmin.exemptionList[id] = data
+        slmod.info('append autoAdmin')
+        if slmod.exemptAutoAdmin then
+            for id, data in pairs(slmod.exemptAutoAdmin) do -- check if anyone is only on the exempt autoAdmin list
+                if not autoAdmin.exemptionList[id] then
+                    autoAdmin.exemptionList[id] = data
+                end
             end
         end
+        return
     end
 	
 	local function checkedKick(id, ucid, kickMsg)  -- kick with verification of kicked player Ucid.

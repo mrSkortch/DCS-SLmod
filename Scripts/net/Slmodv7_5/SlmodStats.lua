@@ -407,7 +407,6 @@ do
             end
             if slmod.config.write_mission_stats_files then
 				if misStatsF then  -- close if open from previous.
-					slmod.info('nilify')
                     misStatsF:close()
 					misStatsF = nil
 				end

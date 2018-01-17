@@ -19,7 +19,7 @@ do
 	end
 	
 	function slmod.getNextSlmodEvents()
-		
+		--env.info('in getNextSlmodEvents')
 		--from debriefing.lua, not sure what it's for though.  Need it for events.
 		local function dtransl(s) 
 			if s and s ~= '' then return i18n.gettext.dtranslate('missioneditor', s) end
@@ -45,64 +45,64 @@ do
 
 
 		if not slmod.rawEvents then
-			--net.log('no raw events')
+			--env.info('no raw events')
 			slmod.rawEvents = {}
 			if not debriefing.addEvent_old then
-				--net.log('not addEventOld')
+				--env.info('not addEventOld')
 				debriefing.addEvent_old = debriefing.addEvent
 				function debriefing.addEvent(event)
-					-- net.log('debriefing event:')
-					--net.log(slmod.oneLineSerialize(event))
+					-- env.info('debriefing event:')
+					--env.info(slmod.oneLineSerialize(event))
 					if (('takeoff' == event.type) or ('land' == event.type) or ('base captured' == event.type)) and ( (event.place ~= nil) and (event.place ~= '') ) then
-						--net.log('do weird transl')
+						--env.info('do weird transl')
 						event.target = dtransl(event.place);
 					end
 					if slmod and slmod.deepcopy then
-						--net.log('slmod and deepcopy')
-						--net.log(event.initiator)
+						--env.info('slmod and deepcopy')
+						--env.info(event.initiator)
 						
 						local eventCopy = slmod.deepcopy(event)
 						
-						--net.log(GetUnitRTidByName(event.initiator))
+						--env.info(GetUnitRTidByName(event.initiator))
 						if event.initiator then -- for mission start/stop events
 							eventCopy.initiatorID = GetUnitRTidByName(event.initiator)
 						end
 						
 						if eventCopy.type == 'shot' or eventCopy.type =='start shooting' or eventCopy.type == 'end shooting' then
-							-- net.log(eventCopy.type)
+							-- env.info(eventCopy.type)
 							-- if slmod.lastShotEvent then
-							--net.log('slmod.lastShotEvent data:')
-							-- net.log(slmod.lastShotEvent.time)
-							-- net.log(slmod.lastShotEvent.initiatorID)
-						-- net.log(slmod.lastShotEvent.weapon)
-						-- net.log(slmod.lastShotEvent.weaponID)
+							--env.info('slmod.lastShotEvent data:')
+							-- env.info(slmod.lastShotEvent.time)
+							-- env.info(slmod.lastShotEvent.initiatorID)
+						-- env.info(slmod.lastShotEvent.weapon)
+						-- env.info(slmod.lastShotEvent.weaponID)
 							-- end
-						--net.log(slmod.oneLineSerialize(slmod.lastShotEvent))
+						--env.info(slmod.oneLineSerialize(slmod.lastShotEvent))
 						
 							if slmod.lastShotEvent and slmod.lastShotEvent.time == eventCopy.t and slmod.lastShotEvent.initiatorID == eventCopy.initiatorID then  -- a match!
-							---	net.log('last shot event')
+							---	env.info('last shot event')
 								if not slmod.lastShotEvent.isShell then
-								--	net.log('is shell false')
+								--	env.info('is shell false')
 									eventCopy['weaponID'] = slmod.lastShotEvent.weaponID  -- only do this for non-shells!
 								end
 								slmod.lastShotEvent = nil
 							end
 							local lShells
 							if eventCopy.type =='start shooting' or eventCopy.type == 'end shooting' then -- scripting engine shell enum
-								--net.log('line92')
+								--env.info('line92')
 								lShells = 0
 								for index, data in pairs(Unit.getByName(eventCopy.initiator):getAmmo()) do
 									if data.desc.category == 0 then
 										lShells = lShells + data.count
 									end
 								end
-								--net.log('lshells ' .. lShells)
+								--env.info('lshells ' .. lShells)
 								eventCopy['numShells'] = lShells
 							end
 						end
 						
 						if eventCopy.type == 'hit' then
-							--net.log('hit')
+							--env.info('hit')
 							if slmod.lastHitEvent and slmod.lastHitEvent.time == eventCopy.t and slmod.lastHitEvent.initiatorID == eventCopy.initiatorID then  -- a match!
 								if not slmod.lastHitEvent.isShell then
 									eventCopy['weaponID'] = slmod.lastHitEvent.weaponID
@@ -113,13 +113,13 @@ do
 						
 						
 						
-						--net.log('add to raw events')
+						--env.info('add to raw events')
 						table.insert(slmod.rawEvents, eventCopy)
 					else
-						--net.log('else')
+						--env.info('else')
 						table.insert(slmod.rawEvents, event)
 					end
-					--net.log('return')
+					--env.info('return')
 					return debriefing.addEvent_old(event)
 				end
 			end		
@@ -152,8 +152,8 @@ do
 					--first, get the time of the currently evaluated event in new_events
 					cur_time = new_events[new_events_ind].t 
 					
-					-- net.log('evaluating event #' .. tostring(new_events_ind) .. 'in new_events')
-					-- net.log('time is: ' .. tostring(cur_time) .. '\n')
+					-- env.info('evaluating event #' .. tostring(new_events_ind) .. 'in new_events')
+					-- env.info('time is: ' .. tostring(cur_time) .. '\n')
 					
 					------Next, get the index of the first event in slmod_events that occurred within time_res
 					while ((time_res_ind <= #slmod_events) and ((cur_time - slmod_events[time_res_ind].stoptime) > time_res)) do
@@ -165,21 +165,21 @@ do
 					local eval_ind = time_res_ind --make a copy... we don't want to have to re-search from scratch, so preserve value of time_res_ind
 					
 					if (time_res_ind > #slmod_events) then  --no event in slmod_events has occured within time_res, make a new slmod_event
-						-- net.log('no event has occured within time_res, creating new slmod_event\n')
+						-- env.info('no event has occured within time_res, creating new slmod_event\n')
 						------adding a new slmod_event
 						slmod_events[#slmod_events + 1] = slmod.deepcopy(new_events[new_events_ind])
 						slmod_events[#slmod_events]['numtimes'] = 1
 						slmod_events[#slmod_events]['stoptime'] = slmod_events[#slmod_events].t
 		 
 					else-- we need to check if there is an event match
-						-- net.log('event has occured within time_res at index ' .. tostring(time_res_ind) .. ' of slmod_events (size of slmod_events: ' .. tostring(#slmod_events) .. ') at stoptime ' ..  tostring(slmod_events[time_res_ind].stoptime) .. '\n')
+						-- env.info('event has occured within time_res at index ' .. tostring(time_res_ind) .. ' of slmod_events (size of slmod_events: ' .. tostring(#slmod_events) .. ') at stoptime ' ..  tostring(slmod_events[time_res_ind].stoptime) .. '\n')
 			
 						while eval_ind  <= #slmod_events do
 						
 							--do compare, if matches, break.  if no match, then eval_ind  will be > #slmod_events.  if it does break, then eval_ind will be <= #slmod_events
 							if compare_events(new_events[new_events_ind], slmod_events[eval_ind]) then
 								
-								-- net.log('match found for new_events[new_events_ind] at index ' .. tostring(eval_ind) .. ' of slmod_events\n')
+								-- env.info('match found for new_events[new_events_ind] at index ' .. tostring(eval_ind) .. ' of slmod_events\n')
 								break
 							end
 							
@@ -188,7 +188,7 @@ do
 						end
 					
 						if eval_ind > #slmod_events then  --no match was found, make a new slmod_event
-							-- net.log('no match found, making a new event in slmod_events\n')
+							-- env.info('no match found, making a new event in slmod_events\n')
 							------adding a new slmod_event
 							slmod_events[#slmod_events + 1] = slmod.deepcopy(new_events[new_events_ind])
 							slmod_events[#slmod_events]['numtimes'] = 1
@@ -196,7 +196,7 @@ do
 						
 					
 						else  -- a match for new_events[new_events_ind] within time_res was found within slmod_events at eval_ind
-							-- net.log('a match was found at ' .. tostring(eval_ind) .. 'of slmod_events\n')
+							-- env.info('a match was found at ' .. tostring(eval_ind) .. 'of slmod_events\n')
 							slmod_events[eval_ind]['numtimes'] = slmod_events[eval_ind]['numtimes'] + 1
 							slmod_events[eval_ind]['stoptime'] = cur_time
 						
@@ -208,10 +208,11 @@ do
 				end	
 			
 			end
-
+            --env.info('exit')
 			return slmod.serialize('slmod_next_events', slmod_events)
 			
 		end
+        --env.info('noE')
 		return 'no_new_events'
 	end
 end]=]
@@ -234,9 +235,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 	
 	local events_str, error_bool = net.dostring_in('server', 'return slmod.getNextSlmodEvents()')  --if new events have occured, will return a lua executable string
 	if ((error_bool == true) and (events_str ~= 'no_new_events')) then  --new events have occurred since last call of slmod.addSlmodEvents()
-
 		local slmod_next_events = slmod.deserializeValue(events_str)
-
 		if ((type(slmod_next_events) == 'table') and (#slmod_next_events > 0 ))then  --shouldn't be necessary, but you never know
 			-- Now, append all the entries of slmod_next_events into the global events list, "slmod.events".
 			
@@ -405,7 +404,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 				--------------------------------------------------------------------------------------------------------------------------------------
 				--------------------------------------------------------------------------------------------------------------------------------------
 			end
-			
+			--slmod.info('end add events')
 		else
 			slmod.error('returned slmod events string is not \'no_new_events\', and is not a table or table size is zero!')			
 		end
@@ -588,33 +587,33 @@ do
 	a weapons_impacting_in_zone function is called?
 	]]
 	function slmod.update_track_weapons_for()
-		--net.log('running update_track_weapons_for')
+		--env.info('running update_track_weapons_for')
 		track_weapons_for = {} --reinitialize.
 		
 		for unit_name, weapon_list in pairs(track_weapons_for_byname) do
-			--net.log('trying to get RTid for: ' .. unit_name)
+			--env.info('trying to get RTid for: ' .. unit_name)
 			local unit_rtid = GetUnitRTidByName(unit_name)
-			--net.log('RTid is: ' .. tostring(unit_rtid))
+			--env.info('RTid is: ' .. tostring(unit_rtid))
 			if unit_rtid then  -- only worth continuing if this unit has a rtid
-				--net.log('unit_rtid found!, it is: ' .. tostring(unit_rtid))
+				--env.info('unit_rtid found!, it is: ' .. tostring(unit_rtid))
 				for weapon, checks in pairs(weapon_list) do
-					--net.log('serializing weapon and checks:')
-					--net.log(slmod.oneLineSerialize(weapon))
-					--net.log(slmod.oneLineSerialize(checks))
+					--env.info('serializing weapon and checks:')
+					--env.info(slmod.oneLineSerialize(weapon))
+					--env.info(slmod.oneLineSerialize(checks))
 					for check_ind, check in pairs(checks) do
 						if check['type'] == 'zone' then --free to add this to track_weapons_for
 							track_weapons_for[unit_rtid] = track_weapons_for[unit_rtid] or {}
 							track_weapons_for[unit_rtid][weapon] = track_weapons_for[unit_rtid][weapon] or {}
 							ltinsert(track_weapons_for[unit_rtid][weapon], check)
 						elseif check['type'] == 'moving_zone' then -- want to check if this zone unit actually exists.
-							--net.log('check type is moving zone...')
+							--env.info('check type is moving zone...')
 							local zone_unit_rtid = GetUnitRTidByName(check['unit_name'])
-							--net.log('zone_unit_rtid is: ' .. tostring(zone_unit_rtid))
+							--env.info('zone_unit_rtid is: ' .. tostring(zone_unit_rtid))
 							if zone_unit_rtid then  -- only worth continuing if this unit has a rtid
 								track_weapons_for[unit_rtid] = track_weapons_for[unit_rtid] or {}
 								track_weapons_for[unit_rtid][weapon] = track_weapons_for[unit_rtid][weapon] or {}
 								check['unit_rtid'] = zone_unit_rtid
-								--net.log('inserting into track_weapons_for...')
+								--env.info('inserting into track_weapons_for...')
 								ltinsert(track_weapons_for[unit_rtid][weapon], check)
 							end
 						end
@@ -626,7 +625,7 @@ do
 	
 	local function associate_weapon_names()
 		associate_weapons_scheduled = false
-		--net.log('associating weapon names...')
+		--env.info('associating weapon names...')
 		if slmod.rawEvents then
 			if new_weapons then
 				while #new_weapons >= 1 do
@@ -648,23 +647,23 @@ do
 					--new_weapons_ind = new_weapons_ind + 1
 				end
 			else
-				--net.log('no new_weapons!')
+				--env.info('no new_weapons!')
 				return
 			end
 			event_start_ind = #slmod.rawEvents + 1 -- a potential problem- if this is called before all events have filtered over to slmod.rawEvents, then I could end up missing events.
 		end
-		--net.log('exiting function')
+		--env.info('exiting function')
 	end
 	
 	
 	function slmod.track_weapons()  -- make this function be passed a time when the new function scheduler is completed.
-		--net.log('slmod tracking weapons at: ' .. tostring(timer.getTime()))
+		--env.info('slmod tracking weapons at: ' .. tostring(timer.getTime()))
 		local cur_time = timer.getTime()
 		if cur_time and cur_time > prev_time then  --prev_time - a local variable to this block of code.
 			prev_time = cur_time	
 			timer.scheduleFunction(slmod.track_weapons, {}, timer.getTime() + 0.1)  --schedule before the function is run... don't want a lua error to end it.
 		end
-		--net.log('next weapon tracking scheduled for: ' .. tostring(timer.getTime() + 0.1))
+		--env.info('next weapon tracking scheduled for: ' .. tostring(timer.getTime() + 0.1))
 		local i = 1
 		while i <= #active_weapons do
 			local weapon_coords  -- will be either current weapon position, or impacted position
@@ -672,24 +671,24 @@ do
 			local using_ip = false
 			local weapon_data = active_weapons[i]
 			if not lUnit.isExist(active_weapons[i].weapon) then
-				--net.log('weapon no longer exists, weapon impacted?')
+				--env.info('weapon no longer exists, weapon impacted?')
 				if active_weapons[i].prev_ip then
-					--net.log('USING PREVIOUS IP!:')
+					--env.info('USING PREVIOUS IP!:')
 					weapon_coords = active_weapons[i].prev_ip
 					using_ip = true
 				else
-					--net.log('no previous IP!')
+					--env.info('no previous IP!')
 					if active_weapons[i].prev_pos then
 						weapon_coords = active_weapons[i].prev_pos
 					end
 				end
 				impacted = true
-				--net.log('weapon removed.')
+				--env.info('weapon removed.')
 				ltremove(active_weapons, i)  -- this weapon is gone, remove it!
 				--DON'T increment the while loop counter, we removed a weapon
 			else  -- weapon still exists, need to update in active_weapons.
 				----update data for the weapon:
-				--net.log('updating this weapon')
+				--env.info('updating this weapon')
 				local weapon_pos = lObject.getPosition(active_weapons[i].weapon)
 				active_weapons[i].prev_pos = weapon_pos.p
 				active_weapons[i].prev_ip = land.getIP(weapon_pos.p, weapon_pos.x, 200)
@@ -789,22 +788,22 @@ do
 	slmod.humanHitsInd = 1
 	
 	world.onEvent = function(event) 
-		--net.log('world event:')
-		--net.log(slmod.oneLineSerialize(event))
+		--env.info('world event:')
+		env.info(slmod.oneLineSerialize(event))
 		
 		-- store latest event for preventing server crash when using DCS.getUnitProperty in active units database building code.
 		slmod.lastEvent = event
 		
 		if event and (event.id == world.event.S_EVENT_SHOT or event.id == world.event.S_EVENT_SHOOTING_START or event.id == world.event.S_EVENT_SHOOTING_END) then
-			--net.log('shot event')
+			--env.info('shot event')
 			if event.weapon then
 				slmod.humanWeapons[event.weapon.id_] = nil  --erase this entry if it existed before.
 			end
 			-------------------------------------------------------------------
 			-- code for use in SlmodStats system and slmod.events
 			if event.weapon then
-				--net.log('event weapon')
-				--net.log(event.initiator)
+				--env.info('event weapon')
+				--env.info(event.initiator)
 				local initName = Unit.getName(event.initiator)
 				
 				
@@ -816,12 +815,12 @@ do
 				
 				local isShell
 				local shellNum = 0
-				--net.log('shell check')
+				--env.info('shell check')
 				--if (pcall(Unit.hasAttribute, event.weapon, 'Bomb')) and (not (Unit.hasAttribute(event.weapon, 'Bomb') or Unit.hasAttribute(event.weapon, 'Missile') or Unit.hasAttribute(event.weapon, 'Rocket'))) then
 				if Weapon.getDesc(event.weapon).category == 0 then -- scripting engine shell enum
-				--	net.log('statement true')
+				--	env.info('statement true')
 					isShell = true
-					--net.log('line824')
+					--env.info('line824')
 					-- doesnt actually save anything
 					--[[lShells = 0
 					for index, data in pairs(Unit.getByName(eventCopy.initiator):getAmmo()) do
@@ -829,19 +828,19 @@ do
 							lShells = lShells + data.count
 						end
 					end]]
-					--net.log('lshells ' .. lShells)
+					--env.info('lshells ' .. lShells)
 				end
-				--net.log('add last shot event')
+				--env.info('add last shot event')
 				
 				slmod.lastShotEvent = {initiatorID = event.initiator.id_, time = event.time, weaponID = event.weapon.id_, isShell = isShell}
 	
 			end
 			-------------------------------------------------------------------
-			--net.log('shot event found!')
-			--net.log(event.weapon.id_)
-			--net.log(track_weapons_for[event.initiator.id_])
+			--env.info('shot event found!')
+			--env.info(event.weapon.id_)
+			--env.info(track_weapons_for[event.initiator.id_])
 			if event.weapon and event.weapon.id_ and event.weapon.id_ ~= 0 and track_weapons_for[event.initiator.id_] then
-			--	net.log('tracking this weapon')
+			--	env.info('tracking this weapon')
 
 				local weapon_pos = lObject.getPosition(event.weapon)
 				
@@ -858,8 +857,8 @@ do
 			------------------------------------------------------------------
 			-- code for slmod.lastHitEvent, used in stat system and slmod.events
 			if event.weapon then
-				-- net.log('HIT EVENT: info:')
-				-- net.log(slmod.oneLineSerialize(event))
+				-- env.info('HIT EVENT: info:')
+				 env.info(slmod.oneLineSerialize(event))
 				if (slmod.humanWeapons[event.weapon.id_] or (event.initiator and Unit.isExist(event.initiator) and (pcall(Unit.getName, event.initiator)) and slmod.clients[Unit.getName(event.initiator)])) and event.target and slmod.deepcopy then  -- a hit on something by a human
 					
 					local targetName
@@ -882,12 +881,12 @@ do
 00060.601 UNKNOWN WinMain: false]]
 				local isShell
 				if (pcall(Unit.hasAttribute, event.weapon, 'Bomb')) and (not (Unit.hasAttribute(event.weapon, 'Bomb') or Unit.hasAttribute(event.weapon, 'Missile') or Unit.hasAttribute(event.weapon, 'Rocket'))) then
-					--net.log('WEAPON IS SHELL')
-					--net.log(Object.isExist(event.weapon))
-					--net.log(pcall(Unit.hasAttribute, event.weapon, 'Bomb'))
-					--net.log(Unit.hasAttribute(event.weapon, 'Bomb'))
-					--net.log(Unit.hasAttribute(event.weapon, 'Missile'))
-					--net.log(Unit.hasAttribute(event.weapon, 'Rocket'))
+					--env.info('WEAPON IS SHELL')
+					--env.info(Object.isExist(event.weapon))
+					--env.info(pcall(Unit.hasAttribute, event.weapon, 'Bomb'))
+					--env.info(Unit.hasAttribute(event.weapon, 'Bomb'))
+					--env.info(Unit.hasAttribute(event.weapon, 'Missile'))
+					--env.info(Unit.hasAttribute(event.weapon, 'Rocket'))
 					isShell = true
 				end
 				if event.initiator then
@@ -957,7 +956,7 @@ do
 						end
 						newEvent.category = lCat
 					end
-					--net.log(slmod.tableshow(newUnit))
+					--env.info(slmod.tableshow(newUnit))
 					
 					
 					
@@ -967,14 +966,14 @@ do
 					newEvent.initiator = lunit:getName()
 					
 					table.insert(slmod.rawEvents, newEvent)
-					--net.log(slmod.tableshow(newEvent))
+					--env.info(slmod.tableshow(newEvent))
 					--slmod.allMissionUnitsByName[newUnit.name] = newUnit
 					--slmod.activeUnitsBase[#slmod.activeUnitsBase + 1] = newUnit
 				end
 			end
 		end
 		
-		--net.log('running old_onEvent')
+		--env.info('running old_onEvent')
 		return slmod.old_onEvent(event)
 	end
 	

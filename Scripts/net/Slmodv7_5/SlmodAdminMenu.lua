@@ -38,12 +38,13 @@ do
 		end
 	end
 	----------------------------------------------------------------------------------------
-		local function load_exempt_clients()  -- loads banned clients.
-		local exempt_f = io.open(config_dir .. 'ExemptClients.lua', 'r')
+	local function load_exempt_clients()  -- loads banned clients.
+		slmod.info('load exempt clients')
+        local exempt_f = io.open(config_dir .. 'ExemptClients.lua', 'r')
 		if exempt_f then
 			local exempt_s = exempt_f:read('*all')
 			local exempt_func, err1 = loadstring(exempt_s)
-			if ban_func then
+			if exempt_func then
 				local safe_env = {}
 				setfenv(exempt_func, safe_env)
 				local bool, err2 = pcall(exempt_func)
@@ -59,7 +60,7 @@ do
 					slmod.info('using exempt ucids as defined in ' .. config_dir .. 'ExemptClients.lua')
 				end
 			else
-				slmod.error('unable to load banned clients, reason: ' .. tostring(err1))
+				slmod.error('unable to load exempt clients, reason: ' .. tostring(err1))
 			end
 			
 		else  -- unable to open file, attempt to create one.
@@ -104,11 +105,12 @@ do
 	end
 	----------------------------------------------------------------------------------------
 	function slmod.update_exempt_clients()
+        slmod.info('update exempt clients')
         slmod.exemptAll = slmod.exemptAll or {}
         slmod.exemptPing = slmod.exemptPing or {}
         slmod.exemptAutoAdmin = slmod.exemptAutoAdmin or {}
         
-        local file_s = slmod.serialize('slmod_exempt_all', slmod.exemptAll) .. '\n\n' .. slmod.serialize('slmod_exempt_ping', slmod.exemptPing .. '\n\n' .. slmod.serialize('slmod_exempt_autoAdmin', slmod.exemptAutoAdmin)
+        local file_s = slmod.serialize('slmod_exempt_all', slmod.exemptAll) .. '\n\n' .. slmod.serialize('slmod_exempt_ping', slmod.exemptPing) .. '\n\n' .. slmod.serialize('slmod_exempt_autoAdmin', slmod.exemptAutoAdmin)
 
 		local exempt_f = io.open(config_dir .. 'ExemptClients.lua', 'w')
 		if exempt_f then
@@ -268,6 +270,7 @@ do
 		load_banned_clients()
 		load_admins()
 		load_exempt_clients()
+        slmod.appendAutoAdminExemptList()
 		-- Used for Admin menu and id ban submenu.
 		local display_mode = slmod.config.admin_display_mode or 'text'
 		local display_time = slmod.config.admin_display_time or 30

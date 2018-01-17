@@ -293,7 +293,7 @@ end
 				slmod.updateClients()
 
 				-- Check pings
-				if slmod.pingCheck.config.enabled then
+				if slmod.config.pingcheck_conf.enabled == true then
 					slmod.pingCheck.heartbeat()
 				end
 				
@@ -444,8 +444,8 @@ end
 -----------------------------------------------------------------------------------------
 --modify on_connect
 --slmod.func_old.on_connect = slmod.func_old.on_connect or onPlayerConnect
-function slmodCall.onPlayerConnect(id, name)
-	--net.log('onConnect')
+function slmodCall.onPlayerConnect(id)
+	slmod.info('connected client ' .. id)
 	slmod.clients = slmod.clients or {} --should not be necessary.
 	slmod.clients[id] = {id = id, addr = net.get_player_info(id, 'ipaddr'), name = net.get_player_info(id, 'name'), ucid = net.get_player_info(id, 'ucid'), ip = net.get_player_info(id, 'ipaddr')}
 	
@@ -454,6 +454,7 @@ function slmodCall.onPlayerConnect(id, name)
 	else
 		slmod.num_clients = slmod.num_clients + 1
 	end
+    slmod.pingCheck.addClient(id)
 	return --slmod.func_old.on_connect(id)
 end 
 
