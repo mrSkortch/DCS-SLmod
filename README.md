@@ -2,13 +2,16 @@ Slmod- multiplayer server mod for new mission logic functionality
 =========
 Server adminstation and mission functionality mod for Digital Combat Simulator
 
-Author: Speed
+Author: Speed, Grimes
+DCS 2.0+ Compatibility Thread: https://forums.eagle.ru/showthread.php?t=155563
 
-Forum Thread: http://forums.eagle.ru/showthread.php?t=80979
+Original Forum Thread: http://forums.eagle.ru/showthread.php?t=80979
 
 Documentation
 ====
 The attached pdf "slmodvX_Y.pdf" is attached in the download. 
+
+Note that the source file for the pdf is not available, thus it will not be updated. 
 
 Description
 ===

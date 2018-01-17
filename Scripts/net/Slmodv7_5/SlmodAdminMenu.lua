@@ -38,7 +38,39 @@ do
 		end
 	end
 	----------------------------------------------------------------------------------------
-	
+		local function load_exempt_clients()  -- loads banned clients.
+		local exempt_f = io.open(config_dir .. 'ExemptClients.lua', 'r')
+		if exempt_f then
+			local exempt_s = exempt_f:read('*all')
+			local exempt_func, err1 = loadstring(exempt_s)
+			if ban_func then
+				local safe_env = {}
+				setfenv(exempt_func, safe_env)
+				local bool, err2 = pcall(exempt_func)
+				if not bool then
+					slmod.error('unable to load exempt clients, reason: ' .. tostring(err2))
+					slmod.exemptAll = slmod.exemptAll or {}
+                    slmod.exemptPing = slmod.exemptPing or {}
+					slmod.exemptAutoAdmin = slmod.exemptAutoAdmin or {}
+				else
+					slmod.exemptAll = safe_env['slmod_exempt_all'] or {}
+                    slmod.exemptPing = safe_env['slmod_exempt_ping'] or {}
+					slmod.exemptAutoAdmin = safe_env['slmod_exempt_autoAdmin'] or {}
+					slmod.info('using exempt ucids as defined in ' .. config_dir .. 'ExemptClients.lua')
+				end
+			else
+				slmod.error('unable to load banned clients, reason: ' .. tostring(err1))
+			end
+			
+		else  -- unable to open file, attempt to create one.
+			slmod.info('Unable to open or find ' .. config_dir .. 'ExemptClients.lua, creating file...')
+			slmod.exemptAll = slmod.exemptAll or {}
+            slmod.exemptPing = slmod.exemptPing or {}
+			slmod.exemptAutoAdmin = slmod.exemptAutoAdmin or {}
+			
+			slmod.update_exempt_clients() -- creates the file.
+		end
+	end
 	----------------------------------------------------------------------------------------
 	-- clientInfo = {ucid = string, name = string, ip = string}, --adminInfo = {ucid = string, name = string} OR 'autoban', expTime -expiration time, optional.... ALL variables optional, called with nothing, it just re-serializes the file.
 	function slmod.update_banned_clients(clientInfo, adminInfo, expTime)  -- adds a banned client   -- NO LONGER LOCAL
@@ -71,7 +103,22 @@ do
 		end
 	end
 	----------------------------------------------------------------------------------------
-	
+	function slmod.update_exempt_clients()
+        slmod.exemptAll = slmod.exemptAll or {}
+        slmod.exemptPing = slmod.exemptPing or {}
+        slmod.exemptAutoAdmin = slmod.exemptAutoAdmin or {}
+        
+        local file_s = slmod.serialize('slmod_exempt_all', slmod.exemptAll) .. '\n\n' .. slmod.serialize('slmod_exempt_ping', slmod.exemptPing .. '\n\n' .. slmod.serialize('slmod_exempt_autoAdmin', slmod.exemptAutoAdmin)
+
+		local exempt_f = io.open(config_dir .. 'ExemptClients.lua', 'w')
+		if exempt_f then
+			exempt_f:write(file_s)
+			exempt_f:close()
+			exempt_f = nil
+		else
+			slmod.error('Unable to open ' .. config_dir .. 'ExemptClients.lua for writing.')
+		end
+    end
 	----------------------------------------------------------------------------------------
 	local function load_admins()
 		local Admins_f = io.open(config_dir .. 'ServerAdmins.lua', 'r')
@@ -220,7 +267,7 @@ do
 	function slmod.create_SlmodAdminMenu()
 		load_banned_clients()
 		load_admins()
-		
+		load_exempt_clients()
 		-- Used for Admin menu and id ban submenu.
 		local display_mode = slmod.config.admin_display_mode or 'text'
 		local display_time = slmod.config.admin_display_time or 30
@@ -1117,13 +1164,13 @@ do
             local displayTime = 10
             if type(message) == 'string' then 
                 for w in string.gmatch(message, "%w+") do
-                    displayTime = displayTime + 1
+                    displayTime = displayTime + .6
                 end
+                local msg = 'Admin Alert Message From: ' .. AdminName .. '\n\n' .. message
+                slmod.msg_out_net(msg, displayTime, 'echo')
             end
             
-            local msg = 'Admin Alert Message From: ' .. AdminName .. '\n\n' .. message
-            
-			slmod.msg_out_net(msg, displayTime, 'echo')
+           
 
 
 		end
