@@ -255,7 +255,7 @@ end
 			slmod.doTasks()
 
 			
-			if slmod.mission_started then
+			if slmod.mission_started == true then
 				slmod.reset()
 				slmod.mission_started = false
 				slmod.importMissionZones()
@@ -372,12 +372,12 @@ end
 -- redefine on_mission
 --slmod.func_old.on_mission = slmod.func_old.on_mission or onMissionLoadBegin --onMissionLoadBegin
 function slmodCall.onMissionLoadBegin()
-	
 	slmod.current_mission = DCS.getMissionName()
+    slmod.current_map = DCS.getCurrentMission().mission.theatre
 	slmod.mission_start_time = DCS.getRealTime()  --needed to prevent CTD caused by C Lua API on net.pause and net.resume
 	slmod.mission_started = true
 	slmod.do_once_code = true
-	
+
 	-- flush out the udp port if there is anything left.
 	if slmod.udp then
 		repeat

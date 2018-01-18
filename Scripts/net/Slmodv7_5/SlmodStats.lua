@@ -1,14 +1,12 @@
 slmod.stats = slmod.stats or {}  -- make table anyway, need it.
 do
-	slmod.info('loadStats')
     -------------------------------------------------------------------------------------------------------
 	-------------------------------------------------------------------------------------------------------
 	-- stats file initialization
 	local statsDir = slmod.config.stats_dir or lfs.writedir() .. [[Slmod\]]
 	
 	local stats -- server stats, nil at first.
-	local metaStats -- slmod meta stats
-   
+    --local metaStats
 	------------------------------------------------------------------------------------------
 	-- new slmod.stats.resetStatsFile function.
 	local statsF -- stats file handle; upvalue of slmod.stats.resetStatsFile.
@@ -28,13 +26,14 @@ do
     -- NEW NEW write file code
 	-------------------------------------------------------------------------------------------------------
     slmod.stats.resetFile = function (l, f) -- 
-		local fileF
+        local fileF
         local fileName
         local lName = ''
         local lstatsDir = statsDir
         local statData
         local envName = 'stats'
         if l == 'mission' then
+            --slmod.info('mission')
             fileF = misStatsF
             if f then
                 fileName = '\\' .. f
@@ -42,12 +41,13 @@ do
             lstatsDir = missionStatsDir
             envName = 'misStats'
         elseif l == 'meta' then
-            fileF = metaStatsF
+            --slmod.info('meta')
             fileName = '\\SlmodMetaStats.lua'
-            statData = metaStats
-            lName = 'SlmodMetaStats'
+            lName = 'SlmodMetaStats.lua'
             envName = 'metaStats'
-        else 
+            statData = metaStats
+        else
+           -- slmod.info('stats')
             fileF = statsF
             fileName = '\\SlmodStats.lua'
             lName = 'SlmodStats.lua'
@@ -79,9 +79,10 @@ do
 			if prevStatsF then
 				--slmod.info('prevStatsF')
                 local statsS = prevStatsF:read('*all')
+               -- slmod.info(slmod.oneLineSerialize(statsS))
 				local statsFunc, err1 = loadstring(statsS)
 				prevStatsF:close()
-               -- slmod.info('prevStatsF Close')
+                --slmod.info('prevStatsF Close')
 				if statsFunc then
 					--slmod.info('doing env')
                     local env = {}
@@ -93,10 +94,8 @@ do
 						makeBackup(statsS)
 					else
                         if env[envName] then
-							slmod.info('loading stats file ' .. lstatsDir .. lName)
-                            --slmod.info('using '.. lName .. ' as defined in ' .. lstatsDir .. lName)
+							slmod.info('using '.. lName .. ' as defined in ' .. lstatsDir .. lName)
                             statData = env[envName]
-                            --slmod.info('stats assigned')
 						else
                             slmod.info('no table in file ' .. lstatsDir .. lName)
 							makeBackup(statsS)
@@ -116,8 +115,11 @@ do
         end
         if l == 'meta' then
             local newStatsS = slmod.serialize('metaStats', statData) ..'\n'
-            metaStatsF = io.open(lstatsDir .. fileName, 'w')
-            metaStatsF:write(newStatsS)
+            fileF = io.open(lstatsDir .. fileName, 'w')
+            fileF:write(newStatsS)
+            --fileF:close()
+           -- fileF = nil -- close meta stats so it can be written elsewhere
+           
         elseif l == 'mission' then
             local newStatsS = slmod.serialize('misStats', statData) ..'\n'
             fileF = io.open(lstatsDir .. fileName, 'w')
@@ -131,21 +133,19 @@ do
             statsF = io.open(lstatsDir .. fileName, 'w')
             statsF:write(newStatsS)
         end
-
-        return statData
+        --slmod.info(slmod.oneLineSerialize(statData))
+        return statData, fileF
 	end
     stats = slmod.stats.resetFile()
-    metaStats = slmod.stats.resetFile('meta')
+    
 	-------------------------------------------------------------------------------------------------------
 	-- Create statsTableKeys database
-
     local statsTableKeys = {}  -- stores strings that corresponds to table indexes within stats... needed for updating file.
 	statsTableKeys[stats] = 'stats'
-
 	do
 		local function makeStatsTableKeys(levelKey, t)
             for key, val in pairs(t) do
-				if type(val) == 'table' and type(key) == 'string' then
+                if type(val) == 'table' and type(key) == 'string' then
 					key = levelKey .. '[' .. slmod.basicSerialize(key) .. ']'
 					statsTableKeys[val] = key  -- works because each table only exists once in Slmod stats- it's REQUIRED!!! DO NOT FORGET THIS!
 					makeStatsTableKeys(key, val)
@@ -154,44 +154,10 @@ do
 		end
 		
 		makeStatsTableKeys('stats', stats)
-		
 	end	
 
 	------------------------------------------------------------------------------------------------------
-	local metaStatsTableKeys = {}  -- stores strings that corresponds to table indexes within metaStats... needed for updating file.
-	metaStatsTableKeys[metaStats] = 'metaStats'
-	do
-		local function makeMetaStatsTableKeys(levelKey, t)
-            for key, val in pairs(t) do
-				if type(val) == 'table' and type(key) == 'string' then
-					key = levelKey .. '[' .. slmod.basicSerialize(key) .. ']'
-					metaStatsTableKeys[val] = key  -- works because each table only exists once in Slmod stats- it's REQUIRED!!! DO NOT FORGET THIS!
-					makeMetaStatsTableKeys(key, val)
-				end
-			end
-		end
-		
-		makeMetaStatsTableKeys('metaStats', metaStats)
-		
-	end	
-	-- call this function each time a value in stats needs to be changed...
-	-- t: the table in metaStats that this value belongs under
-	function slmod.stats.changeMetaStatsValue(t, key, newValue)
-        if not t then
-			slmod.error('Invalid metaStats table specified!')
-			return
-		end
-		if type(newValue) == 'table' then
-			metaStatsTableKeys[newValue] = metaStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']'
-		end
 
-		t[key] = newValue
-		if metaStatsF then
-            local metaStatsChangeString = metaStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
-            metaStatsF:write(metaStatsChangeString)
-			--slmod.info(metaStatsChangeString, true)
-		end
-	end
     
 	-- call this function each time a value in stats needs to be changed...
 	-- t: the table in stats that this value belongs under
@@ -397,39 +363,33 @@ do
     
 	-----------------------------------------------------------------------------------------------------
 	function slmod.stats.onMission()  -- for creating per-mission stats.
-		if slmod.config.enable_mission_stats then
-			if metaStats.missionStatsFile.currentMissionFile then
-                slmod.stats.changeMetaStatsValue(metaStats.missionStatsFile, 'previousMissionFile', metaStats.missionStatsFile.currentMissionFile)
-                if metaStats.missionStatsFile.previousMissionFile then
-                    slmod.stats.resetFile('mission', metaStats.missionStatsFile.previousMissionFile)
-                end
-                
+        local err  -- misStatsF already local
+        local missionName = 'UNKNOWN MISSION'
+        if slmod.current_mission then
+            local strInd = slmod.current_mission:len()
+            while strInd > 1 do
+                local char = slmod.current_mission:sub(strInd, strInd)
+                if char == '\\' or char == '/' then
+                    strInd = strInd + 1
+                    break
+                end	
+                strInd = strInd - 1
             end
+            missionName = slmod.current_mission:sub(strInd, slmod.current_mission:len())
+        end
+
+        misStatFileName = (missionName .. '- ' .. os.date('%b %d, %Y at %H %M %S.lua'))
+        slmod.stats.updateMetaMapInfo(misStatFileName)
+        if slmod.config.enable_mission_stats then
             if slmod.config.write_mission_stats_files then
 				if misStatsF then  -- close if open from previous.
                     misStatsF:close()
 					misStatsF = nil
 				end
 				
-				local err  -- misStatsF already local
-				local missionName = 'UNKNOWN MISSION'
-				if slmod.current_mission then
-					local strInd = slmod.current_mission:len()
-					while strInd > 1 do
-						local char = slmod.current_mission:sub(strInd, strInd)
-						if char == '\\' or char == '/' then
-							strInd = strInd + 1
-							break
-						end	
-						strInd = strInd - 1
-					end
-					missionName = slmod.current_mission:sub(strInd, slmod.current_mission:len())
-				end
-				
 
-				misStatFileName = (missionName .. '- ' .. os.date('%b %d, %Y at %H %M %S.lua'))
-                slmod.stats.changeMetaStatsValue(metaStats.missionStatsFile, 'currentMissionFile', misStatFileName)
-				misStatsF, err = io.open(missionStatsDir .. misStatFileName, 'w')
+                misStatsF, err = io.open(missionStatsDir .. misStatFileName, 'w')
+
 				if not misStatsF then
 					slmod.error('Mission stats: unable to open '  .. lfs.writedir() .. [[Slmod\Mission Stats\]] .. missionName .. '- ' .. os.date('%b %d, %Y at %H %M %S.lua') .. ' for writing, reason: ' .. tostring(err))
 				else
@@ -1444,6 +1404,7 @@ end]]
 												slmod.stats.changeMisStatsValue(misStats[client.ucid].times, typeName, {total = misStats[client.ucid].times[typeName].total + dt, inAir = misStats[client.ucid].times[typeName].inAir + dt}) -- do both at once, saves lines.
 											end
 											---------------------------------------------------------------------
+                                            --slmod.stats.updateMetaFlightInfo(dt)
 											
 											inAirClients[client.ucid] = true  -- used for PvP kills to avoid counting hits in the air
 											-- slmod.stats.changeStatsValue(stats[client.ucid].times[typeName], 'total', stats[client.ucid].times[typeName].total + dt)
@@ -3035,29 +2996,10 @@ end]]
 	end
 	
 	-- ***END OF STATS USER INTERFACE***
-	-------------------------------------------------------------------------------------------------------------------
-	-------------------------------------------------------------------------------------------------------------------
-	-----------------------------------------------META Stats Code-----------------------------------------------------
-	-------------------------------------------------------------------------------------------------------------------
-    -- meta stats is a new file for saving meta information related to slmod
-    -- v1 simply keeps track of last used mission stats file used
-    -- willing to add other useful data
-    --- IDEAS: Theatre of war stats, map stats
-    local function createMetaStats()
-        slmod.stats.changeMetaStatsValue(metaStats, 'missionStatsFile', {})
-        slmod.stats.changeMetaStatsValue(metaStats.missionStatsFile, 'previousMissionFile', '')       
-        slmod.stats.changeMetaStatsValue(metaStats.missionStatsFile, 'currentMissionFile', '')        
-    end
-    local anything
-    for i, j in pairs(metaStats) do
-        anything = true
-    end
-    if not anything then
-        slmod.info('createMeta')
-        createMetaStats()
-    end
+
 
 	
 end
+
 
 slmod.info('SlmodStats.lua loaded.')

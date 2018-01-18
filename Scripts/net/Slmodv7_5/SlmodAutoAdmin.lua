@@ -8,7 +8,6 @@ do
     
 
     function slmod.appendAutoAdminExemptList()
-       slmod.info('append exemptAll')
        if slmod.exemptAll then -- append external exemption all list to the local one
             for id, data in pairs(slmod.exemptAll) do
                 if not autoAdmin.exemptionList[id] then
@@ -16,7 +15,6 @@ do
                 end
             end
         end
-        slmod.info('append autoAdmin')
         if slmod.exemptAutoAdmin then
             for id, data in pairs(slmod.exemptAutoAdmin) do -- check if anyone is only on the exempt autoAdmin list
                 if not autoAdmin.exemptionList[id] then
