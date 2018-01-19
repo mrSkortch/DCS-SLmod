@@ -434,7 +434,78 @@ do
 		} -- end of local idKickMenu = SlmodMenu.create{
 		------------------------------------------------------------------------------------------------------------
 		
-		
+		local idKickSpecMenu = SlmodMenu.create{
+			showCmds = {},  -- no inherent show commands, the menu is shown onSelect of an admin menu option.
+			scope = {}, -- scope starts empty- will update scope and items in the AdminMenu update scope function.
+			options = {display_time = display_time, display_mode = display_mode, title = 'Select a client id to kick to Spectator.  Current clients are:', 
+			privacy = {access = true, show = true}},
+			items = {},
+			--Additional function: update items.  Also called in update_scope
+			updateKickItems = function(self)  -- self is menu.
+				self.items = {}  -- reset items.
+				for id, client in pairs(slmod.clients) do
+					if id ~= 1 and client.name then
+						local idKickSpecVars = {}
+						idKickSpecVars.menu = self
+						idKickSpecVars.description = '"' .. client.name  ..'"; say in chat "-admin id spec ' .. tostring(id) .. '" to kick this player to Spectator'
+						idKickSpecVars.active = true
+						idKickSpecVars.id = id
+						idKickSpecVars.name = client.name
+						--idKickVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}  -- probably not used for anything.
+						idKickSpecVars.selCmds = {
+							[1] = {
+								[1] = { 
+									type = 'word', 
+									text = '-admin',
+									required = true
+								}, 
+								[2] = { 
+									type = 'word',
+									text = 'id',
+									required = true
+								},
+								[3] = { 
+									type = 'word',
+									text = 'spec',
+									required = true
+								},
+								[4] = { 
+									type = 'word',
+									text = tostring(id),
+									required = true
+								}
+							}
+						} 
+						idKickSpecVars.onSelect = function(self, vars, client_id)  -- self here is the item.
+							client_id = client_id or vars  -- don't think this is necessary
+							local kickId = self.id
+							
+							if kickId and slmod.clients[kickId] then
+								net.force_player_slot(kickId, 0, '')
+								--slmod.update_banned_clients({ucid = slmod.clients[banId].ucid, name = self.name, ip = slmod.clients[banId].addr})   --not applicable, but may need to add a temp ban here later.
+								
+								local adminName
+								if client_id == 1 then
+									adminName = net.get_name(1)
+								elseif slmod.clients[client_id] and slmod.clients[client_id].ucid and Admins[slmod.clients[client_id].ucid] then
+									adminName = Admins[slmod.clients[client_id].ucid]
+								else
+									adminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
+								end
+								
+								slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. adminName .. '" kicked player "' .. self.name .. '" to spectator'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+							else
+								slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: no player with a client id of ' .. tostring(self.id) .. ' exists!', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+							end
+						end
+						-- confusing:  now self is back to the submenu.
+						self.items[#self.items + 1] = SlmodMenuItem.create(idKickSpecVars) -- add this item to the submenu
+					
+					end  -- end of if id ~= 1 and client.name then
+				end  -- end of for id, client in pairs(slmod.clients) do
+			
+			end,  -- end of the updateKickItems
+		} -- end of local idKickMenu = SlmodMenu.create{
 		
 		local function update_scope()  -- called to continuously update scope of Admin Menu and its submenus.
 			if SlmodAdminMenu then
@@ -1179,6 +1250,91 @@ do
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminAlertVars)  -- add the item into the items table.
+        
+        ----------------
+        -- Admin "Bump" or kick to spectators script. 
+        local AdminBumpVars = {}
+		AdminBumpVars.menu = SlmodAdminMenu
+		AdminBumpVars.description = 'Say in chat "-admin spec <player name>" to kick a player to spectators.'
+		AdminBumpVars.active = true
+		AdminBumpVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		AdminBumpVars.selCmds = {
+				[1] = {
+					[1] = { 
+						type = 'word', 
+						text = '-admin',
+						required = true
+					}, 
+					[2] = { 
+						type = 'word',
+						text = 'spec',
+						required = true
+						},
+					[3] = {
+						type = 'text',  -- new match type- ALL remaining text from chat message!  Can only be the last variable.
+						varname = 'playername',
+						required = true,
+					}
+				}
+			} 
+		AdminBumpVars.onSelect = function(self, vars, client_id)
+			--net.log('in onSelect')
+			local playername = vars.playername or ''
+			for key, val in pairs(slmod.clients) do -- skips host
+				if val.name and type(val.name) == 'string' and val.name == playername and val.id and val.id ~= 1 then
+					net.force_player_slot(key, 0, '')
+					
+					local AdminName
+					if client_id == 1 then
+						AdminName = net.get_name(1)
+					elseif slmod.clients[client_id] and slmod.clients[client_id].ucid and Admins[slmod.clients[client_id].ucid] then
+						AdminName = Admins[slmod.clients[client_id].ucid]
+					else
+						AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
+					end
+					
+					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. AdminName .. '" kicked player "' .. val.name .. '" to spectators.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+					return
+				end
+			end
+			slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '".', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+		end
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminBumpVars)  -- add the item into the items table.
+		
+		-----------------------------------------------------------------------------------------------
+		      
+        local adminIdSpecVars = {}
+		adminIdSpecVars.menu = SlmodAdminMenu
+		adminIdSpecVars.description = 'Say in chat "-admin id spec" to view the kick-by-client-ID submenu.'
+		adminIdSpecVars.active = true
+		adminIdSpecVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		adminIdSpecVars.selCmds = {
+			[1] = {
+				[1] = { 
+					type = 'word', 
+					text = '-admin',
+					required = true
+				}, 
+				[2] = { 
+					type = 'word',
+					text = 'id',
+					required = true
+					},
+				[3] = {
+					type = 'word',
+					text = 'spec',
+					required = true,
+				}
+			}
+		} 
+		adminIdSpecVars.onSelect = function(self, vars, clientId)
+			clientId = clientId or vars
+			idKickSpecMenu:show(clientId)
+		end
+		
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(adminIdSpecVars)  -- add the item into the items table.
 
 		update_scope()   -- keep scope updated with all connected server admins.
 	end
@@ -1282,10 +1438,10 @@ do
 		end
 		
 		AdminRegisterItems[1] = SlmodMenuItem.create(AdminRegisterVars)  -- add the item into the items table.
-        
-       
+          
 
 	end
+    
 	------------------------------------------------------------------------------------------------------------
 	------------------------------------------------------------------------------------------------------------
 	-- function(s) to get private data about AdminMenu.
