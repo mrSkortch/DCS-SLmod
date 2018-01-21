@@ -2680,6 +2680,7 @@ function slmod.reset()
         slmod.stats.create_unitIsStationary()
         slmod.stats.create_unitIsAlive()
         slmod.stats.trackFlightTimes()  -- start tracking times.
+        slmod.stats.trackMissionTimes()
         slmod.create_SlmodStatsMenu()
 
 		slmod.stats.onMission()

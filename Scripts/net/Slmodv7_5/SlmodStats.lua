@@ -634,7 +634,7 @@ end]]
 		slmod.autoAdminOnOffense(client)
 	end
 	
-	local function onFriendlyKill(client, tgtName, weapon)
+	local function onFriendlyKill(client, tgtName, weapon, human)
 		if slmod.config.enable_team_kill_messages then
 			slmod.scopeMsg('Slmod- TEAM KILL: "' .. tostring(client.name).. '" killed friendly unit "' .. tostring(tgtName) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat')
 		end
@@ -650,8 +650,9 @@ end]]
 			slmod.chatLogFile:flush()
 		end
 		-- autokick/autoban
-		slmod.autoAdminOnOffense(client)
+		slmod.autoAdminOnOffense(client, human)
 	end
+    
 	
 	local function onPvPKill(initName, tgtName, weapon, killerObj, victimObj)
 		if slmod.config.enable_pvp_kill_messages then
@@ -1314,7 +1315,7 @@ end]]
 								----------------------------------------------------------------------------------------------------------------
 								
 							end
-							onFriendlyKill(hitter, deadClient.name, weapon)
+							onFriendlyKill(hitter, deadClient.name, weapon, deadClient)
 						end
 					
 					elseif type(hitter) == 'string' then  -- a human was killed by an AI.
@@ -1357,6 +1358,7 @@ end]]
 		inAirClients = {}  -- reset upvalue inAirClients table.
 		if prevTime and slmod.config.enable_slmod_stats then  -- slmod.config.enable_slmod_stats may be disabled after the mission has already started.
 			local dt = DCS.getModelTime() - prevTime
+            local metaFlightTime = 0
 			-- first, update all client flight times.
 			for id, client in pairs(slmod.clients) do -- for each player (including host)
 				local side = net.get_player_info(id, 'side')
@@ -1404,7 +1406,8 @@ end]]
 												slmod.stats.changeMisStatsValue(misStats[client.ucid].times, typeName, {total = misStats[client.ucid].times[typeName].total + dt, inAir = misStats[client.ucid].times[typeName].inAir + dt}) -- do both at once, saves lines.
 											end
 											---------------------------------------------------------------------
-                                            --slmod.stats.updateMetaFlightInfo(dt)
+                                            metaFlightTime = metaFlightTime + dt
+                                            
 											
 											inAirClients[client.ucid] = true  -- used for PvP kills to avoid counting hits in the air
 											-- slmod.stats.changeStatsValue(stats[client.ucid].times[typeName], 'total', stats[client.ucid].times[typeName].total + dt)
@@ -1437,7 +1440,8 @@ end]]
 				end
 			end  -- for id, client in pairs(slmod.clients) do
 			
-		end -- if prevTime and slmod.config.enable_slmod_stats then
+            slmod.stats.updateMetaFlightInfo(metaFlightTime)
+        end -- if prevTime and slmod.config.enable_slmod_stats then
 	end -- end of flight time tracking.
 	----------------------------------------------------------------------------------------------------------
 	-- gunsTracking code maybe. or add it to slmodevents...

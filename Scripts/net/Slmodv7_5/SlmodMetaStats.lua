@@ -57,7 +57,7 @@ do
         slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'mostRecentPlayed', os.date('%b %d, %Y at %H %M %S'))
         slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'map', theatreName)
         slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'timesPlayed', 1)
-        slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'minutesHosted', 0)
+        slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'hoursHosted', 0)
         slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'totalFlightHours', 0)
         slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'maxClients', 0)
     end
@@ -68,7 +68,7 @@ do
         slmod.stats.changeMetaStatsValue(metaStats.mapStats[mapName], 'mostRecentPlayed', os.date('%b %d, %Y at %H %M %S'))
         slmod.stats.changeMetaStatsValue(metaStats.mapStats[mapName], 'missions', {})
         slmod.stats.changeMetaStatsValue(metaStats.mapStats[mapName], 'timesPlayed', 1)
-        slmod.stats.changeMetaStatsValue(metaStats.mapStats[mapName], 'minutesHosted', 0)
+        slmod.stats.changeMetaStatsValue(metaStats.mapStats[mapName], 'hoursHosted', 0)
         slmod.stats.changeMetaStatsValue(metaStats.mapStats[mapName], 'totalFlightHours', 0)
         slmod.stats.changeMetaStatsValue(metaStats.mapStats[mapName], 'maxClients', 0)        
     end
@@ -84,8 +84,14 @@ do
 		slmod.scheduleFunction(slmod.stats.trackMissionTimes, {DCS.getModelTime()}, DCS.getModelTime() + 60)  -- schedule first to avoid a Lua error.
         if prevTime and slmod.config.enable_slmod_stats then  -- slmod.config.enable_slmod_stats may be disabled after the mission has already started.
 			local dt = DCS.getModelTime() - prevTime
-            slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'minutesHosted', metaStats.missionStats[mizName].minutesHosted + dt/60)
-            slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'minutesHosted', metaStats.mapStats[theatreName].minutesHosted + dt/60)
+            if not metaStats.missionStats[mizName].hoursHosted then
+                slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'hoursHosted', 0)
+            end
+            if not metaStats.mapStats[theatreName].hoursHosted then
+                slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'hoursHosted', 0)
+            end            
+            slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'hoursHosted', metaStats.missionStats[mizName].hoursHosted + dt/3600)
+            slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'hoursHosted', metaStats.mapStats[theatreName].hoursHosted + dt/3600)
         end
         local count = 0
         for id, clients in pairs(slmod.clients) do
