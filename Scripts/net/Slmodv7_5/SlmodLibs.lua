@@ -2666,6 +2666,7 @@ function slmod.reset()
 		slmod.create_SlmodAdminMenu()
 	end
 	
+    slmod.loadPingExemptList()
 	slmod.create_getUnitAttributes()
 	slmod.makeUnitAttributesTable()
 	slmod.makeUnitCategories()

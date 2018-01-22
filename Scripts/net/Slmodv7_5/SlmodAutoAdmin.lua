@@ -5,6 +5,7 @@ do
 
 	local stats = slmod.stats.getStats()
 	local autoAdmin = slmod.config.autoAdmin
+    local delayedPenalty = {}
     
 
     function slmod.appendAutoAdminExemptList()
@@ -30,12 +31,24 @@ do
 			net.kick(id, kickMsg)
 		end
 	end
+    
+    local function checkedKickToSpec(id, ucid, kickMsg)
+        if slmod.clients[id] and slmod.clients[id].ucid == ucid then 
+            net.force_player_slot(id, 0, '')
+        end
+    end
 	
 	local function delayedKick(id, ucid, kickMsg, delay)
 		delay = delay or 10
 		kickMsg = kickMsg or 'You were kicked.'
 		slmod.scheduleFunctionByRt(checkedKick, {id, ucid, kickMsg}, DCS.getRealTime() + delay)
 	end
+    
+    local function delayedKickToSpec(id, ucid, kickMsg, delay)
+        delay = delay or 10
+		kickMsg = kickMsg or 'You were kicked back to spectator.'
+		slmod.scheduleFunctionByRt(checkedKickToSpec, {id, ucid, kickMsg}, DCS.getRealTime() + delay)        
+    end
 	
 	if autoAdmin.kickBanDelay.kickDelay then
 		if type(autoAdmin.kickBanDelay.kickDelay) == 'string' and tonumber(type(autoAdmin.kickBanDelay.kickDelay)) then
@@ -282,7 +295,7 @@ do
 	end
 	
 	-- called on every potentially kickable/bannable offense. 
-	function slmod.autoAdminOnOffense(client)  -- client is a slmod.client.
+	function slmod.autoAdminOnOffense(client, deadClient)  -- client is a slmod.client.
 		--slmod.info('running slmod.autoAdminOnOffense; client = ' .. slmod.oneLineSerialize(client))
 		--{ ["id"] = 2, ["rtid"] = 16778498, ["ip"] = "50.134.222.29", ["coalition"] = "blue", ["addr"] = "50.134.222.29", ["name"] = "3Sqn_Grimes", ["ucid"] = "78c01638f5552aab2d2a9cd428f3e58f", ["motdTime"] = 295.38130488651, ["unitName"] = "Pilot #21", }
 		if client.ucid and slmod.clients[client.id] and (slmod.clients[client.id].ucid == client.ucid) and (not slmod.isAdmin(client.ucid)) and (not autoAdmin.exemptionList[client.ucid]) and (not (client.id == 1)) then  -- client is in proper format and is online, and is not exempt
@@ -336,10 +349,52 @@ do
 					return
 				end
 			end
+            --[[
+            if autoAdmin.autoSpecEnabled then
+            	local score = autoAdminScore(client.ucid)
+				if score and score > autoAdmin.autoSpecLevel then
+					
+					-- kicking...
+					if client.rtid then  -- attempt to despawn client.
+						net.dostring_in('server', 'Object.destroy({id_ = ' .. tostring(client.rtid) .. '})')
+					end
+					
+					delayedKickToSpec(client.id, client.ucid, 'You were autokicked back to spectator', autoAdmin.kickBanDelay.specDelay)
+					--net.kick(client.id, 'You were autokicked from the server.')
+					slmod.info('Player "' .. tostring(client.name) .. '" is getting autokicked back to spectator', true)  -- this will output in chat too.
+					return
+				end
+            end]]
 			
 		end
 	end
-	
+	--[[ -forgive -punish commands
+    Check if forgiveness or punishment is enabled. 
+    
+    Add offense to scheduled function run only when punishments can be fixed
+    If player forgives or punishes in that timeframe...
+        on forgive modify stats entry with forgive flag. (must be also all related Hits to that unit within timeout of period?)
+        
+        on punish remove entry for checked function, go to slmod.autoAdminOnOffense
+        
+        
+        
+    
+    ]]
+    function slmod.autoAdminCheckForgiveOnOffense(client, deadClient)
+        if not deadClient then -- it is a bot you killed, Bots never forgive and never forget
+            slmod.autoAdminOnOffense(client)
+        else
+            if autoAdmin.forgive or autoAdmin.punish then 
+                local offDat = {offender = client, victim = deadClient, time = os.time()}
+                if autoAdmin.forgive then
+                    offData.canForgive = autoAdmin.forgiveTimeout or 30
+                elseif autoAdmin.punish then
+                    offData.canPunish = autoAdmin.punishTimeout or 30
+                end
+            end
+        end
+    end
 	--------------------------------------------------------------------------------------------------------------
 
 end

@@ -10,26 +10,26 @@ do
     
     local exemptList = slmod.config.autoAdmin.exemptionList
     
-    if slmod.exemptAll then -- append external exemption all list to the local one
-        for id, data in pairs(slmod.exemptAll) do
-            if not exemptList[id] then
-                exemptList[id] = data
+    function slmod.loadPingExemptList()
+        if slmod.exemptAll then -- append external exemption all list to the local one
+            for id, data in pairs(slmod.exemptAll) do
+                if not exemptList[id] then
+                    exemptList[id] = data
+                end
+            end
+        end
+        
+        if slmod.exemptPing then
+            for id, data in pairs(slmod.exemptPing) do -- check if anyone is only on the exempt autoAdmin list
+                if not exemptList[id] then
+                    exemptList[id] = data
+                end
             end
         end
     end
-    
-    if slmod.exemptPing then
-        for id, data in pairs(slmod.exemptPing) do -- check if anyone is only on the exempt autoAdmin list
-            if not exemptList[id] then
-                exemptList[id] = data
-            end
-        end
-    end
-    
     function slmod.pingCheck.addClient(id)
-
         local ucid = net.get_player_info(id, 'ucid')
-        if slmod.isAdmin(ucid) == false and (not exemptList[ucid]) and (not id == 1)then -- cant be an admin or on the exemption list
+        if slmod.isAdmin(ucid) == false and (not exemptList[ucid]) and (not (id == 1)) then -- cant be an admin or on the exemption list
             if pingCheckClients[id] == nil then
 
                 local newClient = {}
@@ -42,19 +42,22 @@ do
                 newClient['lastWarnTime'] = 0
                 pingCheckClients[newClient.id] = newClient
             end
-        else
-
         end
 
         return
     end
     local function getClients()
         -- check for disconnected clients
+        local count = 0
         for id, client in pairs(pingCheckClients) do
             if slmod.clients[id] == nil then
+                slmod.info('remove client')
                 pingCheckClients[id] = nil
+            else
+                count = count + 1
             end
         end
+        return count
     end
  
     --- warns and eventually kicks a player if his ping is too high
@@ -107,13 +110,11 @@ do
         if doCheck == false then
             return
         end
- 
         -- get clients and check ping values
-        getClients()
-        if #pingCheckClients > 0 then
+        
+        if getClients() > 0 then
             for id, client in pairs(pingCheckClients) do
                 local curPing = net.get_player_info(id, 'ping')
-               
                 client.avgPing = math.floor((client.ping + curPing + client.avgPing)/3)
                 client.ping = curPing
      

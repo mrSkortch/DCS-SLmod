@@ -105,7 +105,6 @@ do
 	end
 	----------------------------------------------------------------------------------------
 	function slmod.update_exempt_clients()
-        slmod.info('update exempt clients')
         slmod.exemptAll = slmod.exemptAll or {}
         slmod.exemptPing = slmod.exemptPing or {}
         slmod.exemptAutoAdmin = slmod.exemptAutoAdmin or {}
@@ -1104,9 +1103,9 @@ do
 			else
 				AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
 			end
-			
+
 			slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" is restarting the mission.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
-			slmod.scheduleFunctionByRt(net.load_mission, {slmod.current_mission}, DCS.getRealTime() + 5)
+			slmod.scheduleFunctionByRt(net.load_mission, {DCS.getMissionFilename()}, DCS.getRealTime() + 5)
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(ReloadVars)  -- add the item into the items table.

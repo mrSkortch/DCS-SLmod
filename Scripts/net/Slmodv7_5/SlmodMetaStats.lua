@@ -1,4 +1,3 @@
-slmod.info('loading SlmodMetaStats.lua')
 do
 	-------------------------------------------------------------------------------------------------------------------
 	-------------------------------------------------------------------------------------------------------------------
@@ -49,6 +48,8 @@ do
 		end
 	end
     
+    
+    
     function slmod.createMetaStatsMission(missionName)
         mizName = missionName
         theatreName = DCS.getCurrentMission().mission.theatre
@@ -73,38 +74,6 @@ do
         slmod.stats.changeMetaStatsValue(metaStats.mapStats[mapName], 'maxClients', 0)        
     end
     
-    
-    
-    function slmod.stats.updateMetaFlightInfo(dt) --- ugh this is a dirty way to do it
-        slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'totalFlightHours', metaStats.missionStats[mizName].totalFlightHours + dt/3600)
-        slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'totalFlightHours', metaStats.mapStats[theatreName].totalFlightHours + dt/3600)
-    end
-     
-    function slmod.stats.trackMissionTimes(prevTime)  -- call every 60 seconds, tracks flight time.
-		slmod.scheduleFunction(slmod.stats.trackMissionTimes, {DCS.getModelTime()}, DCS.getModelTime() + 60)  -- schedule first to avoid a Lua error.
-        if prevTime and slmod.config.enable_slmod_stats then  -- slmod.config.enable_slmod_stats may be disabled after the mission has already started.
-			local dt = DCS.getModelTime() - prevTime
-            if not metaStats.missionStats[mizName].hoursHosted then
-                slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'hoursHosted', 0)
-            end
-            if not metaStats.mapStats[theatreName].hoursHosted then
-                slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'hoursHosted', 0)
-            end            
-            slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'hoursHosted', metaStats.missionStats[mizName].hoursHosted + dt/3600)
-            slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'hoursHosted', metaStats.mapStats[theatreName].hoursHosted + dt/3600)
-        end
-        local count = 0
-        for id, clients in pairs(slmod.clients) do
-            count = count + 1
-        end
-        if count > metaStats.missionStats[mizName].maxClients then
-            slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'maxClients', 0)
-        end
-        if count > metaStats.mapStats[theatreName].maxClients then
-            slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'maxClients', 0)  
-        end
-    end
-
     function slmod.stats.updateMetaMapInfo(mName)
         if metaStats then
             if not metaStats.missionStatsFile then
@@ -112,7 +81,6 @@ do
                 slmod.stats.changeMetaStatsValue(metaStats.missionStatsFile, 'previousMissionFile', 'false')       
                 slmod.stats.changeMetaStatsValue(metaStats.missionStatsFile, 'currentMissionFile', 'false')   
             end
-            
             if not metaStats.mapStats then
                 slmod.stats.changeMetaStatsValue(metaStats, 'mapStats', {})
             end
@@ -127,7 +95,7 @@ do
         end
         
         theatreName = DCS.getCurrentMission().mission.theatre
-
+    
         if metaStats.missionStatsFile.currentMissionFile ~= 'false' then
             slmod.stats.changeMetaStatsValue(metaStats.missionStatsFile, 'previousMissionFile', metaStats.missionStatsFile.currentMissionFile)
             if metaStats.missionStatsFile.previousMissionFile then
@@ -159,6 +127,55 @@ do
  
         return
     end
+    
+    function slmod.stats.updateMetaFlightInfo(dt) --- ugh this is a dirty way to do it
+        slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'totalFlightHours', metaStats.missionStats[mizName].totalFlightHours + dt/3600)
+        slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'totalFlightHours', metaStats.mapStats[theatreName].totalFlightHours + dt/3600)
+    end
+     
+    function slmod.stats.trackMissionTimes(prevTime)  -- call every 60 seconds, tracks flight time.
+        slmod.scheduleFunction(slmod.stats.trackMissionTimes, {DCS.getModelTime()}, DCS.getModelTime() + 60)  -- schedule first to avoid a Lua error.
+
+        if not mizName then
+            mizName = DCS.getMissionName()
+        end
+        if not theatreName then
+             theatreName = DCS.getCurrentMission().mission.theatre
+        end
+        if ((not metaStats.missionStats) or (not metaStats.missionStats[mizName])) then
+            return
+        end
+        slmod.info('in 6')
+        if prevTime and slmod.config.enable_slmod_stats then  -- slmod.config.enable_slmod_stats may be disabled after the mission has already started.
+			local dt = DCS.getModelTime() - prevTime
+            if not metaStats.missionStats[mizName].hoursHosted then
+                slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'hoursHosted', 0)
+            end
+            if not metaStats.mapStats[theatreName].hoursHosted then
+                slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'hoursHosted', 0)
+            end            
+            slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'hoursHosted', metaStats.missionStats[mizName].hoursHosted + dt/3600)
+            slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'hoursHosted', metaStats.mapStats[theatreName].hoursHosted + dt/3600)
+        
+            local count = 0
+            for id, clients in pairs(slmod.clients) do
+                count = count + 1
+            end
+
+            if count > metaStats.missionStats[mizName].maxClients then
+                slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'maxClients', count)
+            end
+
+            if count > metaStats.mapStats[theatreName].maxClients then
+                slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'maxClients', count)  
+            end
+        end
+
+
+        return
+    end
+
+    
     
     
 end
