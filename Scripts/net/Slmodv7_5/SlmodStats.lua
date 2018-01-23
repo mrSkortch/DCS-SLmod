@@ -615,9 +615,9 @@ end]]
 	
 	-------------------------------------------------------------------
 	
-	local function onFriendlyHit(client, tgtName, weapon)
+	local function onFriendlyHit(client, tgtClient, weapon, human)
 		if slmod.config.enable_team_hit_messages then
-			slmod.scopeMsg('Slmod- TEAM HIT: "' .. tostring(client.name).. '" hit friendly unit "' .. tostring(tgtName) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat')
+			slmod.scopeMsg('Slmod- TEAM HIT: "' .. tostring(client.name).. '" hit friendly unit "' .. tostring(tgtClient.name) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat')
 		end
 		-- Chat log
 		if slmod.config.chat_log and slmod.config.log_team_hits and slmod.chatLogFile then
@@ -627,16 +627,16 @@ end]]
 			else
 				wpnInfo = '\n'
 			end
-			slmod.chatLogFile:write(table.concat{'TEAM HIT: ', os.date('%b %d %H:%M:%S '), ' {name  = ', slmod.basicSerialize(tostring(client.name)), ', ucid = ', slmod.basicSerialize(tostring(client.ucid)), ', ip = ',  slmod.basicSerialize(tostring(client.addr)), ', id = ', tostring(client.id), '} hit ', tgtName, wpnInfo})
+			slmod.chatLogFile:write(table.concat{'TEAM HIT: ', os.date('%b %d %H:%M:%S '), ' {name  = ', slmod.basicSerialize(tostring(client.name)), ', ucid = ', slmod.basicSerialize(tostring(client.ucid)), ', ip = ',  slmod.basicSerialize(tostring(client.addr)), ', id = ', tostring(client.id), '} hit ', tgtClient.name, wpnInfo})
 			slmod.chatLogFile:flush()
 		end
 		-- autokick/autoban
-		slmod.autoAdminOnOffense(client)
+		slmod.autoAdminCheckForgiveOnOffense(client, tgtClient)
 	end
 	
-	local function onFriendlyKill(client, tgtName, weapon, human)
+	local function onFriendlyKill(client, tgtClient, weapon)
 		if slmod.config.enable_team_kill_messages then
-			slmod.scopeMsg('Slmod- TEAM KILL: "' .. tostring(client.name).. '" killed friendly unit "' .. tostring(tgtName) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat')
+			slmod.scopeMsg('Slmod- TEAM KILL: "' .. tostring(client.name).. '" killed friendly unit "' .. tostring(tgtClient.name) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat')
 		end
 		-- chat log
 		if slmod.config.chat_log and slmod.config.log_team_kills and slmod.chatLogFile then
@@ -646,11 +646,11 @@ end]]
 			else
 				wpnInfo = '\n'
 			end
-			slmod.chatLogFile:write(table.concat{'TEAM KILL: ', os.date('%b %d %H:%M:%S '), ' {name  = ', slmod.basicSerialize(tostring(client.name)), ', ucid = ', slmod.basicSerialize(tostring(client.ucid)), ', ip = ',  slmod.basicSerialize(tostring(client.addr)), ', id = ', tostring(client.id), '} killed ', tgtName, wpnInfo})
+			slmod.chatLogFile:write(table.concat{'TEAM KILL: ', os.date('%b %d %H:%M:%S '), ' {name  = ', slmod.basicSerialize(tostring(client.name)), ', ucid = ', slmod.basicSerialize(tostring(client.ucid)), ', ip = ',  slmod.basicSerialize(tostring(client.addr)), ', id = ', tostring(client.id), '} killed ', tgtClient.name, wpnInfo})
 			slmod.chatLogFile:flush()
 		end
 		-- autokick/autoban
-		slmod.autoAdminOnOffense(client, human)
+		slmod.autoAdminCheckForgiveOnOffense(client, tgtClient)
 	end
     
 	
@@ -1315,7 +1315,7 @@ end]]
 								----------------------------------------------------------------------------------------------------------------
 								
 							end
-							onFriendlyKill(hitter, deadClient.name, weapon, deadClient)
+							onFriendlyKill(hitter, deadClient, weapon)
 						end
 					
 					elseif type(hitter) == 'string' then  -- a human was killed by an AI.
@@ -1863,7 +1863,7 @@ end]]
 												hitHumans[tgtName] = hitHumans[tgtName] or {}
 												hitHumans[tgtName][#hitHumans[tgtName] + 1] = {time = time, initiator = slmod.deepcopy(initClient), friendlyHit = true, target = slmod.deepcopy(tgtClient), weapon = weapon, inAirHit = inAirHit}
 												
-												onFriendlyHit(initClient, tgtClient.name, weapon)
+												onFriendlyHit(initClient, tgtClient, weapon)
 											else  -- human hit a friendly AI
 												slmod.stats.changeStatsValue(stats[initUCID].friendlyHits, #stats[initUCID].friendlyHits + 1, { time = os.time(), objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon})
 												
@@ -1912,7 +1912,7 @@ end]]
 												hitHumans[tgtName] = hitHumans[tgtName] or {}
 												hitHumans[tgtName][#hitHumans[tgtName] + 1] = {time = time, initiator = slmod.deepcopy(initClient), friendlyHit = true, target = slmod.deepcopy(tgtClient), weapon = weapon, inAirHit = inAirHit}
 												
-												onFriendlyHit(initClient, tgtClient.name, weapon)
+												onFriendlyHit(initClient, tgtClient, weapon)
 											else  -- human hit a friendly AI	
 												slmod.stats.changeStatsValue(stats[initUCID].friendlyCollisionHits, #stats[initUCID].friendlyCollisionHits + 1, { time = os.time(), objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon})
 												

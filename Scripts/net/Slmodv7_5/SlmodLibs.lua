@@ -2686,6 +2686,10 @@ function slmod.reset()
 
 		slmod.stats.onMission()
 	end
+    
+    if slmod.config.forgiveEnabled or slmod.config.punishEnabled then
+        slmod.createPunishForgiveMenu()
+    end
 	
 	if slmod.create_SlmodMOTDMenu then
 		slmod.create_SlmodMOTDMenu()
