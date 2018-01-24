@@ -615,9 +615,9 @@ end]]
 	
 	-------------------------------------------------------------------
 	
-	local function onFriendlyHit(client, tgtClient, weapon, human)
+	local function onFriendlyHit(client, target, weapon)
 		if slmod.config.enable_team_hit_messages then
-			slmod.scopeMsg('Slmod- TEAM HIT: "' .. tostring(client.name).. '" hit friendly unit "' .. tostring(tgtClient.name) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat')
+			slmod.scopeMsg('Slmod- TEAM HIT: "' .. tostring(client.name).. '" hit friendly unit "' .. tostring(target.name) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat')
 		end
 		-- Chat log
 		if slmod.config.chat_log and slmod.config.log_team_hits and slmod.chatLogFile then
@@ -627,16 +627,16 @@ end]]
 			else
 				wpnInfo = '\n'
 			end
-			slmod.chatLogFile:write(table.concat{'TEAM HIT: ', os.date('%b %d %H:%M:%S '), ' {name  = ', slmod.basicSerialize(tostring(client.name)), ', ucid = ', slmod.basicSerialize(tostring(client.ucid)), ', ip = ',  slmod.basicSerialize(tostring(client.addr)), ', id = ', tostring(client.id), '} hit ', tgtClient.name, wpnInfo})
+			slmod.chatLogFile:write(table.concat{'TEAM HIT: ', os.date('%b %d %H:%M:%S '), ' {name  = ', slmod.basicSerialize(tostring(client.name)), ', ucid = ', slmod.basicSerialize(tostring(client.ucid)), ', ip = ',  slmod.basicSerialize(tostring(client.addr)), ', id = ', tostring(client.id), '} hit ', target.name, wpnInfo})
 			slmod.chatLogFile:flush()
 		end
 		-- autokick/autoban
-		slmod.autoAdminCheckForgiveOnOffense(client, tgtClient)
+		slmod.autoAdminCheckForgiveOnOffense(client, target)
 	end
 	
-	local function onFriendlyKill(client, tgtClient, weapon)
+	local function onFriendlyKill(client, target, weapon)
 		if slmod.config.enable_team_kill_messages then
-			slmod.scopeMsg('Slmod- TEAM KILL: "' .. tostring(client.name).. '" killed friendly unit "' .. tostring(tgtClient.name) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat')
+			slmod.scopeMsg('Slmod- TEAM KILL: "' .. tostring(client.name).. '" killed friendly unit "' .. tostring(target.name) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat')
 		end
 		-- chat log
 		if slmod.config.chat_log and slmod.config.log_team_kills and slmod.chatLogFile then
@@ -646,11 +646,11 @@ end]]
 			else
 				wpnInfo = '\n'
 			end
-			slmod.chatLogFile:write(table.concat{'TEAM KILL: ', os.date('%b %d %H:%M:%S '), ' {name  = ', slmod.basicSerialize(tostring(client.name)), ', ucid = ', slmod.basicSerialize(tostring(client.ucid)), ', ip = ',  slmod.basicSerialize(tostring(client.addr)), ', id = ', tostring(client.id), '} killed ', tgtClient.name, wpnInfo})
+			slmod.chatLogFile:write(table.concat{'TEAM KILL: ', os.date('%b %d %H:%M:%S '), ' {name  = ', slmod.basicSerialize(tostring(client.name)), ', ucid = ', slmod.basicSerialize(tostring(client.ucid)), ', ip = ',  slmod.basicSerialize(tostring(client.addr)), ', id = ', tostring(client.id), '} killed ', target.name, wpnInfo})
 			slmod.chatLogFile:flush()
 		end
 		-- autokick/autoban
-		slmod.autoAdminCheckForgiveOnOffense(client, tgtClient)
+		slmod.autoAdminCheckForgiveOnOffense(client, target)
 	end
     
 	
@@ -1174,7 +1174,7 @@ end]]
 								----------------------------------------------------------------------------------------------------------------
 								
 							end
-							onFriendlyKill(hitter, deadName, weapon)
+							onFriendlyKill(hitter, {name = deadName}, weapon)
 						end
 						
 					else
@@ -1877,7 +1877,7 @@ end]]
 												hitAIs[tgtName] = hitAIs[tgtName] or {}
 												hitAIs[tgtName][#hitAIs[tgtName] + 1] = {time = time, initiator = slmod.deepcopy(initClient), friendlyHit = true, weapon = weapon}
 												
-												onFriendlyHit(initClient, tgtName, weapon)
+												onFriendlyHit(initClient, {name = tgtName}, weapon)
 											end
 										else -- friendly collision  (weapon = 'kamikaze')
 										
@@ -1926,7 +1926,7 @@ end]]
 												hitAIs[tgtName] = hitAIs[tgtName] or {}
 												hitAIs[tgtName][#hitAIs[tgtName] + 1] = {time = time, initiator = slmod.deepcopy(initClient), friendlyHit = true, weapon = weapon}
 												
-												onFriendlyHit(initClient, tgtName, weapon)
+												onFriendlyHit(initClient, {name = tgtName}, weapon)
 											end
 										end
 										

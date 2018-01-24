@@ -2687,7 +2687,7 @@ function slmod.reset()
 		slmod.stats.onMission()
 	end
     
-    if slmod.config.forgiveEnabled or slmod.config.punishEnabled then
+    if slmod.config.autoAdmin.forgiveEnabled or slmod.config.autoAdmin.punishEnabled then
         slmod.createPunishForgiveMenu()
     end
 	
