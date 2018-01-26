@@ -6,7 +6,7 @@ do
     slmod.pingCheck = {}
     local pingCheckConfig = slmod.config.pingcheck_conf
     local lastCheck = 0
-    local pingCheckClients = {}
+
     
     local exemptList = slmod.config.autoAdmin.exemptionList
     
@@ -30,31 +30,30 @@ do
     function slmod.pingCheck.addClient(id)
         local ucid = net.get_player_info(id, 'ucid')
         if slmod.isAdmin(ucid) == false and (not exemptList[ucid]) and (not (id == 1)) then -- cant be an admin or on the exemption list
-            if pingCheckClients[id] == nil then
-
-                local newClient = {}
-                newClient['id'] = id
-                newClient['name'] = net.get_player_info(id, 'name')
-                newClient['ping'] = net.get_player_info(id, 'ping')
-                newClient['avgPing'] = 0
-                newClient['ucid'] = ucid
-                newClient['warnings'] = 0
-                newClient['lastWarnTime'] = 0
-                pingCheckClients[newClient.id] = newClient
-            end
+			slmod.clients[id].pingCheck = {}
+            slmod.clients[id].pingCheck['ping'] = 0
+			slmod.clients[id].pingCheck['avgPing'] = 0
+            slmod.clients[id].pingCheck['warnings'] = 0
+            slmod.clients[id].pingCheck['lastWarnTime'] = 0
+            slmod.clients[id].pingCheck['connectTime'] = os.time()
+            slmod.clients[id].pingCheck['checkActive'] = false
         end
 
+        return
+    end
+    
+    function slmod.pingCheck.setActive(id)
+        if  slmod.clients[id] and  slmod.clients[id].pingCheck.checkActive == false then
+			slmod.clients[id].pingCheck.checkActive = true
+        end
         return
     end
     local function getClients()
         -- check for disconnected clients
         local count = 0
-        for id, client in pairs(pingCheckClients) do
-            if slmod.clients[id] == nil then
-                slmod.info('remove client')
-                pingCheckClients[id] = nil
-            else
-                count = count + 1
+        for id, client in pairs(slmod.clients) do
+            if slmod.clients[id].pingCheck then
+               count = count + 1
             end
         end
         return count
@@ -62,7 +61,7 @@ do
  
     --- warns and eventually kicks a player if his ping is too high
     local function warnClient(id)
-        local client = pingCheckClients[id]
+		local client = slmod.clients[id]
         local show_scope = {}
         show_scope["clients"] = {id}
  
@@ -71,11 +70,11 @@ do
         local warnLimit = pingCheckConfig.warning_limit
  
         -- set warning count
-        client.warnings = client.warnings + 1
+        client.pingCheck.warnings = client.pingCheck.warnings + 1
  
-        if client.warnings > warnLimit then
-            net.kick(client.id, "Your ping is too high (".. client.avgPing ..", max: ".. maxPing ..")")
-            kickMsg = "Player ".. client.name .." got kicked for a too high ping (current: ".. client.ping ..", average: ".. client.avgPing ..", max: ".. maxPing ..")"
+        if client.pingCheck.warnings > warnLimit then
+            net.kick(client.id, "Your ping is too high (".. client.pingCheck.avgPing ..", max: ".. maxPing ..")")
+            kickMsg = "Player ".. client.name .." got kicked for a too high ping (current: ".. client.pingCheck.ping ..", average: ".. client.pingCheck.avgPing ..", max: ".. maxPing ..")"
             slmod.info(kickMsg)
 
             if pingCheckConfig.warning_msg then
@@ -83,12 +82,12 @@ do
             end
         else
             if pingCheckConfig.warning_msg then
-                slmod.scopeMsg("Your ping is too high (current: ".. client.ping ..", average: ".. client.avgPing ..", max: ".. maxPing ..")", 10, 'chat', show_scope)
-                slmod.scopeMsg("Warning ".. client.warnings .."/".. warnLimit .." before getting kicked", 10, 'chat', show_scope)
+                slmod.scopeMsg("Your ping is too high (current: ".. client.pingCheck.ping ..", average: ".. client.pingCheck.avgPing ..", max: ".. maxPing ..")", 10, 'chat', show_scope)
+                slmod.scopeMsg("Warning ".. client.pingCheck.warnings .."/".. warnLimit .." before getting kicked", 10, 'chat', show_scope)
             end
         end
  
-        client.lastWarnTime = DCS.getModelTime()
+        slmod.clients[id].pingCheck.lastWarnTime = DCS.getModelTime()
     end
  
     -- gets called every simulation frame
@@ -113,18 +112,25 @@ do
         -- get clients and check ping values
         
         if getClients() > 0 then
-            for id, client in pairs(pingCheckClients) do
-                local curPing = net.get_player_info(id, 'ping')
-                client.avgPing = math.floor((client.ping + curPing + client.avgPing)/3)
-                client.ping = curPing
-     
-                local warnRepeatTime = pingCheckConfig.warning_repeat_time
-     
-                -- check client's ping and warn if the repeat time has elapsed
-                if (client.avgPing > pingCheckConfig.max_ping) and (DCS.getModelTime() - client.lastWarnTime > warnRepeatTime) then
-                    warnClient(client.id)
-                elseif (client.avgPing < pingCheckConfig.max_ping) then
-                    client.warnings = 0
+            for id, client in pairs(slmod.clients) do
+                if client.pingCheck then
+					if client.pingCheck.checkActive == true then
+                        local curPing = net.get_player_info(id, 'ping')
+						slmod.clients[id].pingCheck.avgPing = math.floor((client.pingCheck.ping + curPing + slmod.clients[id].pingCheck.avgPing)/3)
+                        slmod.clients[id].pingCheck.ping = curPing
+                        local warnRepeatTime = pingCheckConfig.warning_repeat_time
+             
+                        -- check client's ping and warn if the repeat time has elapsed
+                        if (slmod.clients[id].pingCheck.avgPing > pingCheckConfig.max_ping) and (DCS.getModelTime() - slmod.clients[id].pingCheck.lastWarnTime > warnRepeatTime) then
+                            warnClient(id)
+                        elseif (slmod.clients[id].pingCheck.avgPing < pingCheckConfig.max_ping) then
+							slmod.clients[id].pingCheck.warnings = 0
+                        end
+                    else
+                        if os.time() > slmod.clients[id].pingCheck.connectTime + 300 then
+						   slmod.clients[id].pingCheck.checkActive = true
+                        end
+                    end
                 end
             end
         end

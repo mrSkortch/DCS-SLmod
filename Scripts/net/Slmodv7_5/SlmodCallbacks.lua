@@ -389,6 +389,7 @@ function slmodCall.onMissionLoadBegin()
 end
 
 --slmod.func_old.onPlayerTrySendChat = slmod.func_old.onPlayerTrySendChat or onPlayerTrySendChat -- old_on_chat should be an upvalue of on_chat, using the "or" just in case I make a reload_slmod work again
+local lastLogLine = '' 
 function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
 	--net.log('chat: ' .. msg)
 	local function cut_tail_spaces(str)
@@ -427,9 +428,12 @@ function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
 		else
 			logline = 'SCREENSHOT: ' .. os.date('%b %d %H:%M:%S ') .. clientInfo .. ' made a screenshot.\n'
 		end
-		
-		slmod.chatLogFile:write(logline)
-		slmod.chatLogFile:flush()
+        if lastLogLine == logLine then -- if the last written message is identical to this one, then don't write to the log
+            lastLogLine = logLine
+        else 
+            slmod.chatLogFile:write(logline)
+            slmod.chatLogFile:flush()
+        end
 	elseif not slmod.clients[id] then
 		slmod.error('chat message from non-existent client in slmod.clients!')
 	end
@@ -454,7 +458,9 @@ function slmodCall.onPlayerConnect(id)
 	else
 		slmod.num_clients = slmod.num_clients + 1
 	end
-    slmod.pingCheck.addClient(id)
+    if slmod.config.pingcheck_conf.enabled then 
+        slmod.pingCheck.addClient(id)
+    end
 	return --slmod.func_old.on_connect(id)
 end 
 
@@ -486,16 +492,18 @@ function slmodCall.onPlayerChangeSlot(id)
 	--net.log('on change slot')
 	if slmod.stats.onSetUnit then
 			slmod.stats.onSetUnit(id)
-		end
+	end
 
-		if SlmodMOTDMenu then  -- right now, simple MOTD- send it to player when they select unit.
-			if slmod.clients[id] and (not slmod.clients[id].motdTime or DCS.getRealTime() - slmod.clients[id].motdTime > 5) then
-				slmod.clients[id].motdTime = DCS.getRealTime()
-				slmod.scheduleFunctionByRt(SlmodMOTDMenu.show, {SlmodMOTDMenu, id, {clients = {id}}}, DCS.getRealTime() + 0.1)
-			end
-		end
-		
-		return --slmod.func_old.on_set_unit(id)
+    if SlmodMOTDMenu then  -- right now, simple MOTD- send it to player when they select unit.
+        if slmod.clients[id] and (not slmod.clients[id].motdTime or DCS.getRealTime() - slmod.clients[id].motdTime > 5) then
+            slmod.clients[id].motdTime = DCS.getRealTime()
+            slmod.scheduleFunctionByRt(SlmodMOTDMenu.show, {SlmodMOTDMenu, id, {clients = {id}}}, DCS.getRealTime() + 0.1)
+        end
+    end
+    if slmod.config.pingcheck_conf.enabled then 
+        slmod.pingCheck.setActive(id)
+    end
+	return --slmod.func_old.on_set_unit(id)
 end
 
 --modify on_disconnect
@@ -503,7 +511,7 @@ end
 function slmodCall.onPlayerDisconnect(id, err)
 	slmod.clients = slmod.clients or {}  --should not be necessary.
 	if slmod.clients[id] then
-		slmod.clients[id] = nil
+        slmod.clients[id] = nil
 		slmod.num_clients = slmod.num_clients - 1
 	end
 
