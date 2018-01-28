@@ -43,7 +43,7 @@ do
     end
     
     function slmod.pingCheck.setActive(id)
-        if  slmod.clients[id] and  slmod.clients[id].pingCheck.checkActive == false then
+        if slmod.clients[id] and slmod.clients[id].pingCheck and slmod.clients[id].pingCheck.checkActive == false then
 			slmod.clients[id].pingCheck.checkActive = true
         end
         return

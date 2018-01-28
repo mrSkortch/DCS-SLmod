@@ -171,11 +171,18 @@ do
 		
 	end
 	----------------------------------------------------------------------------------------
-	
+	local mapStrings = slmod.config.mapStrings or {
+        ['Caucasus'] = 'BS',
+        ['Nevada'] = 'NV',
+        ['Normandy'] = 'NO',
+        ['PersianGulf'] = 'PG',
+    }
+    --- just in case someone screws it up
 	----------------------------------------------------------------------------------------
 	local function create_LoadMissionMenuFor(id)  --creates the temporary load mission menu for this client id.
 		local path
-		if slmod.config.admin_tools_mission_folder and type(slmod.config.admin_tools_mission_folder) == 'string' then
+		local mStats = slmod.stats.getMetaStats()
+        if slmod.config.admin_tools_mission_folder and type(slmod.config.admin_tools_mission_folder) == 'string' then
 			path = slmod.config.admin_tools_mission_folder
 			if (path:sub(-1) ~= '\\') or (path:sub(-1) ~= '/') then
 				path = path .. '\\'
@@ -206,11 +213,20 @@ do
 		slmod.scheduleFunctionByRt(SlmodMenu.destroy, {LoadMenu}, DCS.getRealTime() + 120)  --scheduling self-destruct of this menu in two minutes.
 		
 		local miz_cntr = 1
-		for file in lfs.dir(path) do
-			if file:sub(-4) == '.miz' then
-				local LoadVars = {}
+        for file in lfs.dir(path) do
+            if file:sub(-4) == '.miz' then
+				local mapName = ''
+                local sName = string.gsub(file, '.miz', '')
+                if mStats and mStats.missionStats then
+                    if mStats.missionStats[sName] then
+                        if mapStrings[mStats.missionStats[sName].map] then
+                            mapName = mapStrings[mStats.missionStats[sName].map]
+                        end
+                    end
+                end
+                local LoadVars = {}
 				LoadVars.menu = LoadMenu
-				LoadVars.description = 'Mission ' .. tostring(miz_cntr) .. ': "' .. file .. '", say in chat "-load ' .. tostring(miz_cntr) .. '" to load this mission.'
+				LoadVars.description = 'Mission ' .. tostring(miz_cntr) .. ' -' .. mapName .. ': "' .. file .. '", say in chat "-load ' .. tostring(miz_cntr) .. '" to load this mission.'
 				LoadVars.active = true
 				LoadVars.filename = file
 				LoadVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
@@ -1334,10 +1350,188 @@ do
 		
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(adminIdSpecVars)  -- add the item into the items table.
+        
+        -----------------------------------------------------------------------------------------------
+        ------- Mission Voting Admin Commands
+        -----------------------------------------------------------------------------------------------
+        local toggleVoteVars = {}
+		toggleVoteVars.menu = SlmodAdminMenu
+		toggleVoteVars.description = 'Say in chat "-admin toggle vote" to toggle Mission voting on/off.'
+		toggleVoteVars.active = true
+		toggleVoteVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		toggleVoteVars.selCmds = {
+			[1] = {
+				[1] = { 
+					type = 'word', 
+					text = '-admin',
+					required = true
+				}, 
+				[2] = { 
+					type = 'word',
+					text = 'tog',
+					required = true
+				},
+				[3] = { 
+					type = 'word', 
+					text = 'vote',
+					required = true
+				}
+			}
+		} 
+		toggleVoteVars.onSelect = function(self, vars, clientId)
+			if not clientId then
+				clientId = vars
+			end
+			local AdminName
+			if clientId == 1 then
+				AdminName = net.get_name(1)
+			elseif slmod.clients[clientId] and slmod.clients[clientId].ucid and Admins[slmod.clients[clientId].ucid] then
+				AdminName = Admins[slmod.clients[clientId].ucid]
+			else
+				AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
+			end
+			if slmod.config.voteConfig.enabled then
+				slmod.config.voteConfig.enabled = false
+				slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" has disabled mission voting.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+			else
+				slmod.config.voteConfig.enabled = true
+				slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. AdminName .. '" has enabled mission voting.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+			end
+		end
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(toggleVoteVars)  -- add the item into the items table.
+        
+        local voteStartVars = {}
+		voteStartVars.menu = SlmodAdminMenu
+		voteStartVars.description = 'Say in chat "-admin vote start" to start a mission vote.'
+		voteStartVars.active = true
+		voteStartVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		voteStartVars.selCmds = {
+			[1] = {
+				[1] = { 
+					type = 'word', 
+					text = '-admin',
+					required = true
+				}, 
+				[2] = { 
+					type = 'word',
+					text = 'vote',
+					required = true
+				},
+				[3] = { 
+					type = 'word', 
+					text = 'start',
+					required = true
+				}
+			}
+		} 
+		voteStartVars.onSelect = function(self, vars, clientId)
+			if not clientId then
+				clientId = vars
+			end
+			local AdminName
+			if clientId == 1 then
+				AdminName = net.get_name(1)
+			elseif slmod.clients[clientId] and slmod.clients[clientId].ucid and Admins[slmod.clients[clientId].ucid] then
+				AdminName = Admins[slmod.clients[clientId].ucid]
+			else
+				AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
+			end
 
+            -- CODE TO START VOTE
+		end
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(voteStartVars)  -- add the item into the items table.
+        
+        local voteStopVars = {}
+		voteStopVars.menu = SlmodAdminMenu
+		voteStopVars.description = 'Say in chat "-admin vote stop" the current vote. Vote timeouts will be reset. '
+		voteStopVars.active = true
+		voteStopVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		voteStopVars.selCmds = {
+			[1] = {
+				[1] = { 
+					type = 'word', 
+					text = '-admin',
+					required = true
+				}, 
+				[2] = { 
+					type = 'word',
+					text = 'vote',
+					required = true
+				},
+				[3] = { 
+					type = 'word', 
+					text = 'stop',
+					required = true
+				}
+			}
+		} 
+		voteStopVars.onSelect = function(self, vars, clientId)
+			if not clientId then
+				clientId = vars
+			end
+			local AdminName
+			if clientId == 1 then
+				AdminName = net.get_name(1)
+			elseif slmod.clients[clientId] and slmod.clients[clientId].ucid and Admins[slmod.clients[clientId].ucid] then
+				AdminName = Admins[slmod.clients[clientId].ucid]
+			else
+				AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
+			end
+
+            -- CODE TO START VOTE
+		end
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(voteStopVars)  -- add the item into the items table.
+
+        if slmod.config.voteConfig.requireAdminVerifyIfPresent then
+            local voteAllowVars = {}
+            voteAllowVars.menu = SlmodAdminMenu
+            voteAllowVars.description = 'Say in chat "-admin vote allow" to allow for the current vote or results to proceed.'
+            voteAllowVars.active = true
+            voteAllowVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+            voteAllowVars.selCmds = {
+                [1] = {
+                    [1] = { 
+                        type = 'word', 
+                        text = '-admin',
+                        required = true
+                    }, 
+                    [2] = { 
+                        type = 'word',
+                        text = 'vote',
+                        required = true
+                    },
+                    [3] = { 
+                        type = 'word', 
+                        text = 'allow',
+                        required = true
+                    }
+                }
+            } 
+            voteAllowVars.onSelect = function(self, vars, clientId)
+                if not clientId then
+                    clientId = vars
+                end
+                local AdminName
+                if clientId == 1 then
+                    AdminName = net.get_name(1)
+                elseif slmod.clients[clientId] and slmod.clients[clientId].ucid and Admins[slmod.clients[clientId].ucid] then
+                    AdminName = Admins[slmod.clients[clientId].ucid]
+                else
+                    AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
+                end
+
+                -- CODE TO START VOTE
+            end
+		end
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(voteAllowVars)  -- add the item into the items table.
+        
 		update_scope()   -- keep scope updated with all connected server admins.
 	end
 	
+    
 	------------------------------------------------------------------------------------------------------------
 	------------------------------------------------------------------------------------------------------------
 	------------------------------------------------------------------------------------------------------------

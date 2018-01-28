@@ -48,7 +48,9 @@ do
 		end
 	end
     
-    
+    function slmod.stats.getMetaStats()
+		return metaStats
+	end
     
     function slmod.createMetaStatsMission(missionName)
         mizName = missionName
@@ -61,6 +63,8 @@ do
         slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'hoursHosted', 0)
         slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'totalFlightHours', 0)
         slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'maxClients', 0)
+        slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'voteEnabled', true)
+        slmod.stats.changeMetaStatsValue(metaStats.missionStats[missionName], 'totalVoteLoaded', 0)
     end
     
     function slmod.createMetaStatsMap(mapName)
@@ -124,6 +128,14 @@ do
         if not metaStats.mapStats[theatreName].missions[mizName] then
             slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName].missions, mizName, os.date('%b %d, %Y at %H %M %S'))
         end
+        
+        if not metaStats.missionStats[mizName].voteEnabled then
+            slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'voteEnabled', true)
+        end
+        
+        if not metaStats.missionStats[mizName].totalVoteLoaded then
+            slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'totalVoteLoaded', 0)
+        end
  
         return
     end
@@ -145,7 +157,7 @@ do
         if ((not metaStats.missionStats) or (not metaStats.missionStats[mizName])) then
             return
         end
-        slmod.info('in 6')
+
         if prevTime and slmod.config.enable_slmod_stats then  -- slmod.config.enable_slmod_stats may be disabled after the mission has already started.
 			local dt = DCS.getModelTime() - prevTime
             if not metaStats.missionStats[mizName].hoursHosted then

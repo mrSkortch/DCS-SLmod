@@ -407,8 +407,8 @@ function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
 	
 	--new functionality
 	local suppress = slmod.doMenuCommands(id, realString)
-
-	if slmod.chatLogFile and slmod.clients[id] then  -- client better exist in slmod clients!
+    --TODO ADD CHECK TO SEE IF HOST IS SPAMMING
+	if slmod.chatLogFile and slmod.clients[id]  then  -- client better exist in slmod clients!
 		local clientInfo = table.concat({'{name  = ', slmod.basicSerialize(tostring(slmod.clients[id].name)), ', ucid = ', slmod.basicSerialize(tostring(slmod.clients[id].ucid)), ', ip = ',  slmod.basicSerialize(tostring(slmod.clients[id].addr)), ', id = ', tostring(id),  '}'})
 
 		local logline

@@ -453,7 +453,7 @@ do
     end
     
     function slmod.autoAdminCheckForgiveOnOffense(client, deadClient)
-        if not deadClient then -- it is a bot you killed, Bots never forgive and never forget
+        if deadClient and (not deadClient.ucid) then -- it is a bot you killed, Bots never forgive and never forget
             slmod.autoAdminOnOffense(client)
         else
             if autoAdmin.forgiveEnabled or autoAdmin.punishEnabled then -- check if the player is exempt
@@ -462,11 +462,16 @@ do
                     if autoAdmin.forgiveEnabled then -- set timeout limits
                         offData.canForgive = autoAdmin.forgiveTimeout or 30
                     end
-                    if autoAdmin.punishEnabled then
-                        offData.canPunish = autoAdmin.punishTimeout or 30
+                    if autoAdmin.punishFirstForgiveLater then
+                        slmod.scheduleFunctionByRt(slmod.autoAdminOnOffense, {client}, DCS.getRealTime() + 1)
+                    else
+                        if autoAdmin.punishEnabled then
+                            offData.canPunish = autoAdmin.punishTimeout or 30
+                        end
                     end
-                    slmod.info(slmod.oneLineSerialize(offData))
+
                     delayedPenalty[#delayedPenalty+1] = offData
+                    
                     if penaltyCheckActive == false then 
                         checkForgivePunishStatus()
                     end
