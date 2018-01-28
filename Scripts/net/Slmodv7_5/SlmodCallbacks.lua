@@ -412,6 +412,7 @@ function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
 		local clientInfo = table.concat({'{name  = ', slmod.basicSerialize(tostring(slmod.clients[id].name)), ', ucid = ', slmod.basicSerialize(tostring(slmod.clients[id].ucid)), ', ip = ',  slmod.basicSerialize(tostring(slmod.clients[id].addr)), ', id = ', tostring(id),  '}'})
 
 		local logline
+        local writeLog = true
 		if realString ~= '/mybad' then
 			logline = 'CHAT: ' .. os.date('%b %d %H:%M:%S ') .. clientInfo .. ' said "' .. realString .. '"'
 			if all then
@@ -430,7 +431,12 @@ function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
 		end
         if lastLogLine == logLine then -- if the last written message is identical to this one, then don't write to the log
             lastLogLine = logLine
-        else 
+        end
+            if string.find(logLine, 'Slmod:') > 6 or string.find(logLine, 'Slmod-') > 6 then
+                writeLog = false
+            end
+        end
+        if writeLog == true then
             slmod.chatLogFile:write(logline)
             slmod.chatLogFile:flush()
         end
