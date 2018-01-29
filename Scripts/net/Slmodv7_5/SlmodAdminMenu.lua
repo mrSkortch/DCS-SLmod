@@ -216,7 +216,7 @@ do
         for file in lfs.dir(path) do
             if file:sub(-4) == '.miz' then
 				local mapName = ''
-                local sName = string.gsub(file, '.miz', '')
+                local sName = string.gsub(file, '%.miz', '')
                 if mStats and mStats.missionStats then
                     if mStats.missionStats[sName] then
                         if mapStrings[mStats.missionStats[sName].map] then
@@ -1353,6 +1353,7 @@ do
         
         -----------------------------------------------------------------------------------------------
         ------- Mission Voting Admin Commands
+        slmod.info('togglevote')
         -----------------------------------------------------------------------------------------------
         local toggleVoteVars = {}
 		toggleVoteVars.menu = SlmodAdminMenu
@@ -1400,7 +1401,7 @@ do
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(toggleVoteVars)  -- add the item into the items table.
-        
+         slmod.info('voteStart')
         local voteStartVars = {}
 		voteStartVars.menu = SlmodAdminMenu
 		voteStartVars.description = 'Say in chat "-admin vote start" to start a mission vote.'
@@ -1438,11 +1439,11 @@ do
 				AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
 			end
 
-            -- CODE TO START VOTE
+            slmod.adminStartVote(AdminName)
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(voteStartVars)  -- add the item into the items table.
-        
+         slmod.info('voteStop')
         local voteStopVars = {}
 		voteStopVars.menu = SlmodAdminMenu
 		voteStopVars.description = 'Say in chat "-admin vote stop" the current vote. Vote timeouts will be reset. '
@@ -1480,11 +1481,11 @@ do
 				AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
 			end
 
-            -- CODE TO START VOTE
+           slmod.adminStopVote(AdminName)
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(voteStopVars)  -- add the item into the items table.
-
+         slmod.info('require')
         if slmod.config.voteConfig.requireAdminVerifyIfPresent then
             local voteAllowVars = {}
             voteAllowVars.menu = SlmodAdminMenu
@@ -1525,9 +1526,10 @@ do
 
                 -- CODE TO START VOTE
             end
+            AdminItems[#AdminItems + 1] = SlmodMenuItem.create(voteAllowVars)  -- add the item into the items table.
 		end
-		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(voteAllowVars)  -- add the item into the items table.
-        
+		
+         slmod.info('update scope')
 		update_scope()   -- keep scope updated with all connected server admins.
 	end
 	

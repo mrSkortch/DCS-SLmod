@@ -1,48 +1,26 @@
+slmod.info('loading vote')
 do
-    --[[
-    Voting How should it work...
-    
-    
-    List missions with prefix [map] Name
-    
-    If RTV enabled...
-        Players must RTV
-    
-    
-    
-    needed commands...
-    admin: vote stop
-    admin: vote start
-    admin: vote toggle
-    admin: vote allow
-    
-    user: rtv
-    user: rtv remove  --- removes users vote from RTV
-    user: vote list
-    user: vote mission id
-    user: vote restart
-    user: vote remove
-    ]]
     local config = slmod.config.voteConfig
-    
-    local voteStatus = {
-        active = false
-        timeout = config.voteTimeout or 1200
-        minVoteTime = config.minVoteTime or 60
-        maxVoteTime = config.maxVoteTime or 180
-        lastVoteEnd = 0
-        startedAt = 0
-    }
+    local anyAdmin = false
+    local mStats = slmod.stats.getMetaStats()
+    local voteStatus = {}
+    voteStatus.active = false
+    voteStatus.timeout = config.voteTimeout or 1200
+    voteStatus.minVoteTime = config.minVoteTime or 60
+    voteStatus.maxVoteTime = config.maxVoteTime or 180
+    voteStatus.lastVoteEnd = 0
+    voteStatus.startedAt = 0
+
     local anyVoteActive = false
-    local rtvStatus = {
-        active = false
-        time = config.rtvVoteTime or 600
-        timeout = config.rtvVoteTimeout or 1200
-        lastVoteEnd = 0
-        startedAt = 0
-        level = config.rtvLevel or 0.5
+    local rtvStatus = {}
+    rtvStatus.active = false
+    rtvStatus.voteTime = config.rtvVoteTime or 600
+    rtvStatus.timeout = config.rtvVoteTimeout or 1200
+    rtvStatus.lastVoteEnd = 0
+    rtvStatus.startedAt = 0
+    rtvStatus.level = config.rtvLevel or 0.5
         
-    }
+
     local voteTbl = {}
     local rtvTbl = {}
     -- in case of syntax error
@@ -53,12 +31,19 @@ do
         ['PersianGulf'] = 'PG',
     }
     
+    local useRule = 1
     
+    slmod.info('1')
     local function countVotes(tbl)
         local keepList = {}
+        anyAdmin = false
+        
         for id, clientData in pairs(slmod.clients) do
             if tbl[clientData.ucid] then
                 keepList[clientData.ucid] = true
+            end
+            if slmod.isAdmin(clientData.ucid) then
+                anyAdmin = true
             end
         end
         local count = 0
@@ -76,32 +61,38 @@ do
     end
     
     local function rtvReset(result)
-        rtvStatus.active = false
         rtvStatus.lastVoteEnd = os.time()
-        
         if result then
-            -- start mission vote. 
-            -- do messages for mission vote
+            voteStatus.active = true
+            voteStatus.startedAt = os.time()
         else
             -- MSG: RTV has failed. RTV will be available again in x Time
+            anyVoteActive = false
         end
         rtvTbl = {} -- clear tbl
+        return
     end
     
     local function voteReset(result)
-        voteStatus.active = false
-        voteStatus.lastVoteEnd = os.time()
-        
+
+
         if result then
-            -- start mission vote. 
-            -- do messages for mission vote
+            voteStatus.active = true
+            voteStatus.startedAt = os.time()
+            anyVoteActive = true
         else
-            -- MSG: RTV has failed. RTV will be available again in x Time
+            anyVoteActive = false
+            voteStatus.active = false
+            voteStatus.lastVoteEnd = os.time()
         end
+        
         voteTbl = {} -- clear tbl
-    
+        return
     end
-    
+
+    local function getVoteTimeRemainingInMin(r)
+        return string.format('%.2f', (r/60))
+    end
     local function getEndIfCondition(totalVotes, endIf)
         if endIf and type(endIf) == 'number' then
             if endIf < 1 and endIf > 0 then
@@ -112,7 +103,7 @@ do
         end
         return slmod.num_clients -- return the number of clients on a server
     end
-    
+        slmod.info('120')
     local function voteClock()
         if anyVoteActive == true then
             slmod.scheduleFunctionByRt(voteClock, {}, DCS.getRealTime() + 5)
@@ -122,34 +113,36 @@ do
             local currentVote = countVotes(rtvTbl)
             
             if currentVote > slmod.num_clients * rtvStatus.level then
-                -- RTV wins
+                slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: RTV has been succsseful. Mission vote now starting. Vote will last for: ' .. getVoteTimeRemainingInMin(voteStatus.maxVoteTime) .. ' minutes.'}, DCS.getRealTime() + 0.1)
                 rtvReset(true)
+                return
             else
                 if os.time() > rtvStatus.startedAt + rtvStatus.voteTime then
-                -- vote time has ended. 
                     rtvReset()
+                    slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: RTV has failed. Will become available again in: ' .. getVoteTimeRemainingInMin(rtvStatus.timeout) .. ' minutes.'}, DCS.getRealTime() + 0.1)
                 end
             end
         end
         
         if voteStatus and voteStatus.startedAt > 0 and voteStatus.active == true then
             local totVotes, result = countVotes(voteTbl)
-            local useRule = 1
+            
             for i = 1, #config.ruleSets do
                 if config.ruleSets[i].rangeMin and config.ruleSets[i].rangeMax then
-                    if slmod.num_clients >= config.ruleSets[i].rangeMin and slmod.num_clients =< config.ruleSets[i].rangeMax then
+                    if slmod.num_clients >= config.ruleSets[i].rangeMin and slmod.num_clients <= config.ruleSets[i].rangeMax then
                         useRule = i
                         break
                     end
                 end
             end
             local rule = config.ruleSets[useRule]
-            if voteStatus.minVoteTime + voteStatus.startedAT > os.time() then
-            -- start to tally votes to check for winner
-                local leader = 0
+            if voteStatus.minVoteTime + voteStatus.startedAt < os.time() then
+                slmod.info(voteStatus.minVoteTime .. ' + ' .. voteStatus.startedAt .. ' < ' .. os.time())
+                -- start to tally votes to check for winner
+                local leader
                 local endCondition = getEndIfCondition(totVotes, rule.endIf)
                 for voteFor, voteTally in pairs(result) do
-                    if leader == 0 then
+                    if leader == nil then
                         leader = voteFor
                     end
                     if voteTally > result[leader] then
@@ -157,7 +150,7 @@ do
                     end
                 end
                 -- vote leader is found, now figure out what to do with that information
-                if voteStatus.maxVoteTime + voteStatus.startedAT > os.time() or endCondition >= totVotes then
+                if voteStatus.maxVoteTime + voteStatus.startedAt > os.time() or endCondition >= totVotes then
                     -- vote time ended or end condition reached
                     local voteSuccessful = false
                     if rule.use == 'magic' and rule.val >= result[leader] then
@@ -168,10 +161,31 @@ do
                         voteSuccessful = true
                     end
                     
-                    if config.requireAdminVerifyIfPresent == true then
-                    
+                    if voteSuccessful == true then 
+                        local path
+		
+                        if slmod.config.admin_tools_mission_folder and type(slmod.config.admin_tools_mission_folder) == 'string' then
+                            path = slmod.config.admin_tools_mission_folder
+                            if (path:sub(-1) ~= '\\') or (path:sub(-1) ~= '/') then
+                                path = path .. '\\'
+                            end
+                        else
+                            path = lfs.writedir() .. [[Slmod\Missions\]]
+                        end
+                        
+                        if anyAdmin == true and config.requireAdminVerifyIfPresent == true and slmod.currentVoteIsAllowed == false then
+                            slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: Vote complete. Results must be verified by an admin.'}, DCS.getRealTime() + 0.1)
+                        else
+                            -- 
+                            slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: Vote has been successful! ' .. leader .. ' has won the vote. The server will be switching to it in a moment.' }, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+                            slmod.scheduleFunctionByRt(net.load_mission, {path .. leader}, DCS.getRealTime() + 10)
+                        end
                     else
-                        -- 
+                        local reason = ''
+                        if rule.use == 'magic' then
+                            
+                        end
+                        slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: Vote failed. ' .. leader .. ' had the most votes. '}, DCS.getRealTime() + 0.1)
                     end
                     voteReset()
                 end
@@ -180,15 +194,120 @@ do
         
         
     end
+        slmod.info('198')
+    local function showVoteStatus(id)
+        -- time remaining
+        -- votes needed to winner
+        -- current tally
+        local msg = {}
+        local rule = config.ruleSets[useRule]
+        msg[#msg+1] = 'Active Voting Rules: '
+        msg[#msg+1] = rule.use
+        msg[#msg+1] = '\n '
+        
+        if anyVoteActive == true then 
+            if rtvStatus.active == true then
+            
+            end
+            
+            if voteStatus.active == true then 
+            
+                msg[#msg+1] = 'Mission Vote Time Remaining: '
+                msg[#msg+1] = getVoteTimeRemainingInMin(voteStatus.startedAt - os.time() + voteStatus.maxVoteTime)
+                msg[#msg+1] = ' minutes\n' 
+                if os.time() > voteStatus.startedAt + voteStatus.minVoteTime then
+                    msg[#msg+1] = 'Minimum vote time reached, vote can end early if needed votes reached. \n'
+                else
+                    
+                end
+
+               
+                local totVotes, result = countVotes(voteTbl)
+                msg[#msg+1] = totVotes
+                msg[#msg+1] = ' votes have been cast. \n \n'
+                msg[#msg+1] = 'Missions with votes: \n'
+                for mizName, curVotes in pairs(result) do
+                    msg[#msg+1] = curVotes
+                    msg[#msg+1] = ' votes for : '
+                    msg[#msg+1] = mizName
+                    msg[#msg+1] = '\n'
+                end
+            end
+        else
+            msg[#msg+1] = 'No Votes Active\n'
+            if slmod.config.voteConfig.rtvEnabled then
+                 msg[#msg+1] = 'RTV is enabled on the server.\n'
+                if rtvStatus.startedAt == 0 or rtvStatus.timeout + rtvStatus.lastVoteEnd < os.time() then
+                    msg[#msg+1] = 'Type "-rtv" to start a rock the vote.'
+                else
+                    msg[#msg+1] = 'RTV is on timeout for '
+                    msg[#msg+1] = getVoteTimeRemainingInMin(rtvStatus.lastVoteEnd - os.time + rtvStatus.timeout)
+                    msg[#msg+1] = ' more minutes.\n'
+                end
+            else
+                msg[#msg+1] = 'RTV is disabled on the server.\n'
+            end
+            if slmod.config.voteConfig.enabled then
+                msg[#msg+1] = 'RTV is enabled on the server.\n'
+                if rtvStatus.startedAt == 0 or rtvStatus.timeout + rtvStatus.lastVoteEnd < os.time() then
+                    msg[#msg+1] = 'Type "-rtv" to start a rock the vote.'
+                else
+                    msg[#msg+1] = 'RTV is on timeout for '
+                    msg[#msg+1] = getVoteTimeRemainingInMin(rtvStatus.lastVoteEnd - os.time + rtvStatus.timeout)
+                    msg[#msg+1] = ' more minutes.\n'
+                end
+            else
+                msg[#msg+1] = 'RTV is disabled on the server.\n'
+            end
+        end
+        slmod.scopeMsg(table.concat(msg), 20, 'text', {clients = {id}})
+    end
+
+    function slmod.adminStartVote(name)
+        slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: Mission Vote has been started by admin: ' .. name}, DCS.getRealTime() + 0.1)
+        voteReset(true)
+        
+        if anyVoteActive == false then
+            anyVoteActive = true
+            voteClock()            
+        end
+    end
     
+    function slmod.adminStopVote(name)
+        if anyVoteActive == true then 
+            slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: Mission Vote has been stopped by admin: ' .. name}, DCS.getRealTime() + 0.1)
+            rtvReset()
+            voteReset()
+        else
+            
+        end
+    end
     
-    local function getVoteTimeRemainingInMin()
-        return tostring(120/60)
+    function slmod.toggleVote(name)
+        if slmod.config.voteConfig.enabled == false then
+            slmod.config.voteConfig.enabled = true
+            if anyVoteActive == true then 
+                 slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. name .. '" has disabled mission voting. Current Voting will be cancelled and reset.'}, DCS.getRealTime() + 0.1)
+                 voteReset()
+                 rtvReset()
+            else
+                slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. name .. '" has disabled mission voting.'}, DCS.getRealTime() + 0.1)
+            end
+        elseif
+            slmod.config.voteConfig.enabled == true then 
+            slmod.config.voteConfig.enabled = false
+            slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: admin "' .. name .. '" has enabled mission voting.'}, DCS.getRealTime() + 0.1)
+        end
+    
+    end
+
+    local function updateMissionListVoting()
+    
     end
     
     local function create_VoteMissionMenuFor(id)  --creates the temporary load mission menu for this client id.
 		local path
-		local mStats = slmod.stats.getMetaStats()
+		
         if slmod.config.admin_tools_mission_folder and type(slmod.config.admin_tools_mission_folder) == 'string' then
 			path = slmod.config.admin_tools_mission_folder
 			if (path:sub(-1) ~= '\\') or (path:sub(-1) ~= '/') then
@@ -214,18 +333,25 @@ do
 		}
 		
 		local LoadItems = {}
-		local display_mode = slmod.config.admin_display_mode or 'text'
+		local display_mode = slmod.config.admin_display_mode or 'chat'
 		local display_time = slmod.config.admin_display_time or 30
-		local VMenu = SlmodMenu.create({showCmds = LoadShowCommands, scope = {clients = {id}}, options = {display_time = display_time, display_mode = display_mode, title = 'Available missions to vote for' .. path .. ' (you have '.. getVoteTimeRemainingInMin() .. ' minutes to make a choice):', privacy = {access = true, show = true}}, items = LoadItems})
-		slmod.scheduleFunctionByRt(SlmodMenu.destroy, {VMenu}, DCS.getRealTime() + 120)  --scheduling self-destruct of this menu in two minutes.
+        local voteTimeRemain = 120
+        if voteStatus.active == true then
+            voteTimeRemain = (voteStatus.maxVoteTime + voteStatus.startedAt) - os.time()
+        end
+		local VMenu = SlmodMenu.create({showCmds = LoadShowCommands, scope = {clients = {id}}, options = {display_time = display_time, display_mode = display_mode, title = 'Available missions to vote for' .. path .. ' (you have '.. getVoteTimeRemainingInMin(voteTimeRemain) .. ' minutes to make a choice):', privacy = {access = true, show = true}}, items = LoadItems})
+		slmod.scheduleFunctionByRt(SlmodMenu.destroy, {VMenu}, DCS.getRealTime() + voteTimeRemain)  --scheduling self-destruct of this menu in two minutes.
 		
 		local miz_cntr = 1
         for file in lfs.dir(path) do
+            slmod.info(file)
             if file:sub(-4) == '.miz' then
 				local mapName = ''
-                local sName = string.gsub(file, '.miz', '')
+                local sName = string.gsub(file, '%.miz', '')
+                slmod.info(sName)
                 if mStats and mStats.missionStats then
-                    if mStats.missionStats[sName] then
+                    if mStats.missionStats[sName] and  mStats.missionStats[sName].voteEnabled then
+                        slmod.info('found')
                         if mapStrings[mStats.missionStats[sName].map] then
                             mapName = mapStrings[mStats.missionStats[sName].map]
                         end
@@ -250,14 +376,23 @@ do
                                 }
                             } 
                         LoadVars.onSelect = function(self, vars, client_id)
-                            if not client_id then
-                                client_id = vars
+                            if slmod.config.voteConfig.enabled == true then
+                                if not client_id then
+                                    client_id = vars
+                                end
+
+                                if slmod.clients[client_id] then
+                                   voteTbl[slmod.clients[client_id].ucid] = self.filename
+                                    
+                                    if config.hidden then
+                                        slmod.scheduleFunctionByRt(slmod.scopeMsg,{'Vote Successful for: ' .. self.filename, 5, 'chat', {clients = {id}}}, DCS.getRealTime() + .1) 
+                                    else
+                                        slmod.scheduleFunctionByRt(slmod.basicChat, {slmod.clients[client_id].name .. ' has voted for: ' .. self.filename}, DCS.getRealTime() + .1)
+                                    end
+                                  
+            
+                                end
                             end
-                            
-                            if slmod.clients[client_id] then
-                               voteTbl[slmod.clients[client_id].ucid] = self.filename
-                            end
-                            
                         end
                         LoadItems[miz_cntr] = SlmodMenuItem.create(LoadVars) 
                         miz_cntr = miz_cntr + 1
@@ -281,7 +416,9 @@ do
     
     function slmod.create_SlmodVoteMenu()
 		-- stats menu show commands
-		local statsShowCommands = {
+        mStats = slmod.stats.getMetaStats() -- reload meta stats
+         slmod.info('create menu')
+		local voteShowCommands = {
 			[1] = {
 				[1] = {
 					type = 'word',
@@ -313,7 +450,7 @@ do
 			items = voteItems,
 
 		}
-        
+
         if config.rtvEnabled then  -- if rtv enabled add the rtv thingy
             local rtvVars = {}
             rtvVars.menu = SlmodVoteMenu
@@ -330,63 +467,87 @@ do
                     },
                 } 
             rtvVars.onSelect = function(self, vars, client_id)
-                if config.rtvEnabled then -- rtv enabled
-                    if rtvStatus.active ~= true then -- not active 
-                        if rtvStatus.lastVoteEnd = 0 or os.time() > rtvStatus.lastVoteEnd + rtvStatus.timeout then
-                            rtvStatus.active = true
-                            rtvStatus.startedAt = os.time()
-                        else
-                            return
+                if slmod.config.voteConfig.rtvEnabled == true then
+                    if not client_id then
+                        client_id = vars
+                    end
+                    if config.rtvEnabled then -- rtv enabled
+                        if rtvStatus.active ~= true then -- not active 
+                            if rtvStatus.lastVoteEnd == 0 or os.time() > rtvStatus.lastVoteEnd + rtvStatus.timeout then
+                                rtvStatus.active = true
+                                rtvStatus.startedAt = os.time()
+                            else
+                                local timeLeft = os.time() - rtvStatus.lastVoteEnd + rtvStatus.timeout
+                                slmod.scopeMsg('RTV is currently on cooldown. Please wait ' .. getVoteTimeRemainingInMin(timeLeft) ..' minutes until RTV is available again.', self.options.display_time/2, self.options.display_mode, {clients = {client_id}})
+                                return
+                            end
                         end
-                    end
-                    if anyVoteActive == false then
-                        anyVoteActive = true
-                        voteClock()
-                    end
-                    -- break out before this if the RTV is inactive
-                    if slmod.clients[vars] and slmod.clients[vars].ucid then
-                        rtvTbl[slmod.clients[vars].ucid] = tostring(true)
+                        if anyVoteActive == false then
+                            anyVoteActive = true
+                            voteClock()
+                        end
+                        -- break out before this if the RTV is inactive
+                        if slmod.clients[vars] and slmod.clients[vars].ucid then
+                            rtvTbl[slmod.clients[vars].ucid] = tostring(true)
+                            if config.hidden then
+                                slmod.scopeMsg('You have voted to rock the vote.', self.options.display_time/2, self.options.display_mode, {clients = {client_id}})
+                            else
+                                slmod.scheduleFunctionByRt(slmod.basicChat, {slmod.clients[vars].name .. ' has voted to rock the vote.'}, DCS.getRealTime() + 0.1)
+                            end
+                        end
+                    else
+                        slmod.scopeMsg('RTV is disabled on the server.', self.options.display_time/2, self.options.display_mode, {clients = {client_id}})
                     end
                 end
             end
             
             voteItems[#voteItems + 1] = SlmodMenuItem.create(rtvVars)  -- add the item into the items table.
-        
-            local rtvRemoveVars = {}
-            rtvRemoveVars.menu = SlmodVoteMenu
-            rtvRemoveVars.description = 'Type "-rtv remove" to remove your vote for RTV'
-            rtvRemoveVars.active = true
-            rtvRemoveVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
-            rtvRemoveVars.selCmds = {
-                    [1] = {
-                        [1] = { 
-                            type = 'word', 
-                            text = '-rtv',
-                            required = true,
-                        },
-                        [2] = { 
-                            type = 'word', 
-                            text = 'remove',
-                            required = true,
-                        }, 
+        end
+   
+
+        local rtvRemoveVars = {}
+        rtvRemoveVars.menu = SlmodVoteMenu
+        rtvRemoveVars.description = 'Type "-rtv remove" to remove your vote for RTV'
+        rtvRemoveVars.active = true
+        rtvRemoveVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+        rtvRemoveVars.selCmds = {
+                [1] = {
+                    [1] = { 
+                        type = 'word', 
+                        text = '-rtv',
+                        required = true,
                     },
-                } 
-            rtvRemoveVars.onSelect = function(self, vars, client_id)
+                    [2] = { 
+                        type = 'word', 
+                        text = 'remove',
+                        required = true,
+                    }, 
+                },
+            } 
+        rtvRemoveVars.onSelect = function(self, vars, client_id)
+             if slmod.config.voteConfig.rtvEnabled == true  then
+                if not client_id then
+                    client_id = vars
+                end
                 if config.rtvEnabled then -- rtv enabled
                     if slmod.clients[vars] then
                         if rtvTbl[slmod.clients[vars].ucid] then
                             rtvTbl[slmod.clients[vars].ucid] = nil
-                            --TODO:
+                            slmod.scopeMsg('Your rtv vote has been removed', self.options.display_time/2, self.options.display_mode, {clients = {client_id}})
                         else
-                            -- no rtv vote found
+                            slmod.scopeMsg('You never exercised your civic duty to vote in the first place.', self.options.display_time/2, self.options.display_mode, {clients = {client_id}})
                         end
                     end
+                else
+                    slmod.scopeMsg('RTV is disabled on the server.', self.options.display_time/2, self.options.display_mode, {clients = {client_id}})
                 end
             end
-            
-            voteItems[#voteItems + 1] = SlmodMenuItem.create(rtvRemoveVars)  -- add the item into the items table.
         end
+            
+        voteItems[#voteItems + 1] = SlmodMenuItem.create(rtvRemoveVars)  -- add the item into the items table.
         
+        
+
         local vList = {}
         vList.menu = SlmodVoteMenu
         vList.description = 'Type "-vote list" to call for a mission vote. If enough players call for it, a vote mission will commence.'
@@ -397,57 +558,27 @@ do
                     [1] = { 
                         type = 'word', 
                         text = '-vote',
-                        required = true
+                        required = true,
                     },
                     [2] = { 
                         type = 'word',
-                        text = 'list'
-                        required = true
+                        text = 'list',
+                        required = true,
                     },                        
                 },
             } 
         vList.onSelect = function(self, vars, client_id)
-            if not client_id then
-                client_id = vars
+            if slmod.config.voteConfig.enabled == true then
+                if not client_id then
+                    client_id = vars
+                end
+                
+                create_VoteMissionMenuFor(client_id)
             end
-            
-            create_VoteMissionMenuFor(client_id)
         end
         
         voteItems[#voteItems + 1] = SlmodMenuItem.create(vList)
-        
-       
-        local voteMizVars = {}
-        voteMizVars.menu = SlmodVoteMenu
-        voteMizVars.description = 'Type "-vote" <id> to vote for the mission'
-        voteMizVars.active = true
-        voteMizVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
-        voteMizVars.selCmds = {
-                [1] = {
-                    [1] = { 
-                        type = 'word', 
-                        text = '-vote',
-                        required = true
-                    },
-                    [2] = { 
-                        type = 'word', 
-                        text = 'mission',
-                        required = true
-                    },
-                    [3] = { 
-                        type = 'word', 
-                        var = 'mission',
-                        required = true
-                    },                          
-                },
-            } 
-        voteMizVars.onSelect = function(self, vars, client_id)
 
-        end
-        
-        voteItems[#voteItems + 1] = SlmodMenuItem.create(voteMizVars)
-      
-        
         local restartVars = {}
         restartVars.menu = SlmodVoteMenu
         restartVars.description = 'Type "-vote restart" to vote for a mission restart. '
@@ -462,17 +593,27 @@ do
                     },
                     [2] = { 
                         type = 'word', 
-                        text = '-restart',
+                        text = 'restart',
                         required = true
                     },                        
                 },
             } 
         restartVars.onSelect = function(self, vars, client_id)
-
+            if slmod.config.voteConfig.enabled == true then
+                if not client_id then
+                    client_id = vars
+                end
+                if mStats[slmod.current_mission] and mStats[slmod.current_mission].voteEnabled == true then
+                    slmod.scopeMsg('You have voted to restart the mission.', self.options.display_time/2, self.options.display_mode, {clients = {client_id}})
+                    voteTbl[slmod.clients[client_id].ucid] = slmod.current_mission .. '.miz'
+                else    
+                    slmod.scopeMsg('This mission has voting disabled for it. Sorry.', self.options.display_time/2, self.options.display_mode, {clients = {client_id}})
+                end
+            end
         end
         
         voteItems[#voteItems + 1] = SlmodMenuItem.create(restartVars)
-        
+
         local voteRemoveVars = {}
         voteRemoveVars.menu = SlmodVoteMenu
         voteRemoveVars.description = 'Type "-vote remove" to manually remove your vote.'
@@ -487,24 +628,29 @@ do
                     },
                     [2] = { 
                         type = 'word', 
-                        text = '-remove',
+                        text = 'remove',
                         required = true
                     },                        
                 },
             } 
         voteRemoveVars.onSelect = function(self, vars, client_id)
-            if not client_id then
-                client_id = vars
-            end
-            if slmod.clients[client_id] then
-                if voteTbl[slmod.clients[client_id].ucid] then
-                    voteTbl[slmod.clients[client_id].ucid] = nil
+            if slmod.config.voteConfig.enabled == true then
+                if not client_id then
+                    client_id = vars
+                end
+                if slmod.clients[client_id] then
+                    if voteTbl[slmod.clients[client_id].ucid] then
+                        slmod.scopeMsg('Your vote has been removed', self.options.display_time/2, self.options.display_mode, {clients = {client_id}})
+                        voteTbl[slmod.clients[client_id].ucid] = nil
+                    else
+                        slmod.scopeMsg('No vote found. Nothing has been removed.', self.options.display_time/2, self.options.display_mode, {clients = {client_id}})
+                    end
                 end
             end
         end
         
         voteItems[#voteItems + 1] = SlmodMenuItem.create(voteRemoveVars)
-        
+
         local voteStatusVars = {}
         voteStatusVars.menu = SlmodVoteMenu
         voteStatusVars.description = 'Type "-vote status" to be updated of the current vote status.'
@@ -519,27 +665,32 @@ do
                     },
                     [2] = { 
                         type = 'word', 
-                        text = '-status',
+                        text = 'status',
                         required = true
                     },                        
                 },
             } 
         voteStatusVars.onSelect = function(self, vars, client_id)
-            if not client_id then
-                client_id = vars
-            end
-            if config.hidden then
-                if slmod.clients[client_id] and slmod.clients[client_id].ucid and Admins[slmod.clients[client_id].ucid] then
-                        -- show vote status
-                else
-                     -- sorry vote status is hidden, time left = 
+            if slmod.config.voteConfig.enabled == true then
+                if not client_id then
+                    client_id = vars
                 end
-            else
-               -- show vote status
+                
+                if config.hidden then
+                    if slmod.clients[client_id] and slmod.clients[client_id].ucid and Admins[slmod.clients[client_id].ucid] then
+                        showVoteStatus(client_id)
+                    else
+                        slmod.scopeMsg('Sorry vote status is hidden. Time remaining: ' .. ''.. ' You haved for: ' .. '', self.options.display_time/2, self.options.display_mode, {clients = {client_id}})
+                    end
+                else
+
+                    showVoteStatus(client_id)
+                end
             end
         end
         
         voteItems[#voteItems + 1] = SlmodMenuItem.create(voteStatusVars)
+   
     end
 
 end

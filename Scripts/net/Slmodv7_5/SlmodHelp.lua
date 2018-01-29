@@ -90,9 +90,9 @@ do
                title = title..'- Slmod Forgive/Punish (' .. tostring(#SlmodForgivePunishMenu:getItems()) .. ' items), show by saying "-forgive" or "-punish" in chat. \n'
             end
             
-            --[[if slmod.config.voteConfig.voteEnabled then
-               title = title..'- Slmod Forgive/Punish (' .. tostring(#SlmodVoteMenu:getItems()) .. ' items), show by saying "-vote" in chat. \n'
-            end]]
+            if slmod.config.voteConfig.enabled then
+               title = title..'- Slmod Voting (' .. tostring(#SlmodVoteMenu:getItems()) .. ' items), show by saying "-vote" in chat. \n'
+            end
 			
 			local clientPOS
 			local clientSide = slmod.getClientSide(clientId)

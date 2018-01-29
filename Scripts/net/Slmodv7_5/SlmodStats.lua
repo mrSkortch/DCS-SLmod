@@ -1461,7 +1461,7 @@ end]]
 				local event = slmod.events[eventInd]
 				--slmod.info('checking ' .. eventInd)
 				eventInd = eventInd + 1  -- increment NOW so if there is a Lua error, I'm not stuck forever on this event.
-				--slmod.info(slmod.tableshow(event))
+				slmod.info(slmod.tableshow(event))
 				
 				
 				----------------------------------------------------------------------------------------------------------

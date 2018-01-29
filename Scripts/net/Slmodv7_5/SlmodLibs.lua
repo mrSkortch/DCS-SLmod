@@ -2690,6 +2690,10 @@ function slmod.reset()
     if slmod.config.autoAdmin.forgiveEnabled or slmod.config.autoAdmin.punishEnabled then
         slmod.createPunishForgiveMenu()
     end
+    
+    if slmod.create_SlmodVoteMenu then
+        slmod.create_SlmodVoteMenu()
+    end
 	
 	if slmod.create_SlmodMOTDMenu then
 		slmod.create_SlmodMOTDMenu()
