@@ -1363,7 +1363,6 @@ end]]
 			for id, client in pairs(slmod.clients) do -- for each player (including host)
 				local side = net.get_player_info(id, 'side')
 				local unitId = net.get_player_info(id, 'slot')  -- get side and unitId
-
 				if unitId then -- if in a unit.
 					if is_BC(unitId) then  -- if it is a CA slot
 						if client.ucid and stats[client.ucid] then
@@ -1461,7 +1460,7 @@ end]]
 				local event = slmod.events[eventInd]
 				--slmod.info('checking ' .. eventInd)
 				eventInd = eventInd + 1  -- increment NOW so if there is a Lua error, I'm not stuck forever on this event.
-				slmod.info(slmod.tableshow(event))
+				--slmod.info(slmod.tableshow(event))
 				
 				
 				----------------------------------------------------------------------------------------------------------

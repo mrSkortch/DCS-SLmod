@@ -1353,7 +1353,7 @@ do
         
         -----------------------------------------------------------------------------------------------
         ------- Mission Voting Admin Commands
-        slmod.info('togglevote')
+
         -----------------------------------------------------------------------------------------------
         local toggleVoteVars = {}
 		toggleVoteVars.menu = SlmodAdminMenu
@@ -1401,7 +1401,7 @@ do
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(toggleVoteVars)  -- add the item into the items table.
-         slmod.info('voteStart')
+
         local voteStartVars = {}
 		voteStartVars.menu = SlmodAdminMenu
 		voteStartVars.description = 'Say in chat "-admin vote start" to start a mission vote.'
@@ -1443,7 +1443,7 @@ do
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(voteStartVars)  -- add the item into the items table.
-         slmod.info('voteStop')
+
         local voteStopVars = {}
 		voteStopVars.menu = SlmodAdminMenu
 		voteStopVars.description = 'Say in chat "-admin vote stop" the current vote. Vote timeouts will be reset. '
@@ -1529,7 +1529,7 @@ do
             AdminItems[#AdminItems + 1] = SlmodMenuItem.create(voteAllowVars)  -- add the item into the items table.
 		end
 		
-         slmod.info('update scope')
+         --slmod.info('update scope')
 		update_scope()   -- keep scope updated with all connected server admins.
 	end
 	

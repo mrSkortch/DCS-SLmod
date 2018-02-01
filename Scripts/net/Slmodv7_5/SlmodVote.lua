@@ -186,6 +186,10 @@ do
                         else
                             -- 
                             slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: Vote has been successful! ' .. leader .. ' has won the vote. The server will be switching to it in a moment.', 10, 'both' }, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+                            
+                            if mStats.missionStats[leader].totalVoteLoaded then
+                                 slmod.stats.changeMetaStatsValue(mStats.missionStats[leader],'totalVoteLoaded', mStats.missionStats[leader].totalVoteLoaded + 1)
+                            end
                             slmod.scheduleFunctionByRt(net.load_mission, {path .. leader}, DCS.getRealTime() + 10)
                         end
                     else
