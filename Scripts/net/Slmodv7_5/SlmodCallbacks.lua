@@ -391,7 +391,6 @@ end
 --slmod.func_old.onPlayerTrySendChat = slmod.func_old.onPlayerTrySendChat or onPlayerTrySendChat -- old_on_chat should be an upvalue of on_chat, using the "or" just in case I make a reload_slmod work again
 local lastLogLine = '' 
 function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
-	net.log('chat: ' .. msg)
 	local function cut_tail_spaces(str)
 		local tail = string.find(str, '%s+$')  -- find where trailing spaces start
 		if tail then
@@ -429,20 +428,16 @@ function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
 		else
 			logline = 'SCREENSHOT: ' .. os.date('%b %d %H:%M:%S ') .. clientInfo .. ' made a screenshot.\n'
 		end
-        slmod.info(logline)
+
         if lastLogLine == logline then -- if the last written message is identical to this one, then don't write to the log
             lastLogLine = logline
         end
         if id == 1 and slmod.config.log_only_important_server_messages then -- useful slmod messages start with Slmod: or Slmod-. All other messages from host will be removed from chat lot
-           slmod.info(string.find(msg, 'Slmod:'))
-           if (string.find(logline, 'Slmod:') and string.find(logline, 'Slmod:') < 2) or (string.find(logline, 'Slmod-') and string.find(logline, 'Slmod-') < 2) then
-
-                slmod.info('fail')
-                
-              writeLog = false
+           writeLog = false
+           if (string.find(logline, 'Slmod:') and string.find(logline, 'Slmod:') < 2) or (string.find(logline, 'Slmod%-') and string.find(logline, 'Slmod%-') < 2) then
+              writeLog = true
            end
         end
- 
         if writeLog == true or suppress == true then
             slmod.chatLogFile:write(logline)
             slmod.chatLogFile:flush()

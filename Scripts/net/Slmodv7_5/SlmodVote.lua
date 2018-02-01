@@ -1,4 +1,3 @@
-slmod.info('loading vote')
 do
     local config = slmod.config.voteConfig
     local anyAdmin = false
@@ -39,7 +38,6 @@ do
     
     local useRule = 1
     
-    slmod.info('1')
     local function countVotes(tbl)
         local keepList = {}
         anyAdmin = false
@@ -63,7 +61,6 @@ do
                 tally[val] = tally[val] + 1
             end
         end
-        slmod.info(count)
         return count, tally
     end
     
@@ -82,7 +79,6 @@ do
     end
     
     local function voteReset(result)
-        slmod.info('vote reset')
         if result then
             voteStatus.active = true
             voteStatus.startedAt = os.time()
@@ -142,7 +138,6 @@ do
             end
             local rule = config.ruleSets[useRule]
             if voteStatus.minVoteTime + voteStatus.startedAt < os.time() then
-                slmod.info(voteStatus.minVoteTime .. ' + ' .. voteStatus.startedAt .. ' < ' .. os.time())
                 -- start to tally votes to check for winner
                 local leader
                 local endCondition = getEndIfCondition(totVotes, rule.endIf)
@@ -237,7 +232,6 @@ do
         -- time remaining
         -- votes needed to winner
         -- current tally
-        slmod.info('in show')
         local msg = {}
         local rule = config.ruleSets[useRule]
         msg[#msg+1] = 'Active Voting Rules: '
@@ -246,11 +240,9 @@ do
         
         if anyVoteActive == true then 
             if rtvStatus.active == true then
-                slmod.info('rtv active')
                 msg[#msg+1] = 'RTV Active\n'
                 msg[#msg+1] = '\nRTV Time remaining: '
                 msg[#msg+1] = getVoteTimeRemainingInMin(rtvStatus.startedAt - os.time() + rtvStatus.voteTime)
-                slmod.info('do hidden')
                 if config.hidden == false then 
                     msg[#msg+1] = '\nRTV Votes Needed: '
                     msg[#msg+1] = slmod.num_clients * rtvStatus.level
@@ -260,7 +252,6 @@ do
             end
             
             if voteStatus.active == true then 
-                slmod.info('vote active')
                 msg[#msg+1] = 'Mission Vote Time Remaining: '
                 msg[#msg+1] = getVoteTimeRemainingInMin(voteStatus.startedAt - os.time() + voteStatus.maxVoteTime)
                 msg[#msg+1] = ' minutes\n' 
@@ -287,14 +278,12 @@ do
                 end
             end
         else
-            slmod.info('no votes active')
             msg[#msg+1] = 'No Votes Active\n'
             if slmod.config.voteConfig.rtvEnabled then
                 msg[#msg+1] = 'RTV is enabled on the server.\n'
                 if rtvStatus.startedAt == 0 or rtvStatus.timeout + rtvStatus.lastVoteEnd < os.time() then
                     msg[#msg+1] = 'Type "-rtv" to start a rock the vote.'
                 else
-                    slmod.info('get rtvvote timeout')
                     msg[#msg+1] = 'RTV is on timeout for '
                     msg[#msg+1] = getVoteTimeRemainingInMin(rtvStatus.lastVoteEnd - os.time() + rtvStatus.timeout)
                     msg[#msg+1] = ' more minutes.\n'
@@ -312,7 +301,6 @@ do
                     end
                     
                 else
-                     slmod.info('get vote timeout')
                     msg[#msg+1] = 'Vote is on timeout for '
                     msg[#msg+1] = getVoteTimeRemainingInMin(rtvStatus.lastVoteEnd - os.time() + rtvStatus.timeout)
                     msg[#msg+1] = ' more minutes.\n'
@@ -400,14 +388,11 @@ do
 		
 		local miz_cntr = 1
         for file in lfs.dir(path) do
-            slmod.info(file)
             if file:sub(-4) == '.miz' then
 				local mapName = ''
                 local sName = string.gsub(file, '%.miz', '')
-                slmod.info(sName)
                 if mStats and mStats.missionStats then
                     if mStats.missionStats[sName] and  mStats.missionStats[sName].voteEnabled then
-                        slmod.info('found')
                         if mapStrings[mStats.missionStats[sName].map] then
                             mapName = mapStrings[mStats.missionStats[sName].map]
                         end
@@ -441,7 +426,7 @@ do
                                    voteTbl[slmod.clients[client_id].ucid] = self.filename
                                     
                                     if config.hidden then
-                                        slmod.scheduleFunctionByRt(slmod.scopeMsg,{'Vote Successful for: ' .. self.filename, 5, 'chat', {clients = {id}}}, DCS.getRealTime() + .1) 
+                                        slmod.scheduleFunctionByRt(slmod.scopeMsg,{'Slmod: Vote Successful for: ' .. self.filename, 5, 'chat', {clients = {id}}}, DCS.getRealTime() + .1) 
                                     else
                                         slmod.scheduleFunctionByRt(slmod.basicChat, {slmod.clients[client_id].name .. ' has voted for: ' .. self.filename}, DCS.getRealTime() + .1)
                                     end
@@ -473,7 +458,6 @@ do
     function slmod.create_SlmodVoteMenu()
 		-- stats menu show commands
         mStats = slmod.stats.getMetaStats() -- reload meta stats
-         slmod.info('create menu')
 		local voteShowCommands = {
 			[1] = {
 				[1] = {
@@ -665,7 +649,6 @@ do
             } 
         restartVars.onSelect = function(self, vars, client_id)
             if slmod.config.voteConfig.enabled == true then
-                slmod.info(slmod.current_mission)
                 if not client_id then
                     client_id = vars
                 end
