@@ -302,7 +302,7 @@ do
 
 			slmod.stats.changeMisStatsValue(misStats[ucid], 'times', {})
 			slmod.stats.changeMisStatsValue(misStats[ucid], 'weapons', {})
-			
+            
 			slmod.stats.changeMisStatsValue(misStats[ucid], 'kills', {})
 			slmod.stats.changeMisStatsValue(misStats[ucid].kills, 'Ground Units', 
 			{
@@ -756,7 +756,8 @@ end]]
 	local landedUnits = {}  -- used to remove kill detection on landed units.
 	local suppressDeath = {}  -- used to suppress any extra dead event after a unit no longer exists.  Probably not necessary
 	local humanShots = {}  -- in the case of an unidentified weapon in in a hit event, this is used to associate the event with the last weapon fired.
-	
+	local gunTypes = {}
+    
 	local function computeTotal(kills)  -- computes total kills for a specific type (vehicle, ship, plane, etc.)
 		local total = 0
 		for typeName, typeKills in pairs(kills) do
@@ -850,52 +851,6 @@ end]]
 		end
 	end
 	
-	local shells = {}
-	-- hit events
-	shells["30mm HE"] = true -- What the Mi-8 gunpod fired apparently
-	shells["30mm AP"] = true
-	shells["12.7mm"] = true -- Also mi-8 gunpod hit event
-	shells["23mm HE"] = true  -- could be a problem.... Su-25 gun pods stuck on.
-	shells["30mm TP"] = true
-	shells["20mm HE"] = true
-	shells["PKT_7_62"] = true -- mi8 gunpod hit event
-	shells["M134 7.62"] = true -- Huey hit event
-	shells["MG_20x82_HEI_T"] = true --fw190
-	shells["MG_20x82_API"] = true  --fw190
-	shells["GSH 23 HE"] = true -- Mig-21
-	shells["GSH 23 AP"] = true -- Mig-21
-	
-	-- shooting start and shooting end events
-	shells["M_2_L1"] = true -- P-51D events... sigh
-	shells["M_2_L2"] = true
-	shells["M_2_L3"] = true
-	shells["M_2_R1"] = true
-	shells["M_2_R2"] = true
-	shells["M_2_R3"] = true
-	shells["GSh_23_SPUU22"] = true -- Su-25 gunpod
-	shells["GSh_30_1"] = true -- Su-27/33, Mig-29A/S/G
-	shells["GSh_30_2"] = true --Su-25A/T
-	shells["2A42"] = true --Ka-50
-	shells["GSh_23_UPK"] = true -- Ka-50 Gunpod (I think)
-	shells["GAU_8"] = true -- A-10A shooting start and end shows as this
-	shells["YakB_12_7"] = true -- Mi8 gunpod shooting event 50 cal
-	shells["GSHG_7_62"] = true -- Mi8 gunpod shooting event
-	shells["AP_30_PLAMYA"] = true -- mi8 Grenade pod shot event. 
-	shells["M_134"] = true -- Huey shooting event
-	shells["M_60"] = true
-	shells["m3_browning"] = true --F86
-	shells["MG_151_20"] = true --Fw190
-	shells["MG_131"] = true --Fw190
-	shells["GSH_23"] = true --Mig-21
-	
-	
-	
-	
-	local function isShell(weaponName)  -- determines if the weapon was a shell.
-		--slmod.info(weaponName)
-		--slmod.info(shells[weaponName])
-		return shells[weaponName]
-	end
 	
 	local acft = {} -- exceptions list. For some reason mig-29A is not matching with below code because it is displayed as Mig-29.
 	-- Temp fix
@@ -1004,6 +959,8 @@ end]]
 			slmod.error('unable to call slmod.unitIsAlive in main simulation env, reason: ' .. tostring(str))
 		end
 	end
+    
+    
 	
 	-----------------------------
 	-- tracks what clients were in air last check...
@@ -1363,6 +1320,16 @@ end]]
 			for id, client in pairs(slmod.clients) do -- for each player (including host)
 				local side = net.get_player_info(id, 'side')
 				local unitId = net.get_player_info(id, 'slot')  -- get side and unitId
+                --[[local multiCrew = false
+                slmod.info(unitId)
+				if tonumber(unitId) then
+				slmod.info('is number')
+				
+				else
+				slmod.info('false')
+				end]]
+                
+                --slmod.info(unitId)
 				if unitId then -- if in a unit.
 					if is_BC(unitId) then  -- if it is a CA slot
 						if client.ucid and stats[client.ucid] then
@@ -1460,7 +1427,7 @@ end]]
 				local event = slmod.events[eventInd]
 				--slmod.info('checking ' .. eventInd)
 				eventInd = eventInd + 1  -- increment NOW so if there is a Lua error, I'm not stuck forever on this event.
-				--slmod.info(slmod.tableshow(event))
+
 				
 				
 				----------------------------------------------------------------------------------------------------------
@@ -1477,123 +1444,64 @@ end]]
 								--slmod.info('weapon found')
 								local weapon
 								if event.type == 'end shooting' then
-									--slmod.info('gun check')
-									weapon = 'guns'
+									weapon = event.weapon
 									--- this is code to check the number of rounds fired. 
-									local shootingCount = 0 -- required for P-51D or other types that have multiple shooting events
-									local endShootCount = 0
-									local lastEvent = 'end shooting'
-									local endLoop = false
-									local endIndex
-									local foundMatches = false
+									local shotFirstEvent
+                                    
+                                    gunTypes[event.weapon] = event.initiator_objtype
 									
-									for i = (eventInd - 1), 4, -1 do
+									for i = (eventInd - 2), 4, -1 do
+										slmod.info(i)
 										if event.initiator == slmod.events[i].initiator then -- finds the first start shooting event from the current end shootingfor the initiator
-										--	slmod.info('found')
-										--	slmod.info(i)
-											if slmod.events[i].type == 'end shooting' then
-												--slmod.info('end shot +')
-												endShootCount = endShootCount + 1
-												lastEvent = 'end shooting'
-											elseif slmod.events[i].type == 'start shooting' then
-												--slmod.info('start shot +')
-												shootingCount = shootingCount + 1
-												lastEvent = 'start shooting'
-											end
-											--[[ If the shot events are equal.
-											if the 
-											
-											]]
-											if endShootCount == shootingCount and shootingCount > 0 then -- if the shot count is the same
-											--	slmod.info('equal')
-											--	slmod.info(i)
-												--local otherLastEvent = slmod.events[i].type
-												local actualEndShootCount = 1
-												local actualStartShootCount = 0
-												local newLastEvent = 'end shooting'
-												local iterating = 0
-												for x = i, i - 10, -1 do -- iterate back a few just to check
-													--slmod.info(x)
-													
-													if slmod.events[i].initiator == slmod.events[x].initiator then -- same initiators 
-													--	slmod.info(slmod.events[x].type)
-														iterating = iterating + 1
-														if slmod.events[x].type == 'start shooting' then
-															actualStartShootCount = actualStartShootCount + 1
-													--		slmod.info('startShotFound')
-															endIndex = x
-														elseif slmod.events[x].type == 'end shooting' then
-															if actualStartShootCount > 0 then
-															--	slmod.info('alternate')
-																endLoop = true
-																--foundMatches = true
-																break
-															else
-															actualEndShootCount = actualEndShootCount + 1
-														--	slmod.info('endShotFound')
-															end
-														else
-													--		slmod.info('something happened')
-														end
-													elseif x == 3 then
-														iterating = iterating + 1
-													end
-
-													--slmod.info('start shot total ' .. actualStartShootCount)
-													--slmod.info('end shot total ' ..actualEndShootCount)
-													if actualStartShootCount ==  actualEndShootCount and slmod.events[x-1].type ~= 'start shooting' then
-													--	slmod.info('found, break out')
-														foundMatches = true
-														endLoop = true
-														break
-													end
-													if x == 3 then
-														endLoop = true
-														break													
-													end
-													
+										--Iterate back to find the first shooting start event. Break if shooting end on same weapon found
+										-- Go back max 40 events?
+											if slmod.events[i].type == 'start shooting' then
+												if slmod.events[i].weapon and event.weapon == slmod.events[i].weapon then
+													shotFirstEvent = i
 												end
-												--[[if switchedState == true and type(endIndex) == 'number' then
-													event.numtimes = slmod.events[endIndex].numShells - event.numShells - (shootingCount + endShootCount + 1)
-													endLoop = true
-												end]]
+											elseif slmod.events[i].type == 'end shooting' then -- gone to far
+												break
+											end
+											if i < eventInd - 40 then
+												break
 											end
 										end
-
-											 -- rewrite numtimes to now equal new shells.
-											
-										
-										
-										if i == 3 or endLoop == true then -- mayday mayday mayday just in case
-											--slmod.info('oh shit')
-											break
-										end
+							
 									end
-									--slmod.info('used index: ' .. endIndex)
-									if foundMatches == true and type(endIndex) == 'number' then
-										--slmod.info('add num')
-										event.numtimes = slmod.events[endIndex].numShells - event.numShells - (shootingCount + endShootCount - 2)
+									--
+									if shotFirstEvent and type(shotFirstEvent) == 'number' then
+										event.numtimes = slmod.events[shotFirstEvent].numShells - event.numShells
+										slmod.info('used index: ' .. shotFirstEvent)
 									end
 									--slmod.info(event.numtimes)
 								else
 									weapon = event.weapon
 									-------------------
 									-- problem: mp clients cannot hit with guns.  Empty weapon name, mismatching runtime IDs, etc.
-									-- change any shell names or nil shell names to "guns".
+									--[[ change any shell names or nil shell names to "guns".
 									if isShell(weapon) then
 										weapon = 'guns'
-									end
+									end]]
 									-------------------
 									if clusterBombs[weapon] then -- handle cluster bombs
 										weapon = clusterBombs[weapon].name
 									end
 								end
+                                local isGun = false
+                                if gunTypes[weapon] then
+                                    isGun = true
+                                end
 								--slmod.info(weapon)
 								--slmod.info('global stats')
 								if not stats[client.ucid].weapons[weapon] then  -- this weapon not in this client's database, add it.
 									--slmod.info('add weapon type')
 									slmod.stats.changeStatsValue(stats[client.ucid].weapons, weapon, {shot = 0, hit = 0, numHits = 0, kills= 0})
 								end
+                                
+                                if isGun == true and not stats[client.ucid].weapons[weapon].gun then -- fix for adding gun category
+                                    slmod.stats.changeStatsValue(stats[client.ucid].weapons[weapon], 'gun', true)
+                                end
+                                
 								if event.numtimes then  -- there should ALWAYS be a numtimes.
 									--slmod.info('numtimes exists')
 									slmod.stats.changeStatsValue(stats[client.ucid].weapons[weapon], 'shot', stats[client.ucid].weapons[weapon].shot + event.numtimes)
@@ -1608,6 +1516,9 @@ end]]
 									if not misStats[client.ucid].weapons[weapon] then  -- this weapon not in this client's database, add it.
 										slmod.stats.changeMisStatsValue(misStats[client.ucid].weapons, weapon, {shot = 0, hit = 0, numHits = 0, kills= 0})
 									end
+                                    if isGun == true and not misStats[client.ucid].weapons[weapon].gun then -- fix for adding gun category
+                                        slmod.stats.changeStatsValue(misStats[client.ucid].weapons[weapon], 'gun', true)
+                                    end
 									if event.numtimes then  -- there should ALWAYS be a numtimes.
 										slmod.stats.changeMisStatsValue(misStats[client.ucid].weapons[weapon], 'shot', misStats[client.ucid].weapons[weapon].shot + event.numtimes)
 									else
@@ -1655,10 +1566,11 @@ end]]
 					
 					-------------------
 					-- problem: mp clients cannot hit with guns.  Empty weapon name, mismatching runtime IDs, etc.
-					-- change any shell names to "guns".
-					if isShell(weapon) then
-						weapon = 'guns'
-					end
+
+                    local isGun = false
+                    if gunTypes[weapon] then
+                        isGun = true
+                    end
 					
 					if isAircraft(weapon) then
 						weapon = 'kamikaze'
@@ -1810,8 +1722,8 @@ end]]
 										----------------------------------------------------------------------------------------------------------------
 									end
 									
-									if (event.weaponID and trackedWeapons[event.weaponID]) or weapon == 'guns' then  -- this is the first time this weapon hit something.
-										if weapon ~= 'guns' then
+									if (event.weaponID and trackedWeapons[event.weaponID]) or isGun == true then  -- this is the first time this weapon hit something.
+										if isGun == false then
 											trackedWeapons[event.weaponID] = nil
 										end
 										slmod.stats.changeStatsValue(stats[initUCID].weapons[weapon], 'hit', stats[initUCID].weapons[weapon].hit + 1)
@@ -2035,7 +1947,11 @@ end]]
 					end				
 				end	-- end of eject
 				----------------------------------------------------------------------------------------------------------
-				
+				if event.type == 'refueling stop' then
+                    if event.initiator then
+                    
+                    end
+                end
 				
 			end  -- end of while loop.
 			
@@ -2372,13 +2288,26 @@ end]]
 				
 				-- sort weapons in alphabetical order
 				local weaponNames = {}
-				
+				local gStats = {shot = 0, hit = 0, numHits = 0, kills= 0}
 				for weaponName, weaponData in pairs(pStats.weapons) do
-					weaponNames[#weaponNames + 1] = weaponName
+					if weaponData.gun then
+						if slmod.config.simple_gun_stats then
+							gStats.shot = gStats.shot + weaponData.shot
+                            gStats.hit = gStats.hit + weaponData.hit
+                            gStats.numHits = gStats.numHits + weaponData.numHits
+                            gStats.kills = gStats.kills + weaponData.kills
+                        else
+							 weaponNames[#weaponNames + 1] = weaponName
+                        end
+                        
+                    else
+                        weaponNames[#weaponNames + 1] = weaponName
+                    end
 				end
 				table.sort(weaponNames)  -- put in alphabetical order
 				
 				for i = 1, #weaponNames do
+                     
 					local line = '                                                                                                                     \n'
 					line = stringInsert(line, weaponNames[i], 1)
 					line = stringInsert(line, 'fired = ' .. tostring(pStats.weapons[weaponNames[i]].shot), 22)
@@ -2387,6 +2316,15 @@ end]]
 					line = stringInsert(line, 'object hits = ' .. tostring(pStats.weapons[weaponNames[i]].numHits), 84)
 					p2Tbl[#p2Tbl + 1] = line
 				end
+                if slmod.config.simple_gun_stats then
+                    local line = '                                                                                                                     \n'
+					line = stringInsert(line, 'guns', 1)
+					line = stringInsert(line, 'fired = ' .. tostring(gStats.shot), 22)
+					line = stringInsert(line, 'hit = ' .. tostring(gStats.hit), 44)
+					line = stringInsert(line, 'kills = ' .. tostring(gStats.kills), 66)
+					line = stringInsert(line, 'object hits = ' .. tostring(gStats.numHits), 84)
+					p2Tbl[#p2Tbl + 1] = line                   
+                end
 				
 				return table.concat(p1Tbl), table.concat(p2Tbl)
 			end

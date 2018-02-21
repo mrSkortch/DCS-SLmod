@@ -1466,11 +1466,19 @@ function slmod.doStringIn(s, env) -- dostring in a table.  Does not pass back th
 	end
 end
 
-
+function slmod.getSlotFromMultCrew(multId)
+	if string.find(multId, '%d+') then
+		local s, e = string.find(multId, '%d+')
+		return string.sub(multId, s, e)
+	end	
+end
 
 function slmod.getClientRtId(client_id)
 	local unit_id = net.get_player_info(client_id, 'slot')
 	if unit_id then
+		if not tonumber(unit_id) then
+			unit_id = slmod.getSlotFromMultCrew(unit_id)
+		end
 		unit_id = tonumber(unit_id)
 		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
 			return DCS.getUnitProperty(unit_id, 1)
@@ -1481,6 +1489,9 @@ end
 function slmod.getClientUnitName(client_id)
 	local unit_id = net.get_player_info(client_id, 'slot')
 	if unit_id then
+		if not tonumber(unit_id) then
+			unit_id = slmod.getSlotFromMultCrew(unit_id)
+		end
 		unit_id = tonumber(unit_id)
 		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
 			return DCS.getUnitProperty(unit_id, 3)
@@ -1510,6 +1521,9 @@ function slmod.getClientGroupId(client_id)
 			--net.log('client is on spectators or CA slot')
 			return "No Id"
 		end
+		if not tonumber(unit_id) then
+			unit_id = slmod.getSlotFromMultCrew(unit_id)
+		end
 		unit_id = tonumber(unit_id)
 		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
 			return DCS.getUnitProperty(unit_id, 6)
@@ -1529,6 +1543,9 @@ end
 function slmod.getClientNameAndRtId(client_id)
 	local unit_id = net.get_player_info(client_id, 'slot')
 	if unit_id then
+		if not tonumber(unit_id) then
+			unit_id = slmod.getSlotFromMultCrew(unit_id)
+		end
 		unit_id = tonumber(unit_id)
 		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
 			return DCS.getUnitProperty(unit_id, 3), DCS.getUnitProperty(unit_id, 1)
