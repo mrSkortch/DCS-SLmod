@@ -14,6 +14,7 @@
     dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodMetaStats.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodAutoAdmin.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodPingCheck.lua')
+    dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodVote.lua')    
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodLibs.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodDebugger.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodMOTD.lua')
