@@ -2685,6 +2685,8 @@ function slmod.reset()
         slmod.create_SlmodStatsMenu()
 
 		slmod.stats.onMission()
+		
+
 	end
     
     if slmod.config.autoAdmin.forgiveEnabled or slmod.config.autoAdmin.punishEnabled then
@@ -2710,7 +2712,31 @@ function slmod.reset()
 	----------------------------------------------------
 	
 	slmod.reset_randseed()
+    
+    --[[
+    for id, _x in pairs(slmod.clients) do
+        if net.get_name(id) and net.get_player_info(id, 'ucid') then -- check if client is still there, otherwise clear it
+            
+        end
+    end
+    
+    ]]
+    
+    
+	local curClients = 0
+    local curList = net.get_player_list()
+	for id, dat in pairs(net.get_player_list()) do
+		curClients = curClients + 1
 
+        if (slmod.clients[id] and slmod.clients[id].ucid ~= net.get_player_info(id, 'ucid')) or not slmod.clients[id] then
+            slmod.clients[id] = {id = id, addr = net.get_player_info(id, 'ipaddr'), name = net.get_player_info(id, 'name'), ucid = net.get_player_info(id, 'ucid'), ip = net.get_player_info(id, 'ipaddr')}
+        end
+	end
+	if slmod.num_clients and slmod.num_clients ~= curClients then
+		slmod.info('Reset Num Clients')
+		slmod.num_clients = curClients
+	end
+	
 end
 
 slmod.info('SlmodLibs.lua loaded.')

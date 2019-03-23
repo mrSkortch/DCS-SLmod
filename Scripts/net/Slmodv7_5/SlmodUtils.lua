@@ -1467,34 +1467,56 @@ function slmod.doStringIn(s, env) -- dostring in a table.  Does not pass back th
 end
 
 function slmod.getSlotFromMultCrew(multId)
-	if string.find(multId, '%d+') then
+	slmod.info('multicrewCheck')
+    slmod.info(multId)
+    if string.find(multId, '%d+') then
 		local s, e = string.find(multId, '%d+')
-		return string.sub(multId, s, e)
+        local seatS, seatE = string.find(multId, '%d+', e+1)
+		return string.sub(multId, s, e), string.sub(multId, seatS, seatE)
 	end	
 end
 
 function slmod.getClientRtId(client_id)
-	local unit_id = net.get_player_info(client_id, 'slot')
-	if unit_id then
-		if not tonumber(unit_id) then
-			unit_id = slmod.getSlotFromMultCrew(unit_id)
+	slmod.info('getClientRtId')
+    local slot_id = net.get_player_info(client_id, 'slot')
+    slmod.info('slot id : ' .. slot_id)
+    local seat = 0
+	if slot_id and slot_id ~= '' then
+		if not tonumber(slot_id) then
+            slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
 		end
-		unit_id = tonumber(unit_id)
-		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
-			return DCS.getUnitProperty(unit_id, 1)
+		slot_id = tonumber(slot_id)
+		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
+			return DCS.getUnitProperty(slot_id, 1), seat
+		end
+	end
+end
+
+function slmod.getClientUnitId(client_id)
+    local slot_id = net.get_player_info(client_id, 'slot')
+    slmod.info('slot id : ' .. slot_id)
+    local seat = 0
+	if slot_id and slot_id ~= '' then
+		if not tonumber(slot_id) then
+			slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
+		end
+		slot_id = tonumber(slot_id)
+		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
+			return DCS.getUnitProperty(slot_id, 2), seat
 		end
 	end
 end
 
 function slmod.getClientUnitName(client_id)
-	local unit_id = net.get_player_info(client_id, 'slot')
-	if unit_id then
-		if not tonumber(unit_id) then
-			unit_id = slmod.getSlotFromMultCrew(unit_id)
+	slmod.info('getClientUnitName')
+    local slot_id = net.get_player_info(client_id, 'slot')
+	if slot_id and slot_id ~= '' then
+		if not tonumber(slot_id) then
+			slot_id = slmod.getSlotFromMultCrew(slot_id)
 		end
-		unit_id = tonumber(unit_id)
-		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
-			return DCS.getUnitProperty(unit_id, 3)
+		slot_id = tonumber(slot_id)
+		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
+			return DCS.getUnitProperty(slot_id, 3)
 		end
 	end
 end
@@ -1515,18 +1537,19 @@ end
 
 
 function slmod.getClientGroupId(client_id)
-	local unit_id = net.get_player_info(client_id, 'slot')
-	if unit_id then
-		if type(unit_id) == 'string' and (unit_id == '' or string.find(unit_id, 'red') or string.find(unit_id, 'blue')) then
+		slmod.info('getClientGroupId')
+    local slot_id = net.get_player_info(client_id, 'slot')
+	if slot_id and slot_id ~= '' then
+		if type(slot_id) == 'string' and (slot_id == '' or string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then
 			--net.log('client is on spectators or CA slot')
 			return "No Id"
 		end
-		if not tonumber(unit_id) then
-			unit_id = slmod.getSlotFromMultCrew(unit_id)
+		if not tonumber(slot_id) then
+			slot_id = slmod.getSlotFromMultCrew(slot_id)
 		end
-		unit_id = tonumber(unit_id)
-		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
-			return DCS.getUnitProperty(unit_id, 6)
+		slot_id = tonumber(slot_id)
+		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
+			return DCS.getUnitProperty(slot_id, 6)
 		end
 	end
 end
@@ -1541,14 +1564,15 @@ function slmod.getGroupIdByUnitName(unitname)
 end
 
 function slmod.getClientNameAndRtId(client_id)
-	local unit_id = net.get_player_info(client_id, 'slot')
-	if unit_id then
-		if not tonumber(unit_id) then
-			unit_id = slmod.getSlotFromMultCrew(unit_id)
+	slmod.info('getClientNameAndRtId')
+    local slot_id = net.get_player_info(client_id, 'slot')
+	if slot_id and slot_id ~= '' then
+		if not tonumber(slot_id) then
+			slot_id = slmod.getSlotFromMultCrew(slot_id)
 		end
-		unit_id = tonumber(unit_id)
-		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
-			return DCS.getUnitProperty(unit_id, 3), DCS.getUnitProperty(unit_id, 1)
+		slot_id = tonumber(slot_id)
+		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
+			return DCS.getUnitProperty(slot_id, 3), DCS.getUnitProperty(slot_id, 1)
 		end
 	end
 end

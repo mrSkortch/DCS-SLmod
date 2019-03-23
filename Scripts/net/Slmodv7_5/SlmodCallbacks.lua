@@ -336,6 +336,22 @@ end
 					slmod.testCounter = 0
 					
 				end
+				
+				if slmod.config.pause_when_empty and (DCS.getRealTime() > slmod.mission_start_time + 8) then -- 8 second window to hopefully always avoid the CTD
+					if DCS.getPause() == false then
+						slmod_pause_forced = false  -- turn off the forced pause if the server is not paused for any reason.
+					end
+					
+					if not slmod_pause_override then 
+						if (slmod.num_clients and slmod.num_clients == 1 or not slmod.num_clients) and DCS.getPause() == false then
+							DCS.setPause(true)
+						elseif slmod.num_clients and slmod.num_clients > 1 and DCS.getPause() == true and (not slmod_pause_forced) then
+							DCS.setPause(false)
+						end
+					end
+					
+				end
+				
 			end
 			-- pause logic:
 			--IF the pause when empty feature is enabled
@@ -345,20 +361,7 @@ end
 			
 			
 
-			if slmod.config.pause_when_empty and (DCS.getRealTime() > slmod.mission_start_time + 8) then -- 8 second window to hopefully always avoid the CTD
-				if DCS.getPause() == false then
-					slmod_pause_forced = false  -- turn off the forced pause if the server is not paused for any reason.
-				end
-				
-				if not slmod_pause_override then 
-					if (slmod.num_clients and slmod.num_clients == 1 or not slmod.num_clients) and DCS.getPause() == false then
-						DCS.setPause(true)
-					elseif slmod.num_clients and slmod.num_clients > 1 and DCS.getPause() == true and (not slmod_pause_forced) then
-						DCS.setPause(false)
-					end
-				end
-				
-			end
+
 			
 		end
 	
@@ -460,15 +463,18 @@ function slmodCall.onPlayerConnect(id)
 	slmod.info('connected client ' .. id)
 	slmod.clients = slmod.clients or {} --should not be necessary.
 	slmod.clients[id] = {id = id, addr = net.get_player_info(id, 'ipaddr'), name = net.get_player_info(id, 'name'), ucid = net.get_player_info(id, 'ucid'), ip = net.get_player_info(id, 'ipaddr')}
-	
+
 	if not slmod.num_clients then
 		slmod.num_clients = 1
 	else
 		slmod.num_clients = slmod.num_clients + 1
 	end
-    if slmod.config.pingcheck_conf.enabled then 
-        slmod.pingCheck.addClient(id)
+
+    if slmod.config.pingcheck_conf and slmod.config.pingcheck_conf.enabled then 
+ 
+		slmod.pingCheck.addClient(id)
     end
+    slmod.info('num clients: '.. slmod.num_clients)
 	return --slmod.func_old.on_connect(id)
 end 
 
@@ -491,7 +497,7 @@ function slmodCall.onPlayerTryConnect(addr, name, ucid)
 	end
 
 
-	return true
+	--return true
 end
 
 -- modify on_set_unit
@@ -517,12 +523,13 @@ end
 --modify on_disconnect
 --slmod.func_old.on_disconnect = slmod.func_old.on_disconnect or onPlayerDisconnect
 function slmodCall.onPlayerDisconnect(id, err)
+	slmod.info('slmod_onPlayerDisconnect ' .. id)
 	slmod.clients = slmod.clients or {}  --should not be necessary.
 	if slmod.clients[id] then
         slmod.clients[id] = nil
 		slmod.num_clients = slmod.num_clients - 1
 	end
-
+    slmod.info('num clients: '.. slmod.num_clients)
 	return --slmod.func_old.on_disconnect(id, err)
 end
 -- this is actually called every time the server closes- not when the game shuts down!

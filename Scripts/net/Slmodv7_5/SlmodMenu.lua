@@ -188,6 +188,8 @@ do
 					end
 					
 				end
+                
+                
 				slmod.scopeMsg(msgstring, self.options.display_time, self.options.display_mode, show_scope)
 			end	
 		end,

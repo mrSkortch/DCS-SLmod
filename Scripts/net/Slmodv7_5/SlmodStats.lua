@@ -611,8 +611,13 @@ end]]
 			end
 		end
 	end
-	
-	
+    
+    ------------
+    local multiCrewDefs = {}
+	multiCrewDefs['F-14A'] = {[2] = 'Rio'}
+    multiCrewDefs['F-14B'] = {[2] = 'Rio'}
+	multiCrewDefs['Mi-8MT'] = {[2] = 'Copilot', [3] = 'FO', [4] = 'Dakka'}
+    multiCrewDefs['UH-1H'] = {[2] = 'Copilot', [3] = 'Dakka', [4] = 'DakkaDakka'}
 	-------------------------------------------------------------------
 	
 	local function onFriendlyHit(client, target, weapon)
@@ -1305,7 +1310,14 @@ end]]
 		end
 	end
 	----------------------------------------------------------------------------------------------------------
-	
+	local function multiCrewNameCheck(tName, seatId)
+        if not multiCrewDefs[tName][seatId] then
+            tName = tName .. ' Co-Pilot'
+        else
+            tName = tName .. ' ' .. multiCrewDefs[tName][seatId]
+        end
+        return tName
+    end
 
 	----------------------------------------------------------------------------------------------------------
 	-- tracks flight times.
@@ -1318,18 +1330,9 @@ end]]
             local metaFlightTime = 0
 			-- first, update all client flight times.
 			for id, client in pairs(slmod.clients) do -- for each player (including host)
-				local side = net.get_player_info(id, 'side')
-				local unitId = net.get_player_info(id, 'slot')  -- get side and unitId
-                --[[local multiCrew = false
-                slmod.info(unitId)
-				if tonumber(unitId) then
-				slmod.info('is number')
-				
-				else
-				slmod.info('false')
-				end]]
-                
-                --slmod.info(unitId)
+				slmod.info('slmod client: ' .. id)
+                local side = net.get_player_info(id, 'side')
+				local unitId, seatId = slmod.getClientUnitId(id) --slot id filtered for multicrew  (seadId corresponds to number you press in SP to occupy slot - 1. Pilot: 0, Rio/copilot: 1, 2:Engineer/Gunner, 3: Gunner
 				if unitId then -- if in a unit.
 					if is_BC(unitId) then  -- if it is a CA slot
 						if client.ucid and stats[client.ucid] then
@@ -1353,13 +1356,18 @@ end]]
 						if unitId and unitId > 0 then
 							unitName = tostring(DCS.getUnitProperty(unitId, 3))  -- get Unit's ME name
 							if unitName then
-								local retStr = net.dostring_in('server', table.concat({'return slmod.getStatsUnitInfo(', slmod.basicSerialize(unitName), ')'}))  -- get if the unit is in air, and the unit's name.
-								if retStr and retStr ~= '' then
+								slmod.info('unit name: ' .. unitName)
+                                local retStr = net.dostring_in('server', table.concat({'return slmod.getStatsUnitInfo(', slmod.basicSerialize(unitName), ')'}))  -- get if the unit is in air, and the unit's name.
+								slmod.info(retStr)
+                                if retStr and retStr ~= '' then
 									if retStr:sub(1, 4) == 'true' then  -- in air
 										local typeName = retStr:sub(6) -- six to end.
 										if client.ucid and stats[client.ucid] then
-										
-											if not stats[client.ucid].times[typeName] then  -- add this typeName to the client's stats
+                                            if seatId > 0 then
+                                                typeName = multiCrewNameCheck(typeName, seatId)
+                                            end
+											
+                                            if not stats[client.ucid].times[typeName] then  -- add this typeName to the client's stats
 												slmod.stats.changeStatsValue(stats[client.ucid].times, typeName, {total = 0, inAir = 0})
 											end
 											slmod.stats.changeStatsValue(stats[client.ucid].times, typeName, {total = stats[client.ucid].times[typeName].total + dt, inAir = stats[client.ucid].times[typeName].inAir + dt}) -- do both at once, saves lines.
@@ -1381,7 +1389,10 @@ end]]
 										end
 									elseif retStr:sub(1,5) == 'false' then  -- not in air
 										local typeName = retStr:sub(7) -- seven to end.
-										if client.ucid and stats[client.ucid] then
+                                        if seatId > 0 then
+                                            typeName = multiCrewNameCheck(typeName, seatId)
+                                        end
+                                        if client.ucid and stats[client.ucid] then
 											if not stats[client.ucid].times[typeName] then  -- add this typeName to the client's stats
 												slmod.stats.changeStatsValue(stats[client.ucid].times, typeName, {total = 0, inAir = 0})
 											end
