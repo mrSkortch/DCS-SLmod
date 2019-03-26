@@ -1467,8 +1467,6 @@ function slmod.doStringIn(s, env) -- dostring in a table.  Does not pass back th
 end
 
 function slmod.getSlotFromMultCrew(multId)
-	slmod.info('multicrewCheck')
-    slmod.info(multId)
     if string.find(multId, '%d+') then
 		local s, e = string.find(multId, '%d+')
         local seatS, seatE = string.find(multId, '%d+', e+1)
@@ -1477,9 +1475,8 @@ function slmod.getSlotFromMultCrew(multId)
 end
 
 function slmod.getClientRtId(client_id)
-	slmod.info('getClientRtId')
+	--slmod.info('getClientRtId')
     local slot_id = net.get_player_info(client_id, 'slot')
-    slmod.info('slot id : ' .. slot_id)
     local seat = 0
 	if slot_id and slot_id ~= '' then
 		if not tonumber(slot_id) then
@@ -1494,7 +1491,7 @@ end
 
 function slmod.getClientUnitId(client_id)
     local slot_id = net.get_player_info(client_id, 'slot')
-    slmod.info('slot id : ' .. slot_id)
+
     local seat = 0
 	if slot_id and slot_id ~= '' then
 		if not tonumber(slot_id) then
@@ -1508,7 +1505,7 @@ function slmod.getClientUnitId(client_id)
 end
 
 function slmod.getClientUnitName(client_id)
-	slmod.info('getClientUnitName')
+	--slmod.info('getClientUnitName')
     local slot_id = net.get_player_info(client_id, 'slot')
 	if slot_id and slot_id ~= '' then
 		if not tonumber(slot_id) then
@@ -1564,15 +1561,16 @@ function slmod.getGroupIdByUnitName(unitname)
 end
 
 function slmod.getClientNameAndRtId(client_id)
-	slmod.info('getClientNameAndRtId')
+	--slmod.info('getClientNameAndRtId')
     local slot_id = net.get_player_info(client_id, 'slot')
+    local seat = 1
 	if slot_id and slot_id ~= '' then
 		if not tonumber(slot_id) then
-			slot_id = slmod.getSlotFromMultCrew(slot_id)
+			slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
 		end
 		slot_id = tonumber(slot_id)
 		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
-			return DCS.getUnitProperty(slot_id, 3), DCS.getUnitProperty(slot_id, 1)
+			return DCS.getUnitProperty(slot_id, 3), DCS.getUnitProperty(slot_id, 1), seat
 		end
 	end
 end

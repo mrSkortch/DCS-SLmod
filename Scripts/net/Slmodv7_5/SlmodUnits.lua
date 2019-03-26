@@ -583,7 +583,7 @@ slmod.clientsByName -- same as above, indexed by unitName, does not include CA/s
 
 In main simulation:
 
-slmod.clients -- should be the same as slmod.clientsByName.
+slmod.clientsMission -- should be the same as slmod.clientsByName, renamed because I was confused. 
 
 ]]
 
@@ -591,6 +591,7 @@ slmod.clients -- should be the same as slmod.clientsByName.
 --this goes in SlmodUnits after every new slmod.activeUnits table is created.
 function slmod.updateClients()  --net function, updates clients in the server environment- provides ME name/id_ pairs.
 	-- save old data, could need it.
+
 	if slmod.clients then
 		slmod.oldClients = slmod.deepcopy(slmod.clients)
 	end
@@ -606,7 +607,7 @@ function slmod.updateClients()  --net function, updates clients in the server en
 	local serverSlmodClients = {}
 	for id, client in pairs(slmod.clients) do   -- key and client should be same in this case.
 		client['coalition'] = slmod.getClientSide(id)
-		local name, rtid = slmod.getClientNameAndRtId(id)
+		local name, rtid, seatId = slmod.getClientNameAndRtId(id)
 		if name and rtid and rtid ~= '' and name ~= '' then
 			rtid = tonumber(rtid)
 			if rtid > 0 then
@@ -614,8 +615,14 @@ function slmod.updateClients()  --net function, updates clients in the server en
 				client['unitName'] = name  -- add unitName and rtid to slmod.clients.
 				client['rtid'] = rtid
 								-- add to clientsByRtId
-				slmod.clientsByRtId[rtid] = client
-				slmod.clientsByName[name] = client
+				if not slmod.clientsByRtId[rtid] then
+                    slmod.clientsByRtId[rtid]= {}
+                end
+                slmod.clientsByRtId[rtid][seatId] = client
+				if not slmod.clientsByName[name] then
+                    slmod.clientsByName[name] = {}
+                end
+                slmod.clientsByName[name][seatId] = client
 			end
 		else
 			-- erase in case old data is still there.
@@ -624,7 +631,7 @@ function slmod.updateClients()  --net function, updates clients in the server en
 			--net.log('Slmod warning: unable to retrieve runtime id and/or ME unit name for client number ' .. tostring(key))  --remove this line in final versions.  Normal if client is not in a unit.
 		end
 	end
-	local s = table.concat({'slmod = slmod or {}\n', 'slmod.clients = ', slmod.oneLineSerialize(serverSlmodClients)})
+	local s = table.concat({'slmod = slmod or {}\n', 'slmod.clientsMission = ', slmod.oneLineSerialize(serverSlmodClients)})
 	
 	local str, err = net.dostring_in('server', s)
 	if not err then

@@ -13,8 +13,8 @@ do
 		if unit and unit.id_ then
 			return unit.id_	
 		end
-		if slmod.clients[name] then
-			return slmod.clients[name].rtid  -- either nil or a rtid.
+		if slmod.clientsMission[name] then
+			return slmod.clientsMission[name].rtid  -- either nil or a rtid.
 		end
 	end
 	
@@ -363,8 +363,8 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 				-- if slmod.config.chat_log and slmod.config.log_team_hits and slmod.chatLogFile or ((slmod.config.team_hit_result == 'kick' or slmod.config.team_hit_result == 'ban') and (type(slmod.config.team_hit_limit) == 'number' and slmod.config.team_hit_limit > 0)) then
 					-- if temp_event.type == 'hit' and temp_event.initiator_coalition and temp_event.target_coalition and temp_event.initiator_coalition == temp_event.target_coalition then -- team hit
 						-- if temp_event.initiator_mpname and temp_event.initiator_name and temp_event.initiator_mpname ~= temp_event.initiator_name then -- team hit by a likely player
-							-- if slmod.clients then
-								-- for id, data in pairs(slmod.clients) do
+							-- if slmod.clientsMission then
+								-- for id, data in pairs(slmod.clientsMission) do
 									-- if data.name and data.name == temp_event.initiator_mpname then --found the likely party
 										-- if slmod.config.chat_log and slmod.config.log_team_hits and slmod.chatLogFile then
 											-- local logline = 'TEAM HIT: ' .. os.date('%b %d %H:%M:%S ') .. slmod.oneLineSerialize(data) .. ' hit ' .. temp_event.target_mpname
@@ -576,8 +576,8 @@ do
 		if unit and unit.id_ then
 			return unit.id_	
 		end
-		if slmod.clients[name] then
-			return slmod.clients[name].rtid  -- either nil or a rtid.
+		if slmod.clientsMission[name] then
+			return slmod.clientsMission[name].rtid  -- either nil or a rtid.
 		end
 	end
 	
@@ -790,6 +790,7 @@ do
 	world.onEvent = function(event) 
 		--env.info('world event:')
 		--env.info(slmod.oneLineSerialize(event))
+        --env.info(slmod.oneLineSerialize(slmod.clientsMission))
 		
 		-- store latest event for preventing server crash when using DCS.getUnitProperty in active units database building code.
 		slmod.lastEvent = event
@@ -808,8 +809,9 @@ do
 				
 				
 				if initName then
-					if slmod.clients and slmod.clients[initName] and event.weapon and slmod.deepcopy then
-						slmod.humanWeapons[event.weapon.id_] = slmod.deepcopy(slmod.clients[initName])
+					if slmod.clientsMission and slmod.clientsMission[initName] and event.weapon and slmod.deepcopy then
+						env.info('slmod: added human weapon')
+                        slmod.humanWeapons[event.weapon.id_] = slmod.deepcopy(slmod.clientsMission[initName])
 					end
 				end
 				
@@ -857,9 +859,9 @@ do
 			------------------------------------------------------------------
 			-- code for slmod.lastHitEvent, used in stat system and slmod.events
 			if event.weapon then
-				-- env.info('HIT EVENT: info:')
-				-- env.info(slmod.oneLineSerialize(event))
-				if (slmod.humanWeapons[event.weapon.id_] or (event.initiator and Unit.isExist(event.initiator) and (pcall(Unit.getName, event.initiator)) and slmod.clients[Unit.getName(event.initiator)])) and event.target and slmod.deepcopy then  -- a hit on something by a human
+				 env.info('HIT EVENT: info:')
+				 env.info(slmod.oneLineSerialize(event))
+				if (slmod.humanWeapons[event.weapon.id_] or (event.initiator and Unit.isExist(event.initiator) and (pcall(Unit.getName, event.initiator)) and slmod.clientsMission[Unit.getName(event.initiator)])) and event.target and slmod.deepcopy then  -- a hit on something by a human
 					
 					local targetName
 					
@@ -869,7 +871,7 @@ do
 					if slmod.humanWeapons[event.weapon.id_] then
 						slmod.humanHits[#slmod.humanHits + 1] = { target = targetName, targetID = event.target.id_, time = event.time, weaponID = event.weapon.id_, initiator = slmod.deepcopy(slmod.humanWeapons[event.weapon.id_])}
 					else  -- human hits used to get shooter in cases of unknown initiator (id_ = 0)
-						slmod.humanHits[#slmod.humanHits + 1] = { target = targetName, targetID = event.target.id_, time = event.time, weaponID = event.weapon.id_, initiator = slmod.deepcopy(slmod.clients[Unit.getName(event.initiator)])}
+						slmod.humanHits[#slmod.humanHits + 1] = { target = targetName, targetID = event.target.id_, time = event.time, weaponID = event.weapon.id_, initiator = slmod.deepcopy(slmod.clientsMission[Unit.getName(event.initiator)])}
 					end
 				end
 				
