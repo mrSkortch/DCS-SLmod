@@ -293,77 +293,79 @@ do
 	end
 	
 	-- called on every potentially kickable/bannable offense. 
-	function slmod.autoAdminOnOffense(client, deadClient)  -- client is a slmod.client.
-		--slmod.info('running slmod.autoAdminOnOffense; client = ' .. slmod.oneLineSerialize(client))
+	function slmod.autoAdminOnOffense(clients, deadClients)  -- client is a slmod.client.
+		--slmod.info('running slmod.autoAdminOnOffense; client = ' .. slmod.oneLineSerialize(clients))
 		--{ ["id"] = 2, ["rtid"] = 16778498, ["ip"] = "50.134.222.29", ["coalition"] = "blue", ["addr"] = "50.134.222.29", ["name"] = "3Sqn_Grimes", ["ucid"] = "78c01638f5552aab2d2a9cd428f3e58f", ["motdTime"] = 295.38130488651, ["unitName"] = "Pilot #21", }
-		if client.ucid and slmod.clients[client.id] and (slmod.clients[client.id].ucid == client.ucid) and (not slmod.isAdmin(client.ucid)) and (not autoAdmin.exemptionList[client.ucid]) and (not (client.id == 1)) then  -- client is in proper format and is online, and is not exempt
-			--slmod.info('in on offense')
-			-- autoban?
-			if autoAdmin.autoBanEnabled then
-				--slmod.info('doing autoban eval')
-				local score = autoAdminScore(client.ucid)
-				--slmod.info('score: ' .. tostring(score))
-				if score and score > autoAdmin.autoBanLevel then  -- player gets autoBanned.
-					slmod.stats.changeStatsValue(stats[client.ucid], 'autoBanned', true) -- set as banned.
-					
-					local numTimesBanned
-					if stats[client.ucid].numTimesAutoBanned then
-						numTimesBanned = stats[client.ucid].numTimesAutoBanned + 1
-					else
-						numTimesBanned = 1
-					end
-					slmod.stats.changeStatsValue(stats[client.ucid], 'numTimesAutoBanned', numTimesBanned)  --increment the number of times the player has been banned
-					
-					-- kicking...
-					if client.rtid then  -- attempt to despawn client.
-						net.dostring_in('server', 'Object.destroy({id_ = ' .. tostring(client.rtid) .. '})')
-					end
-					
-					delayedKick(client.id, client.ucid, 'You were autobanned from the server.', autoAdmin.kickBanDelay.banDelay)
-					
-					--net.kick(client.id, 'You were autobanned from the server.')
-					slmod.info('Player "' .. tostring(client.name) .. '" is getting autobanned.', true)  -- this will output in chat too.
-					
-					-- Permaban?
-					if autoAdmin.tempBanLimit and type(autoAdmin.tempBanLimit) == 'number' and numTimesBanned >= autoAdmin.tempBanLimit then  -- permaban too.
-						slmod.update_banned_clients({ucid = client.ucid, name = client.name, ip = client.addr or client.ip}, 'autoban')
-					end
-					return
-				end
+		for ind, client in pairs(clients) do
+            local actionTaken = false
+            if client.ucid and slmod.clients[client.id] and (slmod.clients[client.id].ucid == client.ucid) and (not slmod.isAdmin(client.ucid)) and (not autoAdmin.exemptionList[client.ucid]) and (not (client.id == 1)) then  -- client is in proper format and is online, and is not exempt
+                --slmod.info('in on offense')
+                -- autoban?
+                if autoAdmin.autoBanEnabled and actionTaken == false then
+                    --slmod.info('doing autoban eval')
+                    local score = autoAdminScore(client.ucid)
+                    --slmod.info('score: ' .. tostring(score))
+                    if score and score > autoAdmin.autoBanLevel then  -- player gets autoBanned.
+                        slmod.stats.changeStatsValue(stats[client.ucid], 'autoBanned', true) -- set as banned.
+                        
+                        local numTimesBanned
+                        if stats[client.ucid].numTimesAutoBanned then
+                            numTimesBanned = stats[client.ucid].numTimesAutoBanned + 1
+                        else
+                            numTimesBanned = 1
+                        end
+                        slmod.stats.changeStatsValue(stats[client.ucid], 'numTimesAutoBanned', numTimesBanned)  --increment the number of times the player has been banned
+                        
+                        -- kicking...
+                        if client.rtid then  -- attempt to despawn client.
+                            net.dostring_in('server', 'Object.destroy({id_ = ' .. tostring(client.rtid) .. '})')
+                        end
+                        
+                        delayedKick(client.id, client.ucid, 'You were autobanned from the server.', autoAdmin.kickBanDelay.banDelay)
+                        
+                        --net.kick(client.id, 'You were autobanned from the server.')
+                        slmod.info('Player "' .. tostring(client.name) .. '" is getting autobanned.', true)  -- this will output in chat too.
+                        
+                        -- Permaban?
+                        if autoAdmin.tempBanLimit and type(autoAdmin.tempBanLimit) == 'number' and numTimesBanned >= autoAdmin.tempBanLimit then  -- permaban too.
+                            slmod.update_banned_clients({ucid = client.ucid, name = client.name, ip = client.addr or client.ip}, 'autoban')
+                        end
+                        actionTaken = true
+                    end
+                end
+                -- or autokick?
+                if autoAdmin.autoKickEnabled and actionTaken == false then  -- if still here, check for autoKick.
+                    local score = autoAdminScore(client.ucid)
+                    if score and score > autoAdmin.autoKickLevel then
+                        
+                        -- kicking...
+                        if client.rtid then  -- attempt to despawn client.
+                            net.dostring_in('server', 'Object.destroy({id_ = ' .. tostring(client.rtid) .. '})')
+                        end
+                        
+                        delayedKick(client.id, client.ucid, 'You were autokicked from the server.', autoAdmin.kickBanDelay.kickDelay)
+                        --net.kick(client.id, 'You were autokicked from the server.')
+                        slmod.info('Player "' .. tostring(client.name) .. '" is getting autokicked.', true)  -- this will output in chat too.
+                        actionTaken = true
+                    end
+                end
+               
+                if autoAdmin.autoSpecEnabled and actionTaken == false then
+                    local score = autoAdminScore(client.ucid)
+                    if score and score > autoAdmin.autoSpecLevel then
+                        
+                        -- kicking...
+                        if client.rtid then  -- attempt to despawn client.
+                            net.dostring_in('server', 'Object.destroy({id_ = ' .. tostring(client.rtid) .. '})')
+                        end
+                        
+                        delayedKickToSpec(client.id, client.ucid, 'You were autokicked back to spectator', autoAdmin.kickBanDelay.specDelay)
+                        --net.kick(client.id, 'You were autokicked from the server.')
+                        slmod.info('Player "' .. tostring(client.name) .. '" is getting autokicked back to spectator', true)  -- this will output in chat too.
+                        actionTaken = true
+                    end
+                end
 			end
-			-- or autokick?
-			if autoAdmin.autoKickEnabled then  -- if still here, check for autoKick.
-				local score = autoAdminScore(client.ucid)
-				if score and score > autoAdmin.autoKickLevel then
-					
-					-- kicking...
-					if client.rtid then  -- attempt to despawn client.
-						net.dostring_in('server', 'Object.destroy({id_ = ' .. tostring(client.rtid) .. '})')
-					end
-					
-					delayedKick(client.id, client.ucid, 'You were autokicked from the server.', autoAdmin.kickBanDelay.kickDelay)
-					--net.kick(client.id, 'You were autokicked from the server.')
-					slmod.info('Player "' .. tostring(client.name) .. '" is getting autokicked.', true)  -- this will output in chat too.
-					return
-				end
-			end
-           
-            if autoAdmin.autoSpecEnabled then
-            	local score = autoAdminScore(client.ucid)
-				if score and score > autoAdmin.autoSpecLevel then
-					
-					-- kicking...
-					if client.rtid then  -- attempt to despawn client.
-						net.dostring_in('server', 'Object.destroy({id_ = ' .. tostring(client.rtid) .. '})')
-					end
-					
-					delayedKickToSpec(client.id, client.ucid, 'You were autokicked back to spectator', autoAdmin.kickBanDelay.specDelay)
-					--net.kick(client.id, 'You were autokicked from the server.')
-					slmod.info('Player "' .. tostring(client.name) .. '" is getting autokicked back to spectator', true)  -- this will output in chat too.
-					return
-				end
-            end
-			
 		end
 	end
 	--[[ -forgive -punish commands
@@ -379,8 +381,13 @@ do
         
     
     ]]
+    
+    function slmod.getUserScore(id)
+    
+    end
    
     local function checkForgivePunishStatus()
+       -- slmod.info('check forgot status')
         if #delayedPenalty > 0  then 
             penaltyCheckActive = true
             slmod.scheduleFunctionByRt(checkForgivePunishStatus, {}, DCS.getRealTime() + 1) -- set to reschedule due to there still being entries
@@ -403,45 +410,48 @@ do
                             slmod.autoAdminOnOffense(offData.offender) -- punish him
                             delayedPenalty[i] = nil 
                         else -- choice was to forgive him
-                            local pStats = stats[offData.offender.ucid]
-                            if pStats and autoAdmin and (autoAdmin.autoBanEnabled or autoAdmin.autoKickEnabled or autoAdmin.autoSpecEnabled) and offData.canForgive then
-                                local curTime = os.time()
-                                -- score team hits
-                                if autoAdmin.teamHit.enabled and pStats.friendlyHits then  -- score team hits.
-                                    for hitInd = 1, #pStats.friendlyHits do
-                                        local action = pStats.friendlyHits[hitInd]
-                                        if action.human and action.human == offData.victim.ucid and curTime - offData.canForgive < action.time and (not action.forgiven) then
-                                            slmod.stats.changeStatsValue(stats[offData.offender.ucid].friendlyHits[hitInd], 'forgiven', true)
+                            for i = 1, #offData.offender do 
+                                local oUCID = offData.offender[i].ucid
+                                local pStats = stats[oUCID]
+                                if pStats and autoAdmin and (autoAdmin.autoBanEnabled or autoAdmin.autoKickEnabled or autoAdmin.autoSpecEnabled) and offData.canForgive then
+                                    local curTime = os.time()
+                                    -- score team hits
+                                    if autoAdmin.teamHit.enabled and pStats.friendlyHits then  -- score team hits.
+                                        for hitInd = 1, #pStats.friendlyHits do
+                                            local action = pStats.friendlyHits[hitInd]
+                                            if action.human and action.human == offData.victim.ucid and curTime - offData.canForgive < action.time and (not action.forgiven) then
+                                                slmod.stats.changeStatsValue(stats[oUCID].friendlyHits[hitInd], 'forgiven', true)
+                                            end
                                         end
                                     end
+                                    if autoAdmin.teamKill.enabled and pStats.friendlyKills then  -- score team hits.
+                                        for hitInd = 1, #pStats.friendlyKills do
+                                            local action = pStats.friendlyKills[hitInd]
+                                            if action.human and action.human == offData.victim.ucid and curTime - offData.canForgive < action.time and (not action.forgiven) then
+                                                slmod.stats.changeStatsValue(stats[oUCID].friendlyKills[hitInd], 'forgiven', true)
+                                            end
+                                        end
+                                    end
+                                    if autoAdmin.teamCollisionHit.enabled and pStats.friendlyCollisionHits then  -- score team hits.
+                                        for hitInd = 1, #pStats.friendlyCollisionHits do
+                                            local action = pStats.friendlyCollisionHits[hitInd]
+                                            if action.human and action.human == offData.victim.ucid and curTime - offData.canForgive < action.time and (not action.forgiven) then
+                                                slmod.stats.changeStatsValue(stats[oUCID].friendlyCollisionHits[hitInd], 'forgiven', true)
+                                            end
+                                        end
+                                    end
+                                    if autoAdmin.teamCollisionKill.enabled and pStats.friendlyCollisionKills then  -- score team hits.
+                                        for hitInd = 1, #pStats.friendlyCollisionKills do
+                                            local action = pStats.friendlyCollisionKills[hitInd]
+                                            if action.human and action.human == offData.victim.ucid and curTime - offData.canForgive < action.time and (not action.forgiven) then
+                                                slmod.stats.changeStatsValue(stats[oUCID].friendlyCollisionKills[hitInd], 'forgiven', true)
+                                            end
+                                        end
+                                    end                            
+                                    delayedPenalty[i] = nil
+                                else 
+                                    delayedPenalty[i].choice = 'punish'
                                 end
-                                if autoAdmin.teamKill.enabled and pStats.friendlyKills then  -- score team hits.
-                                    for hitInd = 1, #pStats.friendlyKills do
-                                        local action = pStats.friendlyKills[hitInd]
-                                        if action.human and action.human == offData.victim.ucid and curTime - offData.canForgive < action.time and (not action.forgiven) then
-                                            slmod.stats.changeStatsValue(stats[offData.offender.ucid].friendlyKills[hitInd], 'forgiven', true)
-                                        end
-                                    end
-                                end
-                                if autoAdmin.teamCollisionHit.enabled and pStats.friendlyCollisionHits then  -- score team hits.
-                                    for hitInd = 1, #pStats.friendlyCollisionHits do
-                                        local action = pStats.friendlyCollisionHits[hitInd]
-                                        if action.human and action.human == offData.victim.ucid and curTime - offData.canForgive < action.time and (not action.forgiven) then
-                                            slmod.stats.changeStatsValue(stats[offData.offender.ucid].friendlyCollisionHits[hitInd], 'forgiven', true)
-                                        end
-                                    end
-                                end
-                                if autoAdmin.teamCollisionKill.enabled and pStats.friendlyCollisionKills then  -- score team hits.
-                                    for hitInd = 1, #pStats.friendlyCollisionKills do
-                                        local action = pStats.friendlyCollisionKills[hitInd]
-                                        if action.human and action.human == offData.victim.ucid and curTime - offData.canForgive < action.time and (not action.forgiven) then
-                                            slmod.stats.changeStatsValue(stats[offData.offender.ucid].friendlyCollisionKills[hitInd], 'forgiven', true)
-                                        end
-                                    end
-                                end                            
-                                delayedPenalty[i] = nil
-                            else 
-                                delayedPenalty[i].choice = 'punish'
                             end
                         end
                     end
@@ -452,32 +462,47 @@ do
         end
     end
     
-    function slmod.autoAdminCheckForgiveOnOffense(client, deadClient)
-        if deadClient and (not deadClient.ucid) then -- it is a bot you killed, Bots never forgive and never forget
-            slmod.autoAdminOnOffense(client)
+    local function anyDeadUCID(deadClient) -- just gonna assume that the dead client thing isnt returned indexed by number and can have empty spots
+        for ind, data in pairs(deadClient) do
+            if data.ucid then return true end
+        end
+        
+        return false
+    end
+    
+    function slmod.autoAdminCheckForgiveOnOffense(clients, deadClient)
+        if deadClient and anyDeadUCID(deadClient) == false then -- it is a bot you killed, Bots never forgive and never forget
+            slmod.autoAdminOnOffense(clients)
         else
+            local offData = {offender = {}, victim = deadClient, time = os.time()}
+            if autoAdmin.forgiveEnabled then -- set timeout limits
+                offData.canForgive = autoAdmin.forgiveTimeout or 30
+            end
             if autoAdmin.forgiveEnabled or autoAdmin.punishEnabled then -- check if the player is exempt
-                if client.ucid and slmod.clients[client.id] and (slmod.clients[client.id].ucid == client.ucid) and (not slmod.isAdmin(client.ucid)) and (not autoAdmin.exemptionList[client.ucid]) and (not (client.id == 1)) then
-                    local offData = {offender = client, victim = deadClient, time = os.time()}
-                    if autoAdmin.forgiveEnabled then -- set timeout limits
-                        offData.canForgive = autoAdmin.forgiveTimeout or 30
-                    end
-                    if autoAdmin.punishFirstForgiveLater then
-                        slmod.scheduleFunctionByRt(slmod.autoAdminOnOffense, {client}, DCS.getRealTime() + 1)
-                    else
-                        if autoAdmin.punishEnabled then
-                            offData.canPunish = autoAdmin.punishTimeout or 30
-                        end
+                for cInd, client in pairs(clients) do 
+               
+                    if client.ucid and slmod.clients[client.id] and (slmod.clients[client.id].ucid == client.ucid) and (not slmod.isAdmin(client.ucid)) and (not autoAdmin.exemptionList[client.ucid]) and (not (client.id == 1)) then
+                        
+                        table.insert(offData.offender, client)
                     end
 
-                    delayedPenalty[#delayedPenalty+1] = offData
-                    
-                    if penaltyCheckActive == false then 
-                        checkForgivePunishStatus()
-                    end
                 end
             else -- both punishment and forgiveness disabled
-                slmod.autoAdminOnOffense(client)
+                slmod.autoAdminOnOffense(clients)
+            end
+            if #offData.offender > 0 then -- because it can be an admin
+                if autoAdmin.punishFirstForgiveLater then
+                    slmod.scheduleFunctionByRt(slmod.autoAdminOnOffense, {offData.offender}, DCS.getRealTime() + 1)
+                else
+                    if autoAdmin.punishEnabled then 
+                        offData.canPunish = autoAdmin.punishTimeout or 30
+                    end
+                end
+                
+                delayedPenalty[#delayedPenalty+1] = offData     
+                if penaltyCheckActive == false then 
+                     checkForgivePunishStatus()
+                end
             end
         end
     end
@@ -527,7 +552,7 @@ do
         if autoAdmin.forgiveEnabled then -- forgiving is enabled, then create this menu
             local forgiveVars = {}
             forgiveVars.menu = SlmodForgivePunishMenu
-            forgiveVars.description = 'Say in chat "-forgive to forgive the player of any team damage/kill/hit/collisions they have done to you. If not action is taken punishment will be automatic.'
+            forgiveVars.description = 'Say in chat "-forgive to forgive the player of any team damage/kill/hit/collisions they have done to you. If no action is taken punishment will be automatic.'
             forgiveVars.active = true
             forgiveVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
             forgiveVars.selCmds = {
@@ -546,8 +571,10 @@ do
                         for i = 1, #delayedPenalty do
                             if delayedPenalty[i].canForgive then -- seriously being paranoid
                                 local offData = delayedPenalty[i]
-                                if offData.victim.ucid == requester.ucid and os.time() < offData.time + offData.canForgive and (not offData.choice) then
-                                    delayedPenalty[i].choice = 'forgive'
+                                for j = 1, #offData.victim do
+                                    if offData.victim[j].ucid == requester.ucid and os.time() < offData.time + offData.canForgive and (not offData.choice) then
+                                        delayedPenalty[i].choice = 'forgive'
+                                    end
                                 end
                             end
                         end
@@ -560,7 +587,7 @@ do
        if autoAdmin.punishEnabled then -- punishment is enabled, then create this menu
             local punishVars = {}
             punishVars.menu = SlmodForgivePunishMenu
-            punishVars.description = 'Say in chat "-punish to punish the player of any team damage/kill/hit/collisions they have done to you. If not action is taken punishment will be automatic.'
+            punishVars.description = 'Say in chat "-punish to punish the player of any team damage/kill/hit/collisions they have done to you. If no action is taken punishment will be automatic.'
             punishVars.active = true
             punishVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
             punishVars.selCmds = {
@@ -580,8 +607,10 @@ do
                         for i = 1, #delayedPenalty do
                             if delayedPenalty[i].canPunish then -- seriously being paranoid
                                 local offData = delayedPenalty[i]
-                                if offData.victim.ucid == requester.ucid and os.time() < offData.time + offData.canPunish and (not offData.choice) then -- victim is the person who typed the message
-                                    delayedPenalty[i].choice = 'punish'
+                                for j = 1, #offData.victim do
+                                    if offData.victim[j].ucid == requester.ucid and os.time() < offData.time + offData.canPunish and (not offData.choice) then -- victim is the person who typed the message
+                                        delayedPenalty[i].choice = 'punish'
+                                    end
                                 end
                             end
                         end

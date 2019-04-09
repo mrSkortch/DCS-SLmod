@@ -1483,6 +1483,7 @@ function slmod.getClientRtId(client_id)
             slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
 		end
 		slot_id = tonumber(slot_id)
+        seat = tonumber(seat)
 		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
 			return DCS.getUnitProperty(slot_id, 1), seat
 		end
@@ -1498,6 +1499,7 @@ function slmod.getClientUnitId(client_id)
 			slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
 		end
 		slot_id = tonumber(slot_id)
+        seat = tonumber(seat)
 		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
 			return DCS.getUnitProperty(slot_id, 2), seat
 		end
@@ -1534,7 +1536,6 @@ end
 
 
 function slmod.getClientGroupId(client_id)
-		slmod.info('getClientGroupId')
     local slot_id = net.get_player_info(client_id, 'slot')
 	if slot_id and slot_id ~= '' then
 		if type(slot_id) == 'string' and (slot_id == '' or string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then

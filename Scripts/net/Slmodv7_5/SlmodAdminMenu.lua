@@ -1317,7 +1317,61 @@ do
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminBumpVars)  -- add the item into the items table.
 		
+        
 		-----------------------------------------------------------------------------------------------
+        -- Returns current penalty score for the selected player. 
+        --[[
+        local AdminGetPenaltyScore = {}
+		AdminGetPenaltyScore.menu = SlmodAdminMenu
+		AdminGetPenaltyScore.description = 'Say in chat "-admin score <player name>" to kick a player to spectators.'
+		AdminGetPenaltyScore.active = true
+		AdminGetPenaltyScore.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		AdminGetPenaltyScore.selCmds = {
+				[1] = {
+					[1] = { 
+						type = 'word', 
+						text = '-admin',
+						required = true
+					}, 
+					[2] = { 
+						type = 'word',
+						text = 'score',
+						required = true
+						},
+					[3] = {
+						type = 'text',  -- new match type- ALL remaining text from chat message!  Can only be the last variable.
+						varname = 'playername',
+						required = true,
+					}
+				}
+			} 
+		AdminGetPenaltyScore.onSelect = function(self, vars, client_id)
+			--net.log('in onSelect')
+			local playername = vars.playername or ''
+			for key, val in pairs(slmod.clients) do -- skips host
+				if val.name and type(val.name) == 'string' and val.name == playername and val.id and val.id ~= 1 then
+					
+					
+					local AdminName
+					if client_id == 1 then
+						AdminName = net.get_name(1)
+					elseif slmod.clients[client_id] and slmod.clients[client_id].ucid and Admins[slmod.clients[client_id].ucid] then
+						AdminName = Admins[slmod.clients[client_id].ucid]
+					else
+						AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
+					end
+					
+					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. AdminName .. '" kicked player "' .. val.name .. '" to spectators.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+					return
+				end
+			end
+			slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '".', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+		end
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminGetPenaltyScore)  -- add the item into the items table.
+		]]
+		-----------------------------------------------------------------------------------------------
+        
 		      
         local adminIdSpecVars = {}
 		adminIdSpecVars.menu = SlmodAdminMenu
@@ -1485,7 +1539,7 @@ do
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(voteStopVars)  -- add the item into the items table.
-         slmod.info('require')
+
         if slmod.config.voteConfig.requireAdminVerifyIfPresent then
             local voteAllowVars = {}
             voteAllowVars.menu = SlmodAdminMenu
