@@ -1484,7 +1484,7 @@ end
 
 function slmod.getClientRtId(client_id)
 	--slmod.info('getClientRtId')
-	if slot_id and slot_id ~= '' then
+	if slot_id and slot_id ~= ''  then
         if type(slot_id) == 'string' and (slot_id == '' or string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then
 			--net.log('client is on spectators or CA slot')
 			return 0
@@ -1503,9 +1503,9 @@ end
 
 function slmod.getClientUnitId(client_id)
     local slot_id = net.get_player_info(client_id, 'slot')
-	if slot_id and slot_id ~= '' then
+	if slot_id and slot_id ~= '' and not (string.find(slot_id, 'red') or string.find(slot_id, 'blue'))then
         local seat = 0
-		if (not tonumber(slot_id)) and not (string.find(slot_id, 'red') or string.find(slot_id, 'blue'))then
+		if (not tonumber(slot_id)) then
 			slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
 		end
 		if (tonumber(slot_id) and tonumber(slot_id) > 0) or string.find(slot_id, 'red') or string.find(slot_id, 'blue') then
@@ -1520,9 +1520,9 @@ end
 function slmod.getClientUnitName(client_id)
 	--slmod.info('getClientUnitName')
     local slot_id = net.get_player_info(client_id, 'slot')
-	if slot_id and slot_id ~= '' then
+	if slot_id and slot_id ~= '' and not (string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then
         local seat = 0
-		if (not tonumber(slot_id)) and not (string.find(slot_id, 'red') or string.find(slot_id, 'blue'))then
+		if (not tonumber(slot_id)) then
 			slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
 		end
 		if (tonumber(slot_id) and tonumber(slot_id) > 0) or string.find(slot_id, 'red') or string.find(slot_id, 'blue') then
@@ -1575,17 +1575,21 @@ function slmod.getGroupIdByUnitName(unitname)
 	end
 end
 
-function slmod.getClientNameAndRtId(client_id)
+function slmod.getClientNameAndRtId(client_id) -- unit name and RTID. CA slots dont have a unit name
 	--slmod.info('getClientNameAndRtId')
     local slot_id = net.get_player_info(client_id, 'slot')
-    local seat = 0
-	if slot_id and slot_id ~= '' then
-		if not tonumber(slot_id) then
+    local seat 
+	if slot_id and slot_id ~= '' and not (string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then
+		if (not tonumber(slot_id)) then
 			slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
 		end
-		--slot_id = tonumber(slot_id)
+        if not seat then 
+            seat = 1
+        end
+		slot_id = tonumber(slot_id)
+       
 		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
-			return DCS.getUnitProperty(slot_id, 3), DCS.getUnitProperty(slot_id, 1), seat
+            return DCS.getUnitProperty(slot_id, 3), DCS.getUnitProperty(slot_id, 1), seat
 		end
 	end
 end
