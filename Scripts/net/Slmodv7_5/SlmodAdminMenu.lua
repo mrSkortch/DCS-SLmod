@@ -1234,7 +1234,7 @@ do
 						type = 'text',  -- new match type- ALL remaining text from chat message!  Can only be the last variable.
 						varname = 'message',
 						required = true,
-					},
+					}
 				}
 			} 
         AdminAlertVars.onSelect = function(self, vars, client_id)
@@ -1319,14 +1319,14 @@ do
 		
         
 		-----------------------------------------------------------------------------------------------
-        -- Returns current penalty score for the selected player. 
-        --[[
-        local AdminGetPenaltyScore = {}
-		AdminGetPenaltyScore.menu = SlmodAdminMenu
-		AdminGetPenaltyScore.description = 'Say in chat "-admin score <player name>" to kick a player to spectators.'
-		AdminGetPenaltyScore.active = true
-		AdminGetPenaltyScore.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
-		AdminGetPenaltyScore.selCmds = {
+        -- Returns current penalty score for all connected players. 
+
+        local AdminGetPenaltyScoreAll = {}
+		AdminGetPenaltyScoreAll.menu = SlmodAdminMenu
+		AdminGetPenaltyScoreAll.description = 'Say in chat "-admin score" to display a list of penalties of connected players'
+		AdminGetPenaltyScoreAll.active = true
+		AdminGetPenaltyScoreAll.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		AdminGetPenaltyScoreAll.selCmds = {
 				[1] = {
 					[1] = { 
 						type = 'word', 
@@ -1337,39 +1337,148 @@ do
 						type = 'word',
 						text = 'score',
 						required = true
-						},
-					[3] = {
-						type = 'text',  -- new match type- ALL remaining text from chat message!  Can only be the last variable.
-						varname = 'playername',
-						required = true,
 					}
 				}
 			} 
-		AdminGetPenaltyScore.onSelect = function(self, vars, client_id)
+		AdminGetPenaltyScoreAll.onSelect = function(self, vars, client_id)
 			--net.log('in onSelect')
-			local playername = vars.playername or ''
+			local msg = {}
+            if slmod.config.autoAdmin.autoSpecLevel then
+                msg[#msg+1] = 'Auto Spec Level: '
+                msg[#msg+1] = slmod.config.autoAdmin.autoSpecLevel
+            end
+            if slmod.config.autoAdmin.autoKickLevel then
+                msg[#msg+1] = '    Auto Kick Level: '
+                msg[#msg+1] = slmod.config.autoAdmin.autoKickLevel
+            end
+            if slmod.config.autoAdmin.autoBanLevel then
+                msg[#msg+1] = '    Auto Spec Level: '
+                msg[#msg+1] = slmod.config.autoAdmin.autoBanLevel
+            end            
 			for key, val in pairs(slmod.clients) do -- skips host
-				if val.name and type(val.name) == 'string' and val.name == playername and val.id and val.id ~= 1 then
+				if val.id and val.id ~= 1 then
+                    local score = slmod.getUserScore(val.ucid)
+                    --slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. AdminName .. '" kicked player "' .. val.name .. '" to spectators.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+                    if score > 0 then
+                        msg[#msg+1] = '\n'
+                        msg[#msg+1] = val.id
+                        msg[#msg+1] = ' | '
+                        msg[#msg+1] = val.name
+                        msg[#msg+1] = ' | Current Penalty Score: '
+                        msg[#msg+1] = string.format("%.2f", tostring(score))
+                    end
 					
-					
-					local AdminName
-					if client_id == 1 then
-						AdminName = net.get_name(1)
-					elseif slmod.clients[client_id] and slmod.clients[client_id].ucid and Admins[slmod.clients[client_id].ucid] then
-						AdminName = Admins[slmod.clients[client_id].ucid]
-					else
-						AdminName = '!UNKNOWN ADMIN!' -- should NEVER get to this.
-					end
-					
-					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. AdminName .. '" kicked player "' .. val.name .. '" to spectators.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
-					return
 				end
 			end
-			slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player named "' .. playername .. '".', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+			slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 		end
 		
-		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminGetPenaltyScore)  -- add the item into the items table.
-		]]
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminGetPenaltyScoreAll)  -- add the item into the items table.
+        
+        
+        local function playerPScoreDisplay(clientId, d, s, mData)
+            slmod.info('build msg')
+            local msg = {}
+            if d and d.penalties then
+                if d.penalties[#d.penalties].type == 'ERASEME' then
+                    d.penalties[#d.penalties] = nil
+                    slmod.info('erased last')
+                end
+            end
+            msg[#msg+1] = 'User: '
+            msg[#msg+1] = mData.name
+            msg[#msg+1] =  '   |   Stats ID: '
+            msg[#msg+1] = mData.id
+            msg[#msg+1] = '\n=======================\n'
+            msg[#msg+1] = 'Current Penalty Score: ' .. s
+            msg[#msg+1] = '\n=======================\n'
+            msg[#msg+1] = 'Up to last 20 penalties\n'
+            if d.penalties and #d.penalties > 0 then 
+                slmod.info('iterate')
+                for i = #d.penalties, 1, -1  do
+                    slmod.info(i)
+                    msg[#msg+1] = '\n'
+                    msg[#msg+1] = 'Type: '
+                    msg[#msg+1] = d.penalties[i].type
+                    msg[#msg+1] = '  with: '
+                    msg[#msg+1] = d.penalties[i].weapon
+                    msg[#msg+1] = '  on '
+                    if d.penalties[i].human then
+                        msg[#msg+1] = ' player '
+                    else
+                        msg[#msg+1] = ' AI '
+                    end
+                    msg[#msg+1] = ' Penalty of: '
+                    msg[#msg+1] = string.format("%.2f", tostring(d.penalties[i].pointsAdded))
+                    if d.penalties[i].pointsAdded == 0 then 
+                         msg[#msg+1] = ' Expired '
+                    else
+                        msg[#msg+1] = ' Expires in: '
+                        msg[#msg+1] = string.format("%.2f", tostring(d.penalties[i].expireTime))
+                    end
+                    if #d.penalties - 20 == i then
+                        break
+                    end
+                end
+            else
+                msg[#msg+1] = 'No Recent Penalties on Record'
+            end
+
+            
+            return msg
+        end
+        ---------------------------------------------
+        -- returns detailed list of penalties
+        
+        local AdminGetUserPenaltyScore = {}
+		AdminGetUserPenaltyScore.menu = SlmodAdminMenu
+		AdminGetUserPenaltyScore.description = 'Say in chat "-admin score statID <id>" to display a summary of the players penalties'
+		AdminGetUserPenaltyScore.active = true
+		AdminGetUserPenaltyScore.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		AdminGetUserPenaltyScore.selCmds = {
+				[1] = {
+					[1] = { 
+						type = 'word', 
+						text = '-admin',
+						required = true
+					}, 
+                    [2] = { 
+                        type = 'word',
+                        text = 'score',
+                        required = true
+					},
+                    [3] = { 
+						type = 'word',
+						text = 'stat',
+						required = true
+                    },
+                    [4] = { 
+                        type = 'number',
+                        varname = 'id',
+                        required = true
+                    }
+				}
+			} 
+		AdminGetUserPenaltyScore.onSelect = function(self, vars, client_id)
+			slmod.info('select admin user penalty score')
+            if vars and vars.id then
+                local stats = slmod.stats.getStats()
+                for ucid, pStats in pairs(stats) do -- this is inefficient- maybe I need to make a stats by id table.
+					if type(pStats) == 'table' and pStats.id and pStats.id == vars.id then  -- found the id#.
+                        slmod.info('found')
+                        local score, d = slmod.getUserScore(ucid, true)
+                        local msg = playerPScoreDisplay(ucid, d, score, {id = vars.id, name = pStats.names[#pStats.names]})
+                        slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+                        break
+                    end
+                end
+            end
+             
+			--slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+		end
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminGetUserPenaltyScore)  -- add the item into the items table.
+
 		-----------------------------------------------------------------------------------------------
         
 		      

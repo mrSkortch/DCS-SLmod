@@ -888,7 +888,7 @@ do
 		]]
 		
 		--now ready to analyze the message and see if it matches with cmd:
-		
+		--slmod.info(slmod.oneLineSerialize(s_words))
 		
 		 -- returns either true or a index number within the table of words text values of cmd_word for a word match, or false for no match
 		 -- second variable: returns true if an exact match, false if not an exact match.
@@ -1221,7 +1221,7 @@ do
 						elseif not rawvars[i].validrange then -- no validrange specified
 							vars[rawvars[i].varname] = num
 						else
-							--net.log('here20')
+						--net.log('here20')
 							return -1 -- not within validrange
 						end
 					else
@@ -1255,7 +1255,8 @@ do
 	-- slmod.doMenuCommands
 	-- Global function that checks if chat message is a valid menu command, and if so, does any onSelect/showing that is required.
 	function slmod.doMenuCommands(client_id, chat_msg)
-		local MenuShowTbl = {}
+		--net.log(chat_msg)
+        local MenuShowTbl = {}
 		local ItemShowTbl = {}
 		for MenuName, Menu in pairs(menus) do
 			if Menu.active then
@@ -1279,9 +1280,10 @@ do
 					for item_name, item in pairs(Menu.items) do  -- look for item selects
 						if item.selCmds and item.onSelect and item.active then
 							for ind, cmd in pairs(item.selCmds) do
-								local matchtype, vars = cmdMatch(cmd, chat_msg)
+                                local matchtype, vars = cmdMatch(cmd, chat_msg)
 								if matchtype == 1 then  -- exact match, do immediately
-									if vars then
+									--net.log('exact')
+                                    if vars then
 										item:onSelect(vars, client_id)
 									else
 										item:onSelect(client_id)

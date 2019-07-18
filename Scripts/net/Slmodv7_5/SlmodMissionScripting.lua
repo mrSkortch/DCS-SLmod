@@ -19,7 +19,8 @@ end
 -------------------------------------------------------------------------------------------------------
 -- Slmod begins here.
 do
-	slmod = {}
+	env.info('Loading SLMOD MissionScripting.lua')
+    slmod = {}
 	local config = {}  -- don't want hte slmod config settings adjustable from MissionScripting, so local
 	slmod.version = '7_5'
 	---------------------------------------------------------------------------------------------------
@@ -29,7 +30,7 @@ do
 	local function defaultSettings()
 	
 		local defaultf = io.open(lfs.writedir() .. 'Scripts/net/Slmodv' .. slmod.version .. '/SlmodDefault.cfg', 'r')
-		
+		if not defaultf then return end
 		local default_settings = defaultf:read('*all')
 		defaultf:close()
 		--now load default settings
@@ -1278,7 +1279,7 @@ do
 	
 	
 	sanitizeModule('debug')  -- So malicious missions can't break out of the sandbox and use LuaSocket.
-	
+	env.info('MissionScripting.lua SLMOD code loaded')
 end
 -------------------------------------------------------------------------------------
 --Stepanovich's code starts again below.

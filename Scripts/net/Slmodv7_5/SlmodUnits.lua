@@ -615,6 +615,7 @@ function slmod.updateClients()  --net function, updates clients in the server en
 				client['unitName'] = name  -- add unitName and rtid to slmod.clients.
 				client['rtid'] = rtid
 								-- add to clientsByRtId
+                              
 				if not slmod.clientsByRtId[rtid] then
                     slmod.clientsByRtId[rtid]= {}
                 end
@@ -702,7 +703,7 @@ function slmod.getUnitXYZ(rtId)
 				--						x											y												z                                   
 			end
 		end
-	elseif not err then
+	elseif slmod.config.export_world_objs and not err then
 		slmod.info('Error trying to do slmod.getUnitXYZ: ' .. tostring(str))
 	end
 end

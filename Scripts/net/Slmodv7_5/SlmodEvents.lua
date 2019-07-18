@@ -859,8 +859,8 @@ do
 			------------------------------------------------------------------
 			-- code for slmod.lastHitEvent, used in stat system and slmod.events
 			if event.weapon then
-				 env.info('HIT EVENT: info:')
-				 env.info(slmod.oneLineSerialize(event))
+				-- env.info('HIT EVENT: info:')
+				-- env.info(slmod.oneLineSerialize(event))
 				if (slmod.humanWeapons[event.weapon.id_] or (event.initiator and Unit.isExist(event.initiator) and (pcall(Unit.getName, event.initiator)) and slmod.clientsMission[Unit.getName(event.initiator)])) and event.target and slmod.deepcopy then  -- a hit on something by a human
 					
 					local targetName
