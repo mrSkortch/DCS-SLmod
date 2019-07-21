@@ -164,7 +164,7 @@ if slmod.config.MOTD_enabled then
 
             titleTbl[#titleTbl + 1] = '\n(The default US keystroke for chat in your module is: Tab.)'
 
-            if slmod.config.autoAdmin.showPenaltyInMODT then
+            if slmod.config.autoAdmin.showPenaltyInMODT and slmod.clients[clientId] then
                 local pp = slmod.getUserScore(slmod.clients[clientId].ucid) or 0
                 if pp == 0 then
                     titleTbl[#titleTbl + 1] ='\n You have no active penalties!'

@@ -668,14 +668,14 @@ end]]
             local cNames = {}
             local tNames = {}
             for cIndex, cData in pairs(clients) do
-                if #cNames > 1 then
+                if #cNames > 0 then
                     table.insert(cNames, ' and ')
                 end
                 table.insert(cNames, cData.name)
             end
             msg[2] = table.concat(cNames)
             for tIndex, tData in pairs(target) do
-                if #tNames > 1 then
+                if #tNames > 0 then
                     table.insert(tNames, ' and ')
                 end
                 table.insert(tNames, tData.name)
@@ -715,7 +715,7 @@ end]]
             local cNames = {}
             local tNames = {}
             for cIndex, cData in pairs(clients) do
-                if #cNames > 1 then
+                if #cNames > 0 then
                     table.insert(cNames, ' and ')
                 end
                 table.insert(cNames, cData.name)
@@ -724,7 +724,7 @@ end]]
             msg[2] = table.concat(cNames)
 
             for tIndex, tData in pairs(target) do
-                if #tNames > 1 then
+                if #tNames > 0 then
                     table.insert(tNames, ' and ')
                 end
                 table.insert(tNames, tData.name)
@@ -1125,7 +1125,7 @@ end]]
 				--case 1 - deadAI, hit by human.
 				if not deadClient then -- SHOULD be an AI hit by human!
 					if type(hitObj) == 'table' then -- it SHOULD be
-						slmod.info(slmod.oneLineSerialize(hitObj))
+						--slmod.info(slmod.oneLineSerialize(hitObj))
                         local penaltyOnce = false
                         for seatId, hitter in pairs(hitObj) do
                             -- add this killed unit to the human's record.
@@ -1713,7 +1713,7 @@ end]]
 				----------------------------------------------------------------------------------------------------------
 				-- hit events
 				if event.type == 'hit' and event.target then
-					slmod.info('eventTypeHit')
+					--slmod.info('eventTypeHit')
 					local tgtName = event.target  -- dependable at least.
 					local tgtClient
 					local tgtSide
@@ -1834,7 +1834,7 @@ end]]
 					if initClient then  -- a human initiated hit
 						local givenPenalty = false
                         local addedHit = false
-                        slmod.info(initType)
+                        --slmod.info(initType)
                         for seat, clientData in pairs(initClient) do
                             initUCID = clientData.ucid
                             initSide = clientData.coalition
@@ -3072,6 +3072,63 @@ end]]
 		end	
 		
 		statsItems[#statsItems + 1] = SlmodMenuItem.create(fullStatsForNameVars)
+        
+        -- 9th item, -full stats for name <player name>
+		local detailedPenaltyScoreMe = {}
+		detailedPenaltyScoreMe.menu = SlmodStatsMenu
+		detailedPenaltyScoreMe.description = 'Say in chat "-stats penalty" to get detailed information for your current penalty point status on the server.'
+		detailedPenaltyScoreMe.active = true
+		detailedPenaltyScoreMe.options = {
+			display_mode = 'text', 
+			display_time = 30, 
+			privacy = {
+				access = true, 
+				show = true
+			}
+		}
+		detailedPenaltyScoreMe.selCmds = {
+			[1] = {
+				[1] = { 
+					type = 'word', 
+					text = '-stats',
+					required = true
+				}, 
+				[2] = { 
+					type = 'word', 
+					text = 'penalty',
+					required = true
+				}, 
+			},
+			[2] = {
+				[1] = { 
+					type = 'word', 
+					text = '-stats',
+					required = true
+				}, 
+				[2] = { 
+					type = 'word', 
+					text = 'pen',
+					required = true
+				}, 
+            },
+		} 
+		
+		detailedPenaltyScoreMe.onSelect = function(self, vars, clientId)
+			local requester = slmod.clients[clientId]
+			if requester then
+				if stats[requester.ucid] then  -- this check invalid if server stats ever optionally disabled.
+                    --slmod.info(requester.ucid)
+                    local score, detail = slmod.getUserScore(requester.ucid, true)
+                    local penScore = slmod.playerPenaltyScoreDisplay(detail, score, {name = requester.name})
+                    
+                    slmod.scopeMsg(penScore, self.options.display_time, self.options.display_mode, {clients = {clientId}})
+                end
+            end
+		end	
+		
+        if slmod.config.autoAdmin.userCanGetOwnDetailedPenalty then 
+            statsItems[#statsItems + 1] = SlmodMenuItem.create(detailedPenaltyScoreMe)
+        end
 		
 		---------------------------------------------------------------------------------------------------------------------------------------
 		

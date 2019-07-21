@@ -492,8 +492,12 @@ function slmodCall.onPlayerTryConnect(addr, name, ucid)
 		return false, "You are banned from this server."
 	end
 	
-	if not slmod.autoAdminOnConnect(ucid) then
-		return false, 'You are autobanned from this server'
+	local allow, score = slmod.autoAdminOnConnect(ucid)
+    if allow == false  then
+		if slmod.config.autoAdmin.showPenaltyKickBanActions then
+            return false, 'You are autobanned from this server with: ' .. string.format("%.2f", tostring(score)) .. ' penalty points' 
+        end
+        return false, 'You are autobanned from this server'
 	end
 
 

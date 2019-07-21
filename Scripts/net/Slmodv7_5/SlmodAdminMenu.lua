@@ -145,12 +145,13 @@ do
 			
 		else
 			Admins = Admins or {}
+            slmod.update_admins()
 		end
 	end
 	----------------------------------------------------------------------------------------
 	
 	----------------------------------------------------------------------------------------
-	local function update_admins(client_info)
+	function slmod.update_admins(client_info)
 		-- client_info: {ucid = string, name = string}
 		Admins = Admins or {}
 		
@@ -1376,57 +1377,7 @@ do
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminGetPenaltyScoreAll)  -- add the item into the items table.
         
         
-        local function playerPScoreDisplay(clientId, d, s, mData)
-            slmod.info('build msg')
-            local msg = {}
-            if d and d.penalties then
-                if d.penalties[#d.penalties].type == 'ERASEME' then
-                    d.penalties[#d.penalties] = nil
-                    slmod.info('erased last')
-                end
-            end
-            msg[#msg+1] = 'User: '
-            msg[#msg+1] = mData.name
-            msg[#msg+1] =  '   |   Stats ID: '
-            msg[#msg+1] = mData.id
-            msg[#msg+1] = '\n=======================\n'
-            msg[#msg+1] = 'Current Penalty Score: ' .. s
-            msg[#msg+1] = '\n=======================\n'
-            msg[#msg+1] = 'Up to last 20 penalties\n'
-            if d.penalties and #d.penalties > 0 then 
-                slmod.info('iterate')
-                for i = #d.penalties, 1, -1  do
-                    slmod.info(i)
-                    msg[#msg+1] = '\n'
-                    msg[#msg+1] = 'Type: '
-                    msg[#msg+1] = d.penalties[i].type
-                    msg[#msg+1] = '  with: '
-                    msg[#msg+1] = d.penalties[i].weapon
-                    msg[#msg+1] = '  on '
-                    if d.penalties[i].human then
-                        msg[#msg+1] = ' player '
-                    else
-                        msg[#msg+1] = ' AI '
-                    end
-                    msg[#msg+1] = ' Penalty of: '
-                    msg[#msg+1] = string.format("%.2f", tostring(d.penalties[i].pointsAdded))
-                    if d.penalties[i].pointsAdded == 0 then 
-                         msg[#msg+1] = ' Expired '
-                    else
-                        msg[#msg+1] = ' Expires in: '
-                        msg[#msg+1] = string.format("%.2f", tostring(d.penalties[i].expireTime))
-                    end
-                    if #d.penalties - 20 == i then
-                        break
-                    end
-                end
-            else
-                msg[#msg+1] = 'No Recent Penalties on Record'
-            end
-
-            
-            return msg
-        end
+        
         ---------------------------------------------
         -- returns detailed list of penalties
         
@@ -1467,8 +1418,8 @@ do
 					if type(pStats) == 'table' and pStats.id and pStats.id == vars.id then  -- found the id#.
                         slmod.info('found')
                         local score, d = slmod.getUserScore(ucid, true)
-                        local msg = playerPScoreDisplay(ucid, d, score, {id = vars.id, name = pStats.names[#pStats.names]})
-                        slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+                        local msg = slmod.playerPenaltyScoreDisplay(d, score, {id = vars.id, name = pStats.names[#pStats.names]})
+                        slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg, 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
                         break
                     end
                 end
