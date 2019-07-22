@@ -661,26 +661,21 @@ end]]
     multiCrewDefs['F-14B'] = {[2] = 'RIO'}
 	multiCrewDefs['Mi-8MT'] = {[2] = 'Copilot', [3] = 'FO', [4] = 'Dakka'}
     multiCrewDefs['UH-1H'] = {[2] = 'Copilot', [3] = 'Dakka', [4] = 'DakkaDakka'}
+    
+    local function getPlayerNamesString(clients)
+        local names = {}
+        for cIndex, cData in pairs(clients) do
+            if #names > 0 then
+                table.insert(names, ' and ')
+            end
+            table.insert(names, cData.name)
+       end
+        return table.concat(names)
+    end
 	-------------------------------------------------------------------
 	local function onFriendlyHit(clients, target, weapon)
         if slmod.config.enable_team_hit_messages then
-			local msg = {[1] = 'Slmod- TEAM HIT: "', [2] = '$CLIENTNAME', [3] = '" hit friendly unit "', [4] = '$TARGETNAMES', [5] = '" with ', [6] = tostring(weapon) ,[7] = '!'}
-            local cNames = {}
-            local tNames = {}
-            for cIndex, cData in pairs(clients) do
-                if #cNames > 0 then
-                    table.insert(cNames, ' and ')
-                end
-                table.insert(cNames, cData.name)
-            end
-            msg[2] = table.concat(cNames)
-            for tIndex, tData in pairs(target) do
-                if #tNames > 0 then
-                    table.insert(tNames, ' and ')
-                end
-                table.insert(tNames, tData.name)
-            end
-            msg[4] = table.concat(tNames)
+			local msg = {[1] = 'Slmod- TEAM HIT: "', [2] = getPlayerNamesString(clients), [3] = '" hit friendly unit "', [4] = getPlayerNamesString(target), [5] = '" with ', [6] = tostring(weapon) ,[7] = '!'}
             slmod.scopeMsg(table.concat(msg), 1, 'chat')
             --slmod.scopeMsg('Slmod- TEAM HIT: "' .. tostring(client.name).. '" hit friendly unit "' .. tostring(target.name) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat') OLD
 		end
@@ -711,28 +706,8 @@ end]]
 
 	local function onFriendlyKill(clients, target, weapon)
         if slmod.config.enable_team_kill_messages then
-			local msg = {[1] = 'Slmod- TEAM KILL: "', [2] = '$CLIENTNAME', [3] = '" killed friendly unit "', [4] = '$TARGETNAMES', [5] = '" with ', [6] = tostring(weapon) ,[7] = '!'}
-            local cNames = {}
-            local tNames = {}
-            for cIndex, cData in pairs(clients) do
-                if #cNames > 0 then
-                    table.insert(cNames, ' and ')
-                end
-                table.insert(cNames, cData.name)
-            end
-
-            msg[2] = table.concat(cNames)
-
-            for tIndex, tData in pairs(target) do
-                if #tNames > 0 then
-                    table.insert(tNames, ' and ')
-                end
-                table.insert(tNames, tData.name)
-            end
-            msg[4] = table.concat(tNames)
-
+			local msg = {[1] = 'Slmod- TEAM KILL: "', [2] = getPlayerNamesString(clients), [3] = '" killed friendly unit "', [4] = getPlayerNamesString(target), [5] = '" with ', [6] = tostring(weapon) ,[7] = '!'}
             slmod.scopeMsg(table.concat(msg), 1, 'chat')
-          
 		end
 		-- chat log
 		if slmod.config.chat_log and slmod.config.log_team_kills and slmod.chatLogFile then
@@ -763,9 +738,9 @@ end]]
 	local function onPvPKill(initName, tgtName, weapon, killerObj, victimObj)
 		if slmod.config.enable_pvp_kill_messages then
 			if killerObj and victimObj then
-				slmod.scopeMsg('Slmod- PVP KILL: Humiliation! "' .. tostring(initName).. '" (flying a ' .. tostring(killerObj) .. ') scored a victory against "' .. tostring(tgtName) .. '" (flying a ' .. tostring(victimObj) .. ') with ' .. tostring(weapon) .. '!', 1, 'chat') 
+				slmod.scopeMsg('Slmod- PVP KILL: Humiliation! "' .. getPlayerNamesString(initName).. '" (flying a ' .. tostring(killerObj) .. ') scored a victory against "' .. getPlayerNamesString(tgtName) .. '" (flying a ' .. tostring(victimObj) .. ') with ' .. tostring(weapon) .. '!', 1, 'chat') 
 			else
-				slmod.scopeMsg('Slmod- PVP KILL: "' .. tostring(initName).. '" scored a victory against "' .. tostring(tgtName) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat') 
+				slmod.scopeMsg('Slmod- PVP KILL: "' .. getPlayerNamesString(initName).. '" scored a victory against "' .. getPlayerNamesString(tgtName) .. '" with ' .. tostring(weapon) .. '!', 1, 'chat') 
 			end
 		end
 	end

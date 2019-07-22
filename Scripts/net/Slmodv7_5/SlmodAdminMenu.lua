@@ -1416,7 +1416,6 @@ do
                 local stats = slmod.stats.getStats()
                 for ucid, pStats in pairs(stats) do -- this is inefficient- maybe I need to make a stats by id table.
 					if type(pStats) == 'table' and pStats.id and pStats.id == vars.id then  -- found the id#.
-                        slmod.info('found')
                         local score, d = slmod.getUserScore(ucid, true)
                         local msg = slmod.playerPenaltyScoreDisplay(d, score, {id = vars.id, name = pStats.names[#pStats.names]})
                         slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg, 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
