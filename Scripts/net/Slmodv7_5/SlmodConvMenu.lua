@@ -66,7 +66,7 @@ function slmod.create_ConvMenu()
 				local LL = { lat = vars.coords.lat, lon = vars.coords.lon }  
 				
 				if vars.toCoords == 'mg' then -- LL to MGRS
-					--print('trying to do LL to MGRS')
+					--net.log('trying to do LL to MGRS')
 					local coords = slmod.coord.LLtoMGRS(LL)
 					coord_string = vars.coords_msgs[1] .. ', CONVERTED TO: ' .. slmod.coord.tostring({type = 'MGRS', UTMZone = coords.UTMZone, MGRSDigraph = coords.MGRSDigraph, Easting = coords.Easting, Northing = coords.Northing})
 				
@@ -304,7 +304,7 @@ function slmod.create_ConvMenu()
 				else
 					show_scope["coa"] = slmod.getClientSide(client_id)  --it would be better to set this to the MENU'S scope.
 				end
-				slmod.scheduleFunctionByRt(slmod.scopeMsg, {coord_string, self.options.display_time or 5, self.options.display_mode or 'chat', show_scope}, net.get_real_time() + 0.1)
+				slmod.scheduleFunctionByRt(slmod.scopeMsg, {coord_string, self.options.display_time or 5, self.options.display_mode or 'chat', show_scope}, DCS.getRealTime() + 0.1)
 			end
 		end
 	end
@@ -379,7 +379,7 @@ function slmod.create_ConvMenu()
 		if not client_id then
 			client_id = vars
 		end
-		--print('got into trying to do the help text')
+		--net.log('got into trying to do the help text')
 		local helptext = "This is the format of a coordinate conversion request:\n\n(Required): \"-conv\" + (Optional for LL and MGRS / Requred for BR or BULLS): \"ll\" or \"mg\" or \"br\" or \"bul\"\n + (Required): <Coordinates> + (Optional): \"to\" + (Required): \"ll\" or \"mg\" or \"br\" or \"bul\"\n\n-Only the first letters of each word must match, and case (capitalization) does not matter.\n-Lat/long coordinates can be in degrees, degrees minutes, or even degrees minutes seconds.\n-MGRS coordinates must at least have a space between the UTM zone and MGRS digraph, and an even number of digits.\n-Bearing and range coordinates MUST be prefaced with either \"br\" or \"bul\" to signify whether it's bearing and range from your aircraft, or from the bullseye.\nSome examples are:\n\n\"-conv bulls 170 for 35 to LL\"\n\"-conv 42 34N 44 15E mgrs\"\n\"-conv 38T KM 492 009 to bulls\"\n\"-CONV 42 14.914'N 040 37.379'E to MGRS\"\n\"-Convert Br 055 For 90 To BULLSEYE\"\n\"-conv LL N 43 13 39 E 038 55 31 MG\"\n\"-CoNvt 38t km775334 to ll\"\n\"-CoNvZZZ bUlpsyeedgsdee 295 FoR 62 MgSSAkksL\" (Illustrates how it's only necessary to match the first few letters- the entire word \"for\" has to be spelled correctly though)"
 		local show_scope = {}
 		if self.options.privacy.show then --show it only to selector - in this case, this will always be true.
@@ -387,8 +387,8 @@ function slmod.create_ConvMenu()
 		else
 			show_scope["coa"] = slmod.getClientSide(client_id)  --it would be better to set this to the MENU'S scope.
 		end
-		--print('trying to do this helptext')
-		slmod.scheduleFunctionByRt(slmod.scopeMsg, {helptext, self.options.display_time or 60, self.options.display_mode or 'text', show_scope}, net.get_real_time() + 0.1)
+		--net.log('trying to do this helptext')
+		slmod.scheduleFunctionByRt(slmod.scopeMsg, {helptext, self.options.display_time or 60, self.options.display_mode or 'text', show_scope}, DCS.getRealTime() + 0.1)
 	end
 	
 	item2vars.description = 'Say in chat "-conv help" to see extended help text on the coordinate converter (*CAUTION* Will be sent to you as trigger text- but only you will see it).'

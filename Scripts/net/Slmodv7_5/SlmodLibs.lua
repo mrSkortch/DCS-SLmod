@@ -3,13 +3,14 @@
 --------------------------------------------------------------------------------------------------------------------------------------------
 --chatIOlibv1 legacy support
 function slmod.chatmsg_net(text)
+	net.log('chatmsg_net')
 	if (not slmod.typeCheck({'string'}, {text})) then
 		slmod.error('invalid variable type in slmod.chatmsg_net', true)
 		return
 	end
 	local clientindex = 0
 	while clientindex <= 128 do
-		net.send_chat(text, clientindex, clientindex)				
+		net.send_chat_to(text, clientindex, clientindex)				
 		clientindex = clientindex + 1
 	end
 	net.recv_chat(text) --output to host
@@ -24,7 +25,7 @@ function slmod.chatmsg_repeat_net(msgline, numtimes, interval)
 	numtimes = numtimes - 1
 	while numtimes > 0 do
 	
-		slmod.scheduleFunction(slmod.chatmsg_net, {msgline}, net.get_model_time() + numtimes*interval)
+		slmod.scheduleFunction(slmod.chatmsg_net, {msgline}, DCS.getModelTime() + numtimes*interval)
 		numtimes = numtimes - 1
 	end
 end
@@ -135,9 +136,9 @@ function slmod.chatmsg_groupMGRS_net(prefacemsg, units, numdigits, numtimes, int
 				end
 			end
 		end
-		--print('did the slmod.chatmsg_groupMGRS_net string successfully')
+		--net.log('did the slmod.chatmsg_groupMGRS_net string successfully')
 	else
-		print('illegal variable type')
+		net.log('illegal variable type')
 	end
 end
 
@@ -185,7 +186,7 @@ function slmod.command_check_start_loop_net(commandtext, flag, interval, purge)
 	
 	slmod.command_check_net(commandtext, flag)	
 	
-	slmod.scheduleFunction(slmod.command_check_start_loop_net, {commandtext, flag, interval, false}, net.get_model_time() + interval)
+	slmod.scheduleFunction(slmod.command_check_start_loop_net, {commandtext, flag, interval, false}, DCS.getModelTime() + interval)
 end
 --end of chatIOlibv1 legacy support
 --------------------------------------------------------------------------------------------------------------------------------------------
@@ -273,7 +274,7 @@ function slmod.msg_out_net(text_out, display_time, display_mode, coa)   --displa
 			for msg_counter = 1,numlines do
 				msg_string = lines[msg_counter]
 				for i = 1, numtimes_each do
-					slmod.scheduleFunction(slmod.basicChat, {msg_string, coa}, net.get_model_time() + msg_time)
+					slmod.scheduleFunction(slmod.basicChat, {msg_string, coa}, DCS.getModelTime() + msg_time)
 					msg_time = msg_time + intvl_each
 				end
 			end		
@@ -334,13 +335,14 @@ function slmod.CA_chatmsg_net(text, coa)
 	if slmod.clients then
 		local new_clients = {}
 		for id, client in pairs(slmod.clients) do
-			local side, unit_id = net.get_unit(id)
+			local side = net.get_player_info(id, 'side')
+			local unit_id = net.get_player_info(id, 'slot')
 			if unit_id and side and (side == 0 or side == coaNum) then  --check to see if there's a unit_id and if the coalition is right
 				if is_BC(unit_id) then
 					if id == 1 then
 						net.recv_chat(text)
 					else
-						net.send_chat(text, id, id)
+						net.send_chat_to(text, id, id)
 					end
 				end
 			end
@@ -663,6 +665,9 @@ end
 
 --replacement for command_check_start_loop
 function slmod.chat_cmd_net(cmd_text, flag, chat_ind, stopflag, coa)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if (not slmod.typeCheck({'string', 'number', 'number', {'number', 'nil'}, {'string', 'nil'}}, { cmd_text, flag, chat_ind, stopflag, coa })) then
 		slmod.error('invalid variable type in slmod.chat_cmd_net', true)
 		return
@@ -693,7 +698,7 @@ function slmod.chat_cmd_net(cmd_text, flag, chat_ind, stopflag, coa)
 					net.dostring_in('server', 'trigger.action.setUserFlag(' .. tostring(flag) .. ', true)') 
 				else  --need to check sides
 					-- now if the side checks out:
-					local side = net.get_unit(slmod.chat_table[chat_ind].id)
+					local side = net.get_player_info(slmod.chat_table[chat_ind].id, 'side')
 					if side == coa_int then
 						net.dostring_in('server', 'trigger.action.setUserFlag(' .. tostring(flag) .. ', true)')
 					end	
@@ -702,7 +707,7 @@ function slmod.chat_cmd_net(cmd_text, flag, chat_ind, stopflag, coa)
 			chat_ind = chat_ind + 1
 		end
 
-		slmod.scheduleFunction(slmod.chat_cmd_net, {cmd_text, flag, chat_ind, stopflag, coa}, net.get_model_time() + 1)		
+		slmod.scheduleFunction(slmod.chat_cmd_net, {cmd_text, flag, chat_ind, stopflag, coa}, DCS.getModelTime() + 1)		
 	end
 end
 --End of basic chat IO
@@ -1119,7 +1124,7 @@ end
 
 function slmod.create_units_LOS_server() 
 	local units_LOS_server_string = [==[function units_LOS_server(unitset1_ids, altoffset1, unitset2_ids, altoffset2, checks, flag, radius)
-	--print('units_LOS_server here1')
+	--net.log('units_LOS_server here1')
 	local unitset1posits = {}
 	local unitset2posits = {}
 
@@ -1127,7 +1132,7 @@ function slmod.create_units_LOS_server()
 	local unitset_counter = 1
 	for k =1, #unitset1_ids do
 		if ((unitset1_ids[k] ~= nil) and (type(unitset1_ids[k]) == 'number') and (Unit.isExist({ id_ = unitset1_ids[k] }) == true)) then
-			--print('units_LOS_server: unitset1 unit exists, etc')
+			--net.log('units_LOS_server: unitset1 unit exists, etc')
 			unitset1posits[unitset_counter] = Unit.getPosition({ id_ = unitset1_ids[k] }).p
 			unitset_counter =  unitset_counter + 1	
 		
@@ -1138,7 +1143,7 @@ function slmod.create_units_LOS_server()
 	
 	for k =1, #unitset2_ids do
 		if ((unitset2_ids[k] ~= nil) and (type(unitset2_ids[k]) == 'number') and (Unit.isExist({ id_ = unitset2_ids[k] }) == true)) then
-			--print('units_LOS_server: unitset2 unit exists, etc')
+			--net.log('units_LOS_server: unitset2 unit exists, etc')
 			unitset2posits[unitset_counter] = Unit.getPosition({ id_ = unitset2_ids[k] }).p
 			unitset_counter =  unitset_counter + 1		
 		end
@@ -1170,12 +1175,12 @@ function slmod.create_units_LOS_server()
 			--check checks of ponits between the UnitSet1 unit and the
 			--UnitSet2 unit.  If at any point there is a terrain obstruction, then
 			--obstruction (initialized to false) will be set to true.
-			--print('here2')
+			--net.log('here2')
 			if (radius and (((x2 - x1)^2 + (z2 - z1)^2)^0.5 > radius)) then
 				obstruction = true  --not techinically an "obstruction", but logically the same
-				--print('out of range')
+				--net.log('out of range')
 			else
-				--print('here3')
+				--net.log('here3')
 				while (t <= 1) do
 			
 					t =  m/checks 
@@ -1196,7 +1201,7 @@ function slmod.create_units_LOS_server()
 					--line altitude, set obstruction to true
 					
 					if yland > yline then
-						--print('here- obstruction')
+						--net.log('here- obstruction')
 						obstruction = true
 						break
 					end
@@ -1207,7 +1212,7 @@ function slmod.create_units_LOS_server()
 			--checks, then there must be a a line of sight between the 
 			--unitset1 unit and the unitset2 unit, set LOS to true
 			if obstruction == false then
-				--print('units_LOS_server here2')
+				--net.log('units_LOS_server here2')
 				trigger.action.setUserFlag(flag, true)
 				return
 			end	
@@ -1224,6 +1229,9 @@ end
 
 --Detects line of sight
 function slmod.units_LOS_net(unitset1, altoffset1, unitset2, altoffset2, flag, stopflag, interval, checks, radius)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if slmod.typeCheck({'table_s', 'number', 'table_s', 'number', 'number', {'number', 'nil'}, {'number', 'nil'}, {'number', 'nil'}, {'number', 'nil'}}, { unitset1, altoffset1, unitset2, altoffset2, flag, stopflag, interval, checks, radius }) == false then
 		slmod.error('invalid variable type in slmod.units_LOS_net', true)
 		return
@@ -1308,7 +1316,7 @@ function slmod.units_LOS_net(unitset1, altoffset1, unitset2, altoffset2, flag, s
 	
 	--if an interval is specified, loop
 	if interval > 0 then 
-		slmod.scheduleFunction(slmod.units_LOS_net, {unitset1, altoffset1, unitset2, altoffset2, flag, stopflag, interval, checks, radius}, net.get_model_time() + interval)
+		slmod.scheduleFunction(slmod.units_LOS_net, {unitset1, altoffset1, unitset2, altoffset2, flag, stopflag, interval, checks, radius}, DCS.getModelTime() + interval)
 	end
 end
 
@@ -1347,7 +1355,7 @@ function slmod.rand_flags_on_net(startflag, endflag, prob)
 	for flag = startflag, endflag do
 		randval = math.random()*100
 		if randval <= prob then
-			--print('flag ' .. tostring(flag) .. ' turning on')
+			--net.log('flag ' .. tostring(flag) .. ' turning on')
 			net.dostring_in('server', 'trigger.action.setUserFlag(' .. tostring(flag) .. ', true)')
 		end
 	end
@@ -1409,6 +1417,9 @@ end]=]
 end
 
 function slmod.num_dead_gt_net(units, numdead, flag, stopflag)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if (not slmod.typeCheck({'table_s', 'number', 'number', {'number', 'nil'}}, { units, numdead, flag, stopflag })) then
 		slmod.error('invalid variable type in slmod.num_dead_gt_net', true)
 		return
@@ -1425,7 +1436,7 @@ function slmod.num_dead_gt_net(units, numdead, flag, stopflag)
 	if (ret_err and (tonumber(ret_numdead) > numdead)) then
 		net.dostring_in('server', 'trigger.action.setUserFlag(' .. tostring(flag) .. ', true)')
 	elseif ((stopflag == -1) or (not slmod.flagIsTrue(stopflag))) then
-		slmod.scheduleFunction(slmod.num_dead_gt_net, {units, numdead, flag, stopflag}, net.get_model_time() + 1)
+		slmod.scheduleFunction(slmod.num_dead_gt_net, {units, numdead, flag, stopflag}, DCS.getModelTime() + 1)
 	end
 end
 
@@ -1481,6 +1492,9 @@ end
 
 -- Units in moving zones
 function slmod.units_in_moving_zones_net(units, zone_units, radius, flag, stopflag, zone_type, req_num, interval)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if slmod.typeCheck({'table_s', 'table_s', 'number', 'number', {'number', 'nil'}, {'string', 'nil'}, {'number', 'nil'}, {'number', 'nil'}}, { units, zone_units, radius, flag, stopflag, zone_type, req_num, interval }) == false then
 		slmod.error('invalid variable type in slmod.units_in_moving_zones_net', true)
 		return
@@ -1544,7 +1558,7 @@ function slmod.units_in_moving_zones_net(units, zone_units, radius, flag, stopfl
 	end
 	
 	if interval > 0 then 
-		slmod.scheduleFunction(slmod.units_in_moving_zones_net, {units, zone_units, radius, flag, stopflag, zone_type, req_num, interval}, net.get_model_time() + interval)
+		slmod.scheduleFunction(slmod.units_in_moving_zones_net, {units, zone_units, radius, flag, stopflag, zone_type, req_num, interval}, DCS.getModelTime() + interval)
 	end
 end
 
@@ -1599,6 +1613,9 @@ end
 
 -- Units in zones
 function slmod.units_in_zones_net(units, zones, flag, stopflag, zone_type, req_num, interval)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if slmod.typeCheck({'table_s', 'table_s', 'number',  {'number', 'nil'}, {'string', 'nil'}, {'number', 'nil'}, {'number', 'nil'}}, { units, zones, flag, stopflag, zone_type, req_num, interval }) == false then
 		slmod.error('invalid variable type in slmod.units_in_zones_net', true)
 		return
@@ -1666,7 +1683,7 @@ function slmod.units_in_zones_net(units, zones, flag, stopflag, zone_type, req_n
 	end
 	
 	if interval > 0 then 
-		slmod.scheduleFunction(slmod.units_in_zones_net, {units, zones, flag, stopflag, zone_type, req_num, interval}, net.get_model_time() + interval)
+		slmod.scheduleFunction(slmod.units_in_zones_net, {units, zones, flag, stopflag, zone_type, req_num, interval}, DCS.getModelTime() + interval)
 	end
 end
 
@@ -1718,10 +1735,13 @@ function slmod.mapobj_destroyed_net(id, flag, evnt_ind, percent, numdead)
 		evnt_ind = evnt_ind + 1
 	end
 	--Flag wasn't set, so call again later
-	slmod.scheduleFunction(slmod.mapobj_destroyed_net, {id, flag, evnt_ind, percent, numdead}, net.get_model_time() + 1)
+	slmod.scheduleFunction(slmod.mapobj_destroyed_net, {id, flag, evnt_ind, percent, numdead}, DCS.getModelTime() + 1)
 end
 
 function slmod.mapobj_dead_in_zone_net(zone, flag, evnt_ind, tot_dead, stopflag, numdead)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	--Type-check for security:
 	if slmod.typeCheck({'string', 'number', 'number', 'number', {'number', 'nil'}, {'number', 'nil'}}, { zone, flag, evnt_ind, tot_dead, stopflag, numdead }) ~= true then
 		slmod.error('invalid variable type in slmod.mapobj_dead_in_zone_net', true)
@@ -1764,13 +1784,16 @@ function slmod.mapobj_dead_in_zone_net(zone, flag, evnt_ind, tot_dead, stopflag,
 		end
 		if ((stopflag == nil) or (stopflag == -1) or (not slmod.flagIsTrue(stopflag))) then --do another check just to be sure stopflag wasn't set by own function
 			--schedule next check
-			slmod.scheduleFunction(slmod.mapobj_dead_in_zone_net, {zone, flag, evnt_ind, tot_dead, stopflag, numdead}, net.get_model_time() + 1)
+			slmod.scheduleFunction(slmod.mapobj_dead_in_zone_net, {zone, flag, evnt_ind, tot_dead, stopflag, numdead}, DCS.getModelTime() + 1)
 		end
 	end
 end
 
 
 function slmod.units_hitting_net(init_units, tgt_units, flag, evnt_ind, stopflag, msg, display_units, display_time, display_mode, coa, mpname)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if slmod.typeCheck({'table_s', 'table_s', 'number', 'number', {'number', 'nil'}, {'string', 'nil'}, {'string', 'nil'}, {'number', 'nil'}, {'string', 'nil'}, {'string', 'nil'}, {'boolean', 'nil'}}, { init_units, tgt_units, flag, evnt_ind, stopflag, msg, display_units, display_time, display_mode, coa, mpname }) ~= true then
 		slmod.error('invalid variable type in slmod.units_hitting_net', true)--stopflag         --msg        --display_units    --display_time     --display_mode     --coa               --mpname
@@ -1856,9 +1879,9 @@ function slmod.units_hitting_net(init_units, tgt_units, flag, evnt_ind, stopflag
 		end
 		if ((stopflag == nil) or (stopflag == -1) or (not slmod.flagIsTrue(stopflag))) then
 			if msg then -- a message
-				slmod.scheduleFunction(slmod.units_hitting_net, {init_units, tgt_units, flag, evnt_ind, stopflag, msg, display_units, display_time, display_mode, coa, mpname}, net.get_model_time() + 1)
+				slmod.scheduleFunction(slmod.units_hitting_net, {init_units, tgt_units, flag, evnt_ind, stopflag, msg, display_units, display_time, display_mode, coa, mpname}, DCS.getModelTime() + 1)
 			else -- no message
-				slmod.scheduleFunction(slmod.units_hitting_net, {init_units, tgt_units, flag, evnt_ind, stopflag}, net.get_model_time() + 1)
+				slmod.scheduleFunction(slmod.units_hitting_net, {init_units, tgt_units, flag, evnt_ind, stopflag}, DCS.getModelTime() + 1)
 			end
 		end
 	end
@@ -1903,14 +1926,15 @@ Some weapon names, as named in the events system (1.1.1.0, may have changed in t
 "AGM-88 HARM"
 ]]--
 function slmod.units_firing_net(init_units, flag, evnt_ind, stopflag, weapons, msg, display_units, display_time, display_mode, coa, mpname)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	if slmod.typeCheck({'table_s', 'number', 'number', {'number', 'nil'}, {'table_s', 'nil'}, {'string', 'nil'}, {'string', 'nil'}, {'number', 'nil'}, {'string', 'nil'}, {'string', 'nil'}, {'boolean', 'nil'}}, { init_units, flag, evnt_ind, stopflag, weapons, msg, display_units, display_time, display_mode, coa, mpname }) ~= true then
 														--stopflag			--weapons			--msg			--display_units		--display_time		--display_mode	  --coa                 --mpname
 		slmod.error('invalid variable type in slmod.units_firing_net', true)
 		return
 	end
-	
 	if ((stopflag == nil) or (stopflag == -1) or (not slmod.flagIsTrue(stopflag))) then
-		
 		stopflag = stopflag or -1
 		display_time = display_time or 5
 		display_mode = display_mode or 'echo'
@@ -1993,9 +2017,9 @@ function slmod.units_firing_net(init_units, flag, evnt_ind, stopflag, weapons, m
 		end	 --while (evnt_ind <= #slmod.events) do
 		if ((stopflag == nil) or (stopflag == -1) or (not slmod.flagIsTrue(stopflag))) then
 			if msg then -- a message
-				slmod.scheduleFunction(slmod.units_firing_net, {init_units, flag, evnt_ind, stopflag, weapons, msg, display_units, display_time, display_mode, coa, mpname}, net.get_model_time() + 1)
+				slmod.scheduleFunction(slmod.units_firing_net, {init_units, flag, evnt_ind, stopflag, weapons, msg, display_units, display_time, display_mode, coa, mpname}, DCS.getModelTime() + 1)
 			else -- no message
-				slmod.scheduleFunction(slmod.units_firing_net, {init_units, flag, evnt_ind, stopflag, weapons}, net.get_model_time() + 1)
+				slmod.scheduleFunction(slmod.units_firing_net, {init_units, flag, evnt_ind, stopflag, weapons}, DCS.getModelTime() + 1)
 			end
 		end
 	end
@@ -2003,6 +2027,9 @@ end
 
 
 function slmod.units_crashed_net(units, flag, evnt_ind, stopflag)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if slmod.typeCheck({'table_s', 'number', 'number', {'number', 'nil'}}, {units,  flag, evnt_ind, stopflag} ) ~= true then
 		slmod.error('invalid variable type in slmod.units_crashed_net', true)
@@ -2030,7 +2057,7 @@ function slmod.units_crashed_net(units, flag, evnt_ind, stopflag)
 			evnt_ind = evnt_ind + 1
 		end
 		if ((stopflag == -1) or (not slmod.flagIsTrue(stopflag))) then
-			slmod.scheduleFunction(slmod.units_crashed_net, {units, flag, evnt_ind, stopflag}, net.get_model_time() + 1)
+			slmod.scheduleFunction(slmod.units_crashed_net, {units, flag, evnt_ind, stopflag}, DCS.getModelTime() + 1)
 		end
 	end
 end
@@ -2064,13 +2091,16 @@ function slmod.units_ejected_net(units, flag, evnt_ind, stopflag)
 			evnt_ind = evnt_ind + 1
 		end
 		if ((stopflag == -1) or (not slmod.flagIsTrue(stopflag))) then
-			slmod.scheduleFunction(slmod.units_ejected_net, {units, flag, evnt_ind, stopflag}, net.get_model_time() + 1)
+			slmod.scheduleFunction(slmod.units_ejected_net, {units, flag, evnt_ind, stopflag}, DCS.getModelTime() + 1)
 		end
 	end
 end
 
 
 function slmod.pilots_dead_net(units, flag, evnt_ind, stopflag)
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if slmod.typeCheck({'table_s', 'number', 'number', {'number', 'nil'}}, {units,  flag, evnt_ind, stopflag}) ~= true then
 		slmod.error('invalid variable type in slmod.pilots_dead_net', true)
@@ -2098,13 +2128,16 @@ function slmod.pilots_dead_net(units, flag, evnt_ind, stopflag)
 			evnt_ind = evnt_ind + 1
 		end
 		if ((stopflag == -1) or (not slmod.flagIsTrue(stopflag))) then
-			slmod.scheduleFunction(slmod.pilots_dead_net, {units, flag, evnt_ind, stopflag}, net.get_model_time() + 1)
+			slmod.scheduleFunction(slmod.pilots_dead_net, {units, flag, evnt_ind, stopflag}, DCS.getModelTime() + 1)
 		end
 	end
 end
 
 
 function slmod.units_killed_by_net(dead_units, killer_units, flag, dead_ind, stopflag, last_to_hit, time_limit)   --last to hit- number value.  If nil or <1, then any unit ever to hit this unit is considered a killer.  if a positive value, the only the last last_to_hit units that hit this unit are considered killers.
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if slmod.typeCheck({'table_s', 'table_s', 'number', 'number', {'number', 'nil'}, {'number', 'nil'}, {'number', 'nil'}}, {dead_units, killer_units, flag, dead_ind, stopflag, last_to_hit, time_limit}) ~= true then
 		slmod.error('Slmod: invalid variable input in slmod.units_killed_by_net')--stopflag     --last_to_hit   --time_limit
@@ -2162,7 +2195,7 @@ function slmod.units_killed_by_net(dead_units, killer_units, flag, dead_ind, sto
 			dead_ind = dead_ind + 1
 		end
 		if ((stopflag == nil) or (stopflag == -1) or (not slmod.flagIsTrue(stopflag))) then  --schecule the next check!
-			slmod.scheduleFunction(slmod.units_killed_by_net, {dead_units, killer_units, flag, dead_ind, stopflag, last_to_hit, time_limit}, net.get_model_time() + 1)
+			slmod.scheduleFunction(slmod.units_killed_by_net, {dead_units, killer_units, flag, dead_ind, stopflag, last_to_hit, time_limit}, DCS.getModelTime() + 1)
 		end
 	end
 end
@@ -2185,12 +2218,15 @@ function slmod.weapons_in_zones_checker(checks_tbl, stopflag) -- function that i
 			slmod.error('unable to slmod.add_to_track_weapons_for_byname, reason: ' .. str)
 		end
 	else  --stopflag not true, schedule a future function run.
-		slmod.scheduleFunction(slmod.weapons_in_zones_checker, {checks_tbl, stopflag}, net.get_model_time() + 1)
+		slmod.scheduleFunction(slmod.weapons_in_zones_checker, {checks_tbl, stopflag}, DCS.getModelTime() + 1)
 	end
 end
 
 
 function slmod.weapons_impacting_in_zones_net(init_units, zones, weapons, flag, stopflag)   
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if not slmod.typeCheck({{'string', 'table_s'}, {'string', 'table_s'}, {'table_s', 'string'}, 'number', {'number', 'nil'}}, {init_units, zones, weapons, flag, stopflag}) then
 		slmod.error('invalid variable type in slmod.weapons_impacting_in_zones_net', true)
@@ -2244,13 +2280,16 @@ function slmod.weapons_impacting_in_zones_net(init_units, zones, weapons, flag, 
 		net.dostring_in('server', 'slmod.add_to_track_weapons_for_byname(' .. slmod.oneLineSerialize(checks_tbl) .. ', true)')
 		if stopflag ~= -1 then
 			-- start the checker for stopflag.
-			slmod.scheduleFunction(slmod.weapons_in_zones_checker, {checks_tbl, stopflag}, net.get_model_time() + 1)
+			slmod.scheduleFunction(slmod.weapons_in_zones_checker, {checks_tbl, stopflag}, DCS.getModelTime() + 1)
 		end
 	end
 end
 
 
 function slmod.weapons_impacting_in_moving_zones_net(init_units, zone_units, radius, weapons, flag, stopflag)   
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if not slmod.typeCheck({{'string', 'table_s'}, {'string', 'table_s'}, 'number', {'string', 'table_s'}, 'number', {'number', 'nil'}}, {init_units, zone_units, radius, weapons, flag, stopflag}) then
 		slmod.error('invalid variable type in slmod.weapons_impacting_in_moving_zones_net', true)
@@ -2299,7 +2338,7 @@ function slmod.weapons_impacting_in_moving_zones_net(init_units, zone_units, rad
 		net.dostring_in('server', 'slmod.add_to_track_weapons_for_byname(' .. slmod.oneLineSerialize(checks_tbl) .. ', true)')
 		if stopflag ~= -1 then
 			-- start the checker for stopflag.
-			slmod.scheduleFunction(slmod.weapons_in_zones_checker, {checks_tbl, stopflag}, net.get_model_time() + 1)
+			slmod.scheduleFunction(slmod.weapons_in_zones_checker, {checks_tbl, stopflag}, DCS.getModelTime() + 1)
 		end
 
 	end
@@ -2307,6 +2346,9 @@ end
 
 
 function slmod.weapons_in_zones_net(init_units, zones, weapons, flag, stopflag, zone_type)   
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if not slmod.typeCheck({{'string', 'table_s'}, {'string', 'table_s'}, {'table_s', 'string'}, 'number', {'number', 'nil'}, {'string', 'nil'}}, {init_units, zones, weapons, flag, stopflag, zone_type}) then
 		slmod.error('invalid variable type in slmod.weapons_in_zones_net', true)
@@ -2373,7 +2415,7 @@ function slmod.weapons_in_zones_net(init_units, zones, weapons, flag, stopflag, 
 		net.dostring_in('server', 'slmod.add_to_track_weapons_for_byname(' .. slmod.oneLineSerialize(checks_tbl) .. ', true)')
 		if stopflag ~= -1 then
 			-- start the checker for stopflag.
-			slmod.scheduleFunction(slmod.weapons_in_zones_checker, {checks_tbl, stopflag}, net.get_model_time() + 1)
+			slmod.scheduleFunction(slmod.weapons_in_zones_checker, {checks_tbl, stopflag}, DCS.getModelTime() + 1)
 		end
 
 	end
@@ -2381,6 +2423,9 @@ end
 
 
 function slmod.weapons_in_moving_zones_net(init_units, zone_units, radius, weapons, flag, stopflag, zone_type)   
+	if stopflag == '' then
+		stopflag = nil
+	end
 	-- do some type checking to be safe...
 	if not slmod.typeCheck({{'string', 'table_s'}, {'string', 'table_s'}, 'number', {'string', 'table_s'}, 'number', {'number', 'nil'}, {'string', 'nil'}}, {init_units, zone_units, radius, weapons, flag, stopflag, zone_type}) then
 		slmod.error('invalid variable type in slmod.weapons_in_moving_zones_net', true)
@@ -2441,7 +2486,7 @@ function slmod.weapons_in_moving_zones_net(init_units, zone_units, radius, weapo
 		net.dostring_in('server', 'slmod.add_to_track_weapons_for_byname(' .. slmod.oneLineSerialize(checks_tbl) .. ', true)')
 		if stopflag ~= -1 then
 			-- start the checker for stopflag.
-			slmod.scheduleFunction(slmod.weapons_in_zones_checker, {checks_tbl, stopflag}, net.get_model_time() + 1)
+			slmod.scheduleFunction(slmod.weapons_in_zones_checker, {checks_tbl, stopflag}, DCS.getModelTime() + 1)
 		end
 
 	end
@@ -2621,6 +2666,7 @@ function slmod.reset()
 		slmod.create_SlmodAdminMenu()
 	end
 	
+    slmod.loadPingExemptList()
 	slmod.create_getUnitAttributes()
 	slmod.makeUnitAttributesTable()
 	slmod.makeUnitCategories()
@@ -2628,17 +2674,28 @@ function slmod.reset()
 	--slmod.save_var('net', 'unitCategories.txt', slmod.unitCategories, 'slmod.unitCategories')
 
 	if slmod.stats.reset then  -- if this function doesn't exist, then slmod stats are completely disabled.
-		slmod.stats.reset()
-		slmod.stats.resetStatsFile()
-		slmod.stats.createGetStatsUnitInfo()
-		slmod.stats.create_weaponIsActive()
-		slmod.stats.create_unitIsStationary()
-		slmod.stats.create_unitIsAlive()
-		slmod.stats.trackFlightTimes()  -- start tracking times.
-		slmod.create_SlmodStatsMenu()
-		
+        slmod.stats.reset()
+        slmod.stats.resetFile()
+        slmod.stats.createGetStatsUnitInfo()
+        slmod.stats.create_weaponIsActive()
+        slmod.stats.create_unitIsStationary()
+        slmod.stats.create_unitIsAlive()
+        slmod.stats.trackFlightTimes()  -- start tracking times.
+        slmod.stats.trackMissionTimes()
+        slmod.create_SlmodStatsMenu()
+
 		slmod.stats.onMission()
+		
+
 	end
+    
+    if slmod.config.autoAdmin.forgiveEnabled or slmod.config.autoAdmin.punishEnabled then
+        slmod.createPunishForgiveMenu()
+    end
+    
+    if slmod.create_SlmodVoteMenu then
+        slmod.create_SlmodVoteMenu()
+    end
 	
 	if slmod.create_SlmodMOTDMenu then
 		slmod.create_SlmodMOTDMenu()
@@ -2655,7 +2712,31 @@ function slmod.reset()
 	----------------------------------------------------
 	
 	slmod.reset_randseed()
+    
+    --[[
+    for id, _x in pairs(slmod.clients) do
+        if net.get_name(id) and net.get_player_info(id, 'ucid') then -- check if client is still there, otherwise clear it
+            
+        end
+    end
+    
+    ]]
+    
+    
+	local curClients = 0
+    local curList = net.get_player_list()
+	for id, dat in pairs(net.get_player_list()) do
+		curClients = curClients + 1
 
+        if (slmod.clients[id] and slmod.clients[id].ucid ~= net.get_player_info(id, 'ucid')) or not slmod.clients[id] then
+            slmod.clients[id] = {id = id, addr = net.get_player_info(id, 'ipaddr'), name = net.get_player_info(id, 'name'), ucid = net.get_player_info(id, 'ucid'), ip = net.get_player_info(id, 'ipaddr')}
+        end
+	end
+	if slmod.num_clients and slmod.num_clients ~= curClients then
+		slmod.info('Reset Num Clients')
+		slmod.num_clients = curClients
+	end
+	
 end
 
 slmod.info('SlmodLibs.lua loaded.')

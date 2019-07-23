@@ -1,75 +1,4 @@
 if slmod.config.MOTD_enabled then
-
-	local function is_BC(name)  -- I probably need to make this a global function in SlmodUtils, I use it three times ALREADY...
-		local BC_names = {'artillery_commander_blue_', 'instructor_blue_', 'forward_observer_blue_', 'observer_blue_', 'artillery_commander_red_', 'instructor_red_', 'forward_observer_red_', 'observer_red_' } -- fill with the names for all battle commander slots.
-		if type(name) == 'string' and name ~= '' then
-			for ind, BC_name in pairs(BC_names) do
-				if name:find(BC_name) then
-					return true
-				end
-			end
-		end
-		return false
-	end
-
-	local chatKeyByModule = {
-		['A-10A'] = '`/~ (the "tilde key")',
-		['CA'] = '`/~ (the "tilde key")',
-		['A-10C'] = 'RCtrl + M',
-		['F-15C'] = '`/~ (the "tilde key")',
-		['Ka-50'] = 'Tab',
-		['Mi-8MT'] = 'Tab',
-		['Mi-8MTV2'] = 'Tab',
-		['MiG-29A'] = '`/~ (the "tilde key")',
-		['MiG-29G'] = '`/~ (the "tilde key")',
-		['MiG-29S'] = '`/~ (the "tilde key")',
-		['P-51D'] = 'RCtrl + M',
-		['Su-25'] =  '`/~ (the "tilde key")',
-		['Su-25T'] =  '`/~ (the "tilde key")',
-		['Su-27'] = '`/~ (the "tilde key")',
-		['Su-33'] = '`/~ (the "tilde key")',
-		['UH-1H'] = 'Tab',
-	}
-	
-	local function getChatKey(id) -- id is client id.
-		if id then
-			local side, unitId = net.get_unit(id)  -- get side and unitId
-			if unitId then -- if in a unit.
-				if is_BC(unitId) then  -- if it is a CA slot
-					return chatKeyByModule['CA']
-				else -- not a CA slot.
-					unitId = tonumber(unitId)
-					if unitId and unitId > 0 then
-						local unitName = tostring(net.get_unit_property(unitId, 3))  -- get Unit's ME name
-						if unitName then
-							local unitData = slmod.allMissionUnitsByName[unitName]
-							if unitData then
-								local typeName = unitData.objtype
-								if typeName and chatKeyByModule[typeName] then
-									return chatKeyByModule[typeName]
-								else
-									slmod.warning('MOTD: Unable to get chat key for client ' .. tostring(id).. ', reason: no default chat key found for typeName ' .. tostring(typeName))
-								end
-							else
-								slmod.warning('MOTD: Unable to get chat key for unitName ' .. slmod.basicSerialize(unitName) .. ', reason: unit not in mission!')
-							end
-						else
-							slmod.warning('MOTD: Unable to get chat key for client ' .. tostring(id).. ', reason: no unitName')
-						end
-					else
-						slmod.warning('MOTD: Unable to get chat key for client ' .. tostring(id).. ', reason: invalid unitId.')
-					end
-				end
-			else
-				slmod.warning('MOTD: Unable to get chat key for client ' .. tostring(id).. ', reason: no unitId.')
-			end
-		else
-			slmod.warning('MOTD: Unable to get chat key for client ??, reason: no client id.')
-		end
-	end
-
-
-
 	
 	function slmod.create_SlmodMOTDMenu()
 		
@@ -232,13 +161,19 @@ if slmod.config.MOTD_enabled then
 				--title =  title ..'You are registered as a server admin.  Say "-admin" in chat to access the Admin menu.'
 			end
 			
-			local chatKey = getChatKey(clientId)
-			if chatKey then
-				titleTbl[#titleTbl + 1] = '\n(The default US keystroke for chat in your module is: '
-				titleTbl[#titleTbl + 1] = chatKey
-				titleTbl[#titleTbl + 1] = '.)'
-				--title = title .. '\n(The default keystroke for chat in your selected module (on US keyboards) is: ' .. chatKey .. '.)'
-			end
+
+            titleTbl[#titleTbl + 1] = '\n(The default US keystroke for chat in your module is: Tab.)'
+
+            if slmod.config.autoAdmin.showPenaltyInMODT and slmod.clients[clientId] then
+                local pp = slmod.getUserScore(slmod.clients[clientId].ucid) or 0
+                if pp == 0 then
+                    titleTbl[#titleTbl + 1] ='\n You have no active penalties!'
+                else
+                    titleTbl[#titleTbl + 1] = '\n You currently have: '
+                    titleTbl[#titleTbl + 1] = string.format("%.2f", tostring(pp))
+                    titleTbl[#titleTbl + 1] = ' penalty points.'
+                end
+            end
 			
 			self.options.title = table.concat(titleTbl) -- kinda a hax also- there is only one motd menu for everyone, but I change the title based on the last time it was requested...
 			

@@ -9,10 +9,10 @@ function slmod.debugScripts()
 			if coa_tbl["country"] then
 				for coun_key, coun_val in pairs(coa_tbl["country"]) do --do for all countries
 					for key, val in pairs(coun_val) do --open up country table
-						--print('key and val: ' .. tostring(key) .. ', ' .. tostring(val))
+						--net.log('key and val: ' .. tostring(key) .. ', ' .. tostring(val))
 						if type(val) == 'table' and val["group"] then -- found a group table for this country
 							for group_key, group in pairs(val["group"]) do --step through all the groups
-								--print('found group: ' .. group["name"])
+								--net.log('found group: ' .. group["name"])
 								if group["tasks"] and (#group["tasks"] > 0) then
 									for task_ind = 1, #group["tasks"] do
 										local task = group["tasks"][task_ind]  -- a task

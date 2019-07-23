@@ -1,4 +1,5 @@
 --Slmod Task Scheduler
+
 do
 	local Tasks = {}
 	
@@ -17,7 +18,7 @@ do
 		local i = 1
 		while i <= #Tasks do
 			if Tasks[i].t then -- task scheduled by model time
-				if Tasks[i].t <= net.get_model_time() then -- examine using model time!
+				if Tasks[i].t <= DCS.getModelTime() then -- examine using model time!
 					local Task = Tasks[i]  -- local reference
 					table.remove(Tasks, i) -- remove the task from the Tasks table
 					local err, errmsg = pcall(Task.f, unpack(Task.vars, 1, table.maxn(Task.vars)))
@@ -28,7 +29,7 @@ do
 					i = i + 1
 				end
 			else  -- task must have been scheduled by real time
-				if Tasks[i].rt <= net.get_real_time() then -- examine using real time rather than model time!
+				if Tasks[i].rt <= DCS.getRealTime() then -- examine using real time rather than model time!
 					local Task = Tasks[i]  -- local reference
 					table.remove(Tasks, i) -- remove the task from the Tasks table
 					--Task.f(unpack(Task.vars, 1, table.maxn(Task.vars)))
@@ -136,8 +137,8 @@ do
 
 	function slmod.repeat_dostring_in(env, s, interval) -- just overload slmod.schedule_dostring_in to accept a "repeat_inv" or something and this function can be eliminated.
 		net.dostring_in(env, s)
-		--print('slmod.repeat_dostring_in(\'' .. env .. '\', ' .. slmod.basicSerialize(s) .. ', ' .. tostring(interval) .. ')')
-		slmod.schedule_dostring_in('net', 'slmod.repeat_dostring_in(\'' .. env .. '\', ' .. slmod.basicSerialize(s) .. ', ' .. tostring(interval) .. ')', net.get_model_time() + interval)
+		--net.log('slmod.repeat_dostring_in(\'' .. env .. '\', ' .. slmod.basicSerialize(s) .. ', ' .. tostring(interval) .. ')')
+		slmod.schedule_dostring_in('net', 'slmod.repeat_dostring_in(\'' .. env .. '\', ' .. slmod.basicSerialize(s) .. ', ' .. tostring(interval) .. ')', DCS.getModelTime() + interval)
 		
 	end
 
@@ -149,15 +150,15 @@ do
 			while  tbl_ind <= #dostring_table do
 
 				if dostring_table[tbl_ind].modeltime ~= nil then
-					if dostring_table[tbl_ind].modeltime <= net.get_model_time() then  --time to do this string
+					if dostring_table[tbl_ind].modeltime <= DCS.getModelTime() then  --time to do this string
 						if dostring_table[tbl_ind].env == "net" then
-							--print('doing in net: ' .. dostring_table[tbl_ind].str)
+							--net.log('doing in net: ' .. dostring_table[tbl_ind].str)
 							local lstr = dostring_table[tbl_ind].str
 							table.remove(dostring_table, tbl_ind) --remove BEFORE running the code!!!!  Otherwise will error out, and just run the code against next pass!!!
 							tbl_ind = tbl_ind - 1
 							dostring(lstr)
 						elseif ((dostring_table[tbl_ind].env == "server") or (dostring_table[tbl_ind].env == "mission") or (dostring_table[tbl_ind].env == "export") or (dostring_table[tbl_ind].env == "config")) then
-							--print('doing in ' .. dostring_table[tbl_ind].env .. ': ' .. dostring_table[tbl_ind].str)
+							--net.log('doing in ' .. dostring_table[tbl_ind].env .. ': ' .. dostring_table[tbl_ind].str)
 							
 							local lstr = dostring_table[tbl_ind].str
 							local lenv = dostring_table[tbl_ind].env
@@ -210,9 +211,9 @@ function slmod.create_in_export(fs, msg)
 	if load_success == false then
 		slmod.warning('unable to load ' .. tostring(msg) .. ' into export, scheduling reattempt.')
 		if msg == nil then
-			slmod.schedule_dostring_in('net', 'slmod.create_in_export([==========[' .. fs .. ']==========])', net.get_model_time() + 0.1)
+			slmod.schedule_dostring_in('net', 'slmod.create_in_export([==========[' .. fs .. ']==========])', DCS.getModelTime() + 0.1)
 		elseif type(msg) == 'string' then
-			slmod.schedule_dostring_in('net', 'slmod.create_in_export([==========[' .. fs .. [[]==========], ']] .. msg .. [[')]], net.get_model_time() + 0.1)
+			slmod.schedule_dostring_in('net', 'slmod.create_in_export([==========[' .. fs .. [[]==========], ']] .. msg .. [[')]], DCS.getModelTime() + 0.1)
 		end
 	else
 		slmod.info('successfully loaded (name = ' .. tostring(msg) .. ') function into export.')	
@@ -346,7 +347,7 @@ function slmod.serialize(name, value, level)
 
 		  end
 	  else
-		print("Cannot serialize a "..type(value))
+		net.log("Cannot serialize a "..type(value))
 	  end
 	  return var_str_tbl
 	end
@@ -455,7 +456,7 @@ function slmod.oneLineSerialize(tbl) -- serialization on a single line, no comme
 				tbl_str[#tbl_str + 1] = slmod.oneLineSerialize(val)
 				tbl_str[#tbl_str + 1] = ', '
 			else
-				print('slmod: slmod.oneLineSerialize: unable to serialize value type ' .. slmod.basicSerialize(type(val)) .. ' at index ' .. tostring(ind))
+				net.log('slmod: slmod.oneLineSerialize: unable to serialize value type ' .. slmod.basicSerialize(type(val)) .. ' at index ' .. tostring(ind))
 			end
 		
 		end
@@ -608,7 +609,7 @@ function slmod.tableprint(tbl, loc, indent, tableshow_tbls) --based on slmod.ser
 	indent = indent or ""
 	if type(tbl) == 'table' then --function only works for tables!
 
-		print(indent .. '{')
+		net.log(indent .. '{')
 		
 		for ind,val in pairs(tbl) do -- serialize its fields
 			local line = ''
@@ -620,21 +621,21 @@ function slmod.tableprint(tbl, loc, indent, tableshow_tbls) --based on slmod.ser
 					
 			if ((type(val) == 'number') or (type(val) == 'boolean')) then
 				line = line .. tostring(val) .. ','
-				print(line)
+				net.log(line)
 			elseif type(val) == 'string' then
 				line = line .. slmod.basicSerialize(val) .. ','
-				print(line)
+				net.log(line)
 			elseif type(val) == 'nil' then -- won't ever happen, right?
 				line = line .. 'nil,'
-				print(line)
+				net.log(line)
 			elseif type(val) == 'table' then
 				if tableshow_tbls[val] then
 					line = line .. tostring(val) .. ' already defined: ' .. tableshow_tbls[val] .. ','
-					print(line)
+					net.log(line)
 				else
 					tableshow_tbls[val] = loc ..  '[' .. slmod.basicSerialize(ind) .. ']'
 					line = line .. tostring(val) .. ' '
-					print(line)
+					net.log(line)
 					slmod.tableprint(val,  loc .. '[' .. slmod.basicSerialize(ind).. ']', indent .. '    ', tableshow_tbls)
 				end
 			elseif type(val) == 'function' then
@@ -643,27 +644,27 @@ function slmod.tableprint(tbl, loc, indent, tableshow_tbls) --based on slmod.ser
 					local info = debug.getinfo(val, "S")
 					if info.what == "C" then
 						line = line .. string.format('%q', fcnname .. ', C function') .. ','
-						print(line)
+						net.log(line)
 					else 
 						if (string.sub(info.source, 1, 2) == [[./]]) then
 							line = line .. string.format('%q', fcnname .. ', defined in (' .. info.linedefined .. '-' .. info.lastlinedefined .. ')' .. info.source) ..','
-							print(line)
+							net.log(line)
 						else
 							line = line .. string.format('%q', fcnname .. ', defined in (' .. info.linedefined .. '-' .. info.lastlinedefined .. ')') ..','
-							print(line)
+							net.log(line)
 						end
 					end
 					
 				else
 					line = line .. 'a function,'
-					print(line)
+					net.log(line)
 					
 				end
 			else
-				print('slmod: slmod.tableprint: unable to serialize value type ' .. slmod.basicSerialize(type(val)) .. ' at index ' .. tostring(ind))
+				net.log('slmod: slmod.tableprint: unable to serialize value type ' .. slmod.basicSerialize(type(val)) .. ' at index ' .. tostring(ind))
 			end
 		end
-		print(indent .. '},')
+		net.log(indent .. '},')
 	end
 end
 
@@ -719,7 +720,7 @@ function slmod.getUnitByName(name)
 end	
 
 function slmod.flagIsTrue(flag)
-	if flag > 0 then
+	if tonumber(flag) > 0 then
 		local ret_str, ret_bool = net.dostring_in('mission', 'return tostring(c_flag_is_true(' .. tostring(flag) .. '))')
 		if ret_bool then
 			if ret_str == 'true' then
@@ -741,23 +742,17 @@ function slmod.typeCheck(type_tbl, var_tbl)
 	if ((type(type_tbl) == 'table') and (type(var_tbl) == 'table')) then
 		for type_tbl_ind = 1, #type_tbl do
 			if type(type_tbl[type_tbl_ind]) == 'table' then
-
 				local one_passed_check = false
-							
 				for j = 1, #type_tbl[type_tbl_ind] do
-					
 					local passed_type_tbl
 					local passed_var_tbl
 					if ((type_tbl[type_tbl_ind][j] == 'table_s') or (type_tbl[type_tbl_ind][j] == 'table_n')) then
-
 						passed_type_tbl = {type_tbl[type_tbl_ind][j]}
 						passed_var_tbl = {var_tbl[type_tbl_ind]}
 					else
 						passed_type_tbl = type_tbl[type_tbl_ind][j]
 						passed_var_tbl = var_tbl[type_tbl_ind]
 					end
-
-					
 					if slmod.typeCheck(passed_type_tbl, passed_var_tbl) then 
 						one_passed_check = true
 					end
@@ -800,13 +795,8 @@ function slmod.typeCheck(type_tbl, var_tbl)
 			elseif type(var_tbl[type_tbl_ind]) ~= type_tbl[type_tbl_ind] then
 				check_passed = false
 			end
-		
 		end
 	elseif type(var_tbl) ~= type_tbl then
-		--print(var_tbl)
-		--print(type(var_tbl))
-		--print(type_tbl)
-		--print('type(var_tbl) ~= type_tbl')
 		check_passed = false
 	end
 	return check_passed
@@ -867,15 +857,15 @@ function slmod.basicChat(msg, coa)  --new internal function for generating chat,
 		destcoa = 2
 	end
 	
-	local side = net.get_unit(1) 
+	local side = net.get_player_info(1, 'side')
 	if ((destcoa == 0) or ((type(side) == 'number') and (side == destcoa))) then
 		net.recv_chat(msg)  -- send to host
 	end
 	
 	for i = 2, 200 do  --hopefully client index never gets above 200!  I guess there is not a table of clients anywhere, at least, I can't find it! This is kinda sloppy, maybe I need to log client indexes as they connect so I know for sure what the max index is?
-		local side = net.get_unit(i)
+		local side = net.get_player_info(i, 'side')
 		if ((destcoa == 0) or ((type(side) == 'number') and (side == destcoa))) then
-			net.send_chat(msg, i, i)
+			net.send_chat_to(msg, i, i)
 		end
 	end	
 end
@@ -885,7 +875,7 @@ function slmod.basicChatRepeat(msg, numtimes, interval, coa)  --new internal fun
 	slmod.basicChat(msg, coa)
 	numtimes = numtimes - 1
 	while numtimes > 0 do
-		slmod.scheduleFunction(slmod.basicChat, {msg, coa}, net.get_model_time() + numtimes*interval)
+		slmod.scheduleFunction(slmod.basicChat, {msg, coa}, DCS.getModelTime() + numtimes*interval)
 		numtimes = numtimes - 1
 	end
 end
@@ -913,7 +903,8 @@ function slmod.clientInScope(client_id, scope)
 	local client_unitname
 	local client_coa 
 	do
-		local side, unit_id = net.get_unit(client_id)
+		local side = net.get_player_info(client_id, 'side')
+		local unit_id = net.get_player_info(client_id, 'slot')
 		if side then
 			if tonumber(side) == 0 then
 				client_coa = 'spec'
@@ -926,8 +917,8 @@ function slmod.clientInScope(client_id, scope)
 		if unit_id then
 			unit_id = tonumber(unit_id)
 			if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
-				client_rtid = net.get_unit_property(unit_id, 1)
-				client_unitname = net.get_unit_property(unit_id, 3)
+				client_rtid = DCS.getUnitProperty(unit_id, 1)
+				client_unitname = DCS.getUnitProperty(unit_id, 3)
 			end
 		end
 	end
@@ -972,16 +963,16 @@ function slmod.scopeChat(msg, scope, numtimes, interval)  --new internal functio
 	end
 	
 	for i = 2, 200 do  -- at some point, I may need to revisit this assumption about clients id not getting higher than 200.. there is no clients table at the moment- make one?
-		if slmod.clientInScope(i, scope) then
-			net.send_chat(msg, i, i)
+		if slmod.clients[i] and slmod.clientInScope(i, scope) then
+			net.send_chat_to(msg, i, 1)
 		end
 	end
 	
 	if numtimes and interval then --repeat chat message
 		numtimes = numtimes - 1
 		while numtimes > 0 do
-			--slmod.scheduleFunction(slmod.scopeChat, {msg, scope}, net.get_model_time() + numtimes*interval)
-			slmod.scheduleFunctionByRt(slmod.scopeChat, {msg, scope}, net.get_real_time() + numtimes*interval) -- now using realtime.
+			--slmod.scheduleFunction(slmod.scopeChat, {msg, scope}, DCS.getModelTime() + numtimes*interval)
+			slmod.scheduleFunctionByRt(slmod.scopeChat, {msg, scope}, DCS.getRealTime() + numtimes*interval) -- now using realtime.
 			numtimes = numtimes - 1
 		end
 	end
@@ -1037,7 +1028,6 @@ function slmod.scopeMsg(text_out, display_time, display_mode, scope)   --display
 	if ((display_mode ~= 'chat') and (display_mode ~= 'echo') and (display_mode ~= 'both') and (display_mode ~= 'text')) then
 		display_mode = 'echo'  --force to echo mode
 	end
-
 	local nl_start, nl_end = text_out:find('\n', 1)
 		
 	if ((display_mode == 'text') or (display_mode == 'both') or (display_mode == 'echo')) then
@@ -1100,8 +1090,8 @@ function slmod.scopeMsg(text_out, display_time, display_mode, scope)   --display
 			for msg_counter = 1,numlines do
 				msg_string = lines[msg_counter]
 				for i = 1, numtimes_each do
-					slmod.scheduleFunctionByRt(slmod.scopeChat, {msg_string, scope}, net.get_real_time() + msg_time) -- now using realtime.
-					--slmod.scheduleFunction(slmod.scopeChat, {msg_string, scope}, net.get_model_time() + msg_time)
+					slmod.scheduleFunctionByRt(slmod.scopeChat, {msg_string, scope}, DCS.getRealTime() + msg_time) -- now using realtime.
+					--slmod.scheduleFunction(slmod.scopeChat, {msg_string, scope}, DCS.getModelTime() + msg_time)
 					msg_time = msg_time + intvl_each
 				end
 			end		
@@ -1131,11 +1121,11 @@ end
 slmod.coord = {}  
 
 function slmod.coord.MGRStoLL(MGRS) --net env gateway to server function slmod.coord.MGRStoLL
-	--print(slmod.oneLineSerialize(MGRS))
+	--net.log(slmod.oneLineSerialize(MGRS))
 	local ret_str, ret_err = net.dostring_in('server', 'return slmod.oneLineSerialize(slmod.coord.MGRStoLL(' .. slmod.oneLineSerialize(MGRS) .. '))')
-	--print('returned string and error from server for MGRStoLL:')
-	--print(ret_str)
-	--print(ret_err)
+	--net.log('returned string and error from server for MGRStoLL:')
+	--net.log(ret_str)
+	--net.log(ret_err)
 	if ret_err and type(ret_str) == 'string' then -- successful
 		local coords = slmod.deserializeValue('coords = ' .. ret_str)
 		if type(coords) == 'table' then
@@ -1159,13 +1149,13 @@ function slmod.coord.MGRStoBR(MGRS, refpoint) --net env gateway to server functi
 end
 
 function slmod.coord.LLtoMGRS(LL) --net env gateway to server function slmod.coord.LLtoMGRS
-	-- print('type LL:')
-	-- print(type(LL))
-	-- print(LL.lat)
-	-- print(LL.lon)
+	-- net.log('type LL:')
+	-- net.log(type(LL))
+	-- net.log(LL.lat)
+	-- net.log(LL.lon)
 	local ret_str, ret_err = net.dostring_in('server', 'return slmod.oneLineSerialize(slmod.coord.LLtoMGRS(' .. slmod.oneLineSerialize(LL) .. '))')
-	-- print('returned string:')
-	-- print(ret_str)
+	-- net.log('returned string:')
+	-- net.log(ret_str)
 	if ret_err and type(ret_str) == 'string' then -- successful
 		local coords = slmod.deserializeValue('coords = ' .. ret_str)
 		if type(coords) == 'table' then
@@ -1270,10 +1260,10 @@ function slmod.coord.tostring(coords) --converts Slmod-format coords into a stri
 end
 
 function slmod.create_coord()
-
 	local coord_string = [=[-- Server functions ---------------
+
 if not coord.LOtoMGRS then
-	print('creating coord.LOtoMGRS')
+	--slmod.info('creating coord.LOtoMGRS')
 	coord.LOtoMGRS = function(point) -- creating the missing one.
 		local lat, lon = coord.LOtoLL(point)	
 		return coord.LLtoMGRS(lat, lon)	
@@ -1281,7 +1271,7 @@ if not coord.LOtoMGRS then
 end
 
 if not coord.LLtoMGRS then
-	print('creating coord.LLtoMGRS')
+	--slmod.info('creating coord.LLtoMGRS')
 	coord.LLtoMGRS = function(lat, lon) -- creating the missing one.
 		local LL = {}
 		LL.lat = lat
@@ -1392,7 +1382,6 @@ end
 ----------------------------------]=]
 
 	local ret_str, ret_err = net.dostring_in('server', coord_string)
-
 end
 
 
@@ -1477,30 +1466,76 @@ function slmod.doStringIn(s, env) -- dostring in a table.  Does not pass back th
 	end
 end
 
-
+function slmod.getSlotFromMultCrew(multId)
+    if type(multId) == 'string' then
+        if string.find(multId, '%d+') then
+            local s, e = string.find(multId, '%d+')
+            local seatS, seatE = string.find(multId, '%d+', e+1)
+            if s and e then
+                if seatS and seatE then
+                    return string.sub(multId, s, e), string.sub(multId, seatS, seatE)
+                end
+                --slmod.info('seatS and seatE missing')
+                return string.sub(multId, s, e)
+            end
+        end	
+    end
+end
 
 function slmod.getClientRtId(client_id)
-	local side, unit_id = net.get_unit(client_id)
-	if unit_id then
-		unit_id = tonumber(unit_id)
-		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
-			return net.get_unit_property(unit_id, 1)
+	--slmod.info('getClientRtId')
+	if slot_id and slot_id ~= ''  then
+        if type(slot_id) == 'string' and (slot_id == '' or string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then
+			--net.log('client is on spectators or CA slot')
+			return 0
 		end
+        local seat = 0
+		if not tonumber(slot_id) then
+            slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
+		end
+		slot_id = tonumber(slot_id)
+        seat = tonumber(seat)
+		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
+			return DCS.getUnitProperty(slot_id, 1), seat
+		end
+	end
+end
+
+function slmod.getClientUnitId(client_id)
+    local slot_id = net.get_player_info(client_id, 'slot')
+	if slot_id and slot_id ~= '' and not (string.find(slot_id, 'red') or string.find(slot_id, 'blue'))then
+        local seat = 0
+		if (not tonumber(slot_id)) then
+			slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
+		end
+		if (tonumber(slot_id) and tonumber(slot_id) > 0) or string.find(slot_id, 'red') or string.find(slot_id, 'blue') then
+            seat = tonumber(seat)
+            if slot_id then  --making sure it successfully converted, and it's a reasonable value
+                return DCS.getUnitProperty(slot_id, 2), seat
+            end
+        end
 	end
 end
 
 function slmod.getClientUnitName(client_id)
-	local side, unit_id = net.get_unit(client_id)
-	if unit_id then
-		unit_id = tonumber(unit_id)
-		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
-			return net.get_unit_property(unit_id, 3)
+	--slmod.info('getClientUnitName')
+    local slot_id = net.get_player_info(client_id, 'slot')
+	if slot_id and slot_id ~= '' and not (string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then
+        local seat = 0
+		if (not tonumber(slot_id)) then
+			slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
 		end
+		if (tonumber(slot_id) and tonumber(slot_id) > 0) or string.find(slot_id, 'red') or string.find(slot_id, 'blue') then
+            seat = tonumber(seat)
+            if slot_id then  --making sure it successfully converted, and it's a reasonable value
+                return DCS.getUnitProperty(slot_id, 3), seat
+            end
+        end
 	end
 end
 
 function slmod.getClientSide(client_id)
-	local side, unit_id = net.get_unit(client_id)
+	local side = net.get_player_info(client_id, 'side')
 	if side then
 		side = tonumber(side)
 		if side == 0 then
@@ -1515,15 +1550,18 @@ end
 
 
 function slmod.getClientGroupId(client_id)
-	local side, unit_id = net.get_unit(client_id)
-	if unit_id then
-		if type(unit_id) == 'string' and (unit_id == '' or string.find(unit_id, 'red') or string.find(unit_id, 'blue')) then
-			--print('client is on spectators or CA slot')
+    local slot_id = net.get_player_info(client_id, 'slot')
+	if slot_id and slot_id ~= '' then
+		if type(slot_id) == 'string' and (slot_id == '' or string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then
+			--net.log('client is on spectators or CA slot')
 			return "No Id"
 		end
-		unit_id = tonumber(unit_id)
-		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
-			return net.get_unit_property(unit_id, 6)
+		if not tonumber(slot_id) then
+			slot_id = slmod.getSlotFromMultCrew(slot_id)
+		end
+		slot_id = tonumber(slot_id)
+		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
+			return DCS.getUnitProperty(slot_id, 6)
 		end
 	end
 end
@@ -1537,12 +1575,21 @@ function slmod.getGroupIdByUnitName(unitname)
 	end
 end
 
-function slmod.getClientNameAndRtId(client_id)
-	local side, unit_id = net.get_unit(client_id)
-	if unit_id then
-		unit_id = tonumber(unit_id)
-		if unit_id and unit_id > 0 then  --making sure it successfully converted, and it's a reasonable value
-			return net.get_unit_property(unit_id, 3), net.get_unit_property(unit_id, 1)
+function slmod.getClientNameAndRtId(client_id) -- unit name and RTID. CA slots dont have a unit name
+	--slmod.info('getClientNameAndRtId')
+    local slot_id = net.get_player_info(client_id, 'slot')
+    local seat 
+	if slot_id and slot_id ~= '' and not (string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then
+		if (not tonumber(slot_id)) then
+			slot_id, seat = slmod.getSlotFromMultCrew(slot_id)
+		end
+        if not seat then 
+            seat = 1
+        end
+		slot_id = tonumber(slot_id)
+       
+		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
+            return DCS.getUnitProperty(slot_id, 3), DCS.getUnitProperty(slot_id, 1), seat
 		end
 	end
 end

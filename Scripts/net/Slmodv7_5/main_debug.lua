@@ -1,4 +1,4 @@
-print('Loading main.lua')
+net.log('Loading main.lua')
 -- insert this script before you use dofile
 function dofile(fname) -- replaces the old dofile with a new version that will actually report errors.
 	local f = io.open(fname, 'r')
@@ -9,18 +9,18 @@ function dofile(fname) -- replaces the old dofile with a new version that will a
 			if func then
 				local bool, err = pcall(func)
 				if not bool then
-					print('dofile error: runtime error: ' .. err)
+					net.log('dofile error: runtime error: ' .. err)
 				else
-					print('Successfully loaded ' .. fname)
+					net.log('Successfully loaded ' .. fname)
 				end
 			else
-				print('dofile error: syntax error in file "' .. fname .. '", error: ' .. err) -- if the loadstring failed, err is the error message.
+				net.log('dofile error: syntax error in file "' .. fname .. '", error: ' .. err) -- if the loadstring failed, err is the error message.
 			end
 		else
-			print('dofile error: unable to read file "' .. fname .. '"!') -- I donno if this would ever happen...
+			net.log('dofile error: unable to read file "' .. fname .. '"!') -- I donno if this would ever happen...
 		end
 	else
-		print('dofile error: unable to open file "' .. fname .. '" for reading!')
+		net.log('dofile error: unable to open file "' .. fname .. '" for reading!')
 	end
 end
 
@@ -52,7 +52,7 @@ gettext = require("i_18n")
 lfs = require("lfs")
 if not lfs.writedir then lfs.writedir = function() return "./" end end
 
-log = log or function(str) print(str) end
+log = log or function(str) net.log(str) end
 -- loaded once on start
 
 local scripts_dir = "./Scripts/net/"

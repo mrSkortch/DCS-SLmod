@@ -62,11 +62,11 @@ POSMenu = {
 				playername = net.get_name(client_id)
 				
 				--donno why I was using this old code below... the above method is vastly easier
-				-- local side, unit_id = net.get_unit(client_id)
+				-- local side, unit_id = net.get_slot(client_id)
 				-- unit_id = unit_id or -1
 				-- unit_id = tonumber(unit_id)
 				-- if unit_id and unit_id > 0 then		
-					-- local name = net.get_unit_property(unit_id, 14)
+					-- local name = DCS.getUnitProperty(unit_id, 14)
 					-- if type(name) == 'string' and name ~= '' then
 						-- playername = name
 					-- end
@@ -74,7 +74,7 @@ POSMenu = {
 				
 			end
 			--slmod.scopeMsg(playername .. ' selected option ' .. tostring(self.option_num) .. ', "' .. self.plain_description .. '"', 5, 'chat', self:getMenu().scope)   -- don't do msg out yet, otherwise the confirmation text will come BEFORE the chat command to do the menu item.
-			slmod.scheduleFunctionByRt(slmod.scopeMsg, {playername .. ' selected option ' .. tostring(self.option_num) .. ', "' .. self.plain_description .. '"', 5, 'chat', self:getMenu().scope}, net.get_real_time() + 0.1)
+			slmod.scheduleFunctionByRt(slmod.scopeMsg, {playername .. ' selected option ' .. tostring(self.option_num) .. ', "' .. self.plain_description .. '"', 5, 'chat', self:getMenu().scope}, DCS.getRealTime() + 0.1)
 		end
 		self:addItem(SlmodMenuItem.create(vars))
 	end,

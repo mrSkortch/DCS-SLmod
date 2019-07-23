@@ -2,13 +2,25 @@ Slmod- multiplayer server mod for new mission logic functionality
 =========
 Server adminstation and mission functionality mod for Digital Combat Simulator
 
+
+Author: Speed, Grimes
+DCS 2.5+ Compatibility Thread: https://forums.eagle.ru/showthread.php?t=155563
+
+Original Forum Thread: http://forums.eagle.ru/showthread.php?t=80979
+=======
 Author: Speed
 
 Forum Thread: http://forums.eagle.ru/showthread.php?t=80979
 
+
 Documentation
 ====
 The attached pdf "slmodvX_Y.pdf" is attached in the download. 
+
+
+Note that the source file for the pdf is not available, thus it will not be updated. 
+
+=======
 
 Description
 ===
@@ -20,7 +32,7 @@ Slmod also includes the Slmod Admin Menu. This menu allows registered server adm
 
 Using the data acquired through SlmodStats, Slmod can auto-kick or auto-ban players for team hitting, team-killing, team-collision-hitting, and/or team-collision-killing. This feature is encompassed in the new SlmodAutoAdmin system, and is highly customizable. For more on this feature see the SlmodAutoAdmin section of this manual.
 
-Slmod accomplishes enhanced mission scripting capabilities by adding several dozen new Lua functions to the ìMission Scriptingî Lua environment. These new Lua functions provide capabilities to detect game world conditions that are undetectable with traditional triggers, allow increased client interaction with the game environment, and to output dynamic trigger text messages or chat messages. The function listing and how to use them can be found in the Slmod Scripting Functions Listing section of this manual.
+Slmod accomplishes enhanced mission scripting capabilities by adding several dozen new Lua functions to the ‚ÄúMission Scripting‚Äù Lua environment. These new Lua functions provide capabilities to detect game world conditions that are undetectable with traditional triggers, allow increased client interaction with the game environment, and to output dynamic trigger text messages or chat messages. The function listing and how to use them can be found in the Slmod Scripting Functions Listing section of this manual.
 
 In addition, Slmod also adds the following features:
 - a help menu

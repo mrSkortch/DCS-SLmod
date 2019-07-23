@@ -1,6 +1,7 @@
 function slmod.create_getMissionUnitData()  --creates function to get all the mission units in a mission
-	local v6MissionUnitData_string = [==[slmod = slmod or {}
+	local v7MissionUnitData_string = [==[slmod = slmod or {}
 function slmod.getMissionUnitData()   --new import mission data function for Slmodv6.
+	
 	local miz_units_tbl = {}
 	miz_units_tbl[#miz_units_tbl + 1] = '{\n'
 	
@@ -46,6 +47,8 @@ function slmod.getMissionUnitData()   --new import mission data function for Slm
 											
 											miz_units_tbl[#miz_units_tbl + 1] = '					["name"] = ' --five tabs inside a group
 											miz_units_tbl[#miz_units_tbl + 1] = slmod.basicSerialize(group_data.name)
+											
+											
 											miz_units_tbl[#miz_units_tbl + 1] = ',\n'
 											
 											miz_units_tbl[#miz_units_tbl + 1] = '					["groupId"] = ' --five tabs inside a group
@@ -105,7 +108,7 @@ function slmod.getMissionUnitData()   --new import mission data function for Slm
 	
 end]==]
 
-	local str, err = net.dostring_in('mission', v6MissionUnitData_string)
+	local str, err = net.dostring_in('mission', v7MissionUnitData_string)
 	if not err then
 		slmod.error('failed to load slmod.getMissionUnitData into mission environment, reason: ' .. tostring(str))
 	end
@@ -121,30 +124,39 @@ function slmod.makeMissionUnitData()
 		slmod.allMissionUnitsByName = {}  -- just a listing of all missionUnitData by name.
 		
 		local lUnitsBase = slmod.activeUnitsBase -- just a local reference, easier to write.
-		--slmod.info(slmod.tableshow(slmod.missionUnitData))
 		
+
 		--Now, copy data from missionUnitData into the activeUnitsBase
 		for coaName, coa in pairs(slmod.missionUnitData) do
 			for countryName, country in pairs(coa) do
 				for unitType, groups in pairs(country) do
 					if type(groups) == 'table' then 
 						for groupInd, group in pairs(groups) do
+							if group.units[1] then
+								local ref = slmod.missionUnitData[coaName][countryName][unitType][groupInd]
+								ref.name =  DCS.getUnitProperty(group.units[1].unitId, 7)
+								for unitInd, unit in pairs(group.units) do
+									ref.units[unitInd].name = DCS.getUnitProperty(unit.unitId, 3)
+									ref.units[unitInd].group = ref.name
+								end
+							end
+							
 							if type(group) == 'table' then -- index 4 to end
 								for unitInd, unit in pairs(group.units) do
 									local newUnit = {}
 									newUnit['coalition'] = coaName
-									newUnit['name'] = unit.name
+									newUnit['name'] = DCS.getUnitProperty(unit.unitId, 3)
 									newUnit['unitId'] = unit.unitId
 									newUnit['mpname'] = unit.name --at least, for now.
 									newUnit['objtype'] = unit.type
-									newUnit['group'] = group.name
+									newUnit['group'] = DCS.getUnitProperty(unit.unitId, 7)
 									newUnit['groupId'] = group.groupId
 									newUnit['category'] = unit.category
 									newUnit['skill'] = unit.skill
 									newUnit['countryName'] = countryName
 									newUnit['countryId'] = country.country_id_num
 									
-									slmod.allMissionUnitsByName[unit.name] = newUnit
+									slmod.allMissionUnitsByName[newUnit.name] = newUnit
 									if unitType ~= 'static' then
 										lUnitsBase[#lUnitsBase + 1] = newUnit -- create new entry in the activeUnits base
 									end
@@ -163,7 +175,7 @@ function slmod.makeMissionUnitData()
 		-- local miz_units_file = io.open(lfs.writedir() .. [[Logs\]] .. 'v6_mission_units.txt', 'w')
 		-- miz_units_file:write(slmod.serialize('slmod.missionUnitData', slmod.missionUnitData))
 		-- miz_units_file:close()
-		--print(mission_units[50].name)
+		--net.log(mission_units[50].name)
 		
 		
 	else
@@ -571,7 +583,7 @@ slmod.clientsByName -- same as above, indexed by unitName, does not include CA/s
 
 In main simulation:
 
-slmod.clients -- should be the same as slmod.clientsByName.
+slmod.clientsMission -- should be the same as slmod.clientsByName, renamed because I was confused. 
 
 ]]
 
@@ -579,6 +591,7 @@ slmod.clients -- should be the same as slmod.clientsByName.
 --this goes in SlmodUnits after every new slmod.activeUnits table is created.
 function slmod.updateClients()  --net function, updates clients in the server environment- provides ME name/id_ pairs.
 	-- save old data, could need it.
+
 	if slmod.clients then
 		slmod.oldClients = slmod.deepcopy(slmod.clients)
 	end
@@ -594,7 +607,7 @@ function slmod.updateClients()  --net function, updates clients in the server en
 	local serverSlmodClients = {}
 	for id, client in pairs(slmod.clients) do   -- key and client should be same in this case.
 		client['coalition'] = slmod.getClientSide(id)
-		local name, rtid = slmod.getClientNameAndRtId(id)
+		local name, rtid, seatId = slmod.getClientNameAndRtId(id)
 		if name and rtid and rtid ~= '' and name ~= '' then
 			rtid = tonumber(rtid)
 			if rtid > 0 then
@@ -602,17 +615,24 @@ function slmod.updateClients()  --net function, updates clients in the server en
 				client['unitName'] = name  -- add unitName and rtid to slmod.clients.
 				client['rtid'] = rtid
 								-- add to clientsByRtId
-				slmod.clientsByRtId[rtid] = client
-				slmod.clientsByName[name] = client
+                              
+				if not slmod.clientsByRtId[rtid] then
+                    slmod.clientsByRtId[rtid]= {}
+                end
+                slmod.clientsByRtId[rtid][seatId] = client
+				if not slmod.clientsByName[name] then
+                    slmod.clientsByName[name] = {}
+                end
+                slmod.clientsByName[name][seatId] = client
 			end
 		else
 			-- erase in case old data is still there.
 			client['rtid'] = nil
 			client['unitName'] = nil
-			--print('Slmod warning: unable to retrieve runtime id and/or ME unit name for client number ' .. tostring(key))  --remove this line in final versions.  Normal if client is not in a unit.
+			--net.log('Slmod warning: unable to retrieve runtime id and/or ME unit name for client number ' .. tostring(key))  --remove this line in final versions.  Normal if client is not in a unit.
 		end
 	end
-	local s = table.concat({'slmod = slmod or {}\n', 'slmod.clients = ', slmod.oneLineSerialize(serverSlmodClients)})
+	local s = table.concat({'slmod = slmod or {}\n', 'slmod.clientsMission = ', slmod.oneLineSerialize(serverSlmodClients)})
 	
 	local str, err = net.dostring_in('server', s)
 	if not err then
@@ -622,7 +642,7 @@ end
 
 
 function slmod.checkSlmodClients()  -- global function- checks for errors in slmod.clients... experimental.
-	slmod.scheduleFunctionByRt(slmod.checkSlmodClients, {}, net.get_real_time() + 60)
+	slmod.scheduleFunctionByRt(slmod.checkSlmodClients, {}, DCS.getRealTime() + 60)
 	for i = 2, 250 do  -- arbitrarily up to 250.
 		local name = net.get_name(i)
 		if name then  -- client exists
@@ -683,7 +703,7 @@ function slmod.getUnitXYZ(rtId)
 				--						x											y												z                                   
 			end
 		end
-	elseif not err then
+	elseif slmod.config.export_world_objs and not err then
 		slmod.info('Error trying to do slmod.getUnitXYZ: ' .. tostring(str))
 	end
 end
@@ -708,7 +728,7 @@ function slmod.updateActiveUnits()  -- the coroutine to update active units tabl
 		for unitInd = 1, #slmod.activeUnitsBase do
 			local unit = slmod.activeUnitsBase[unitInd]
 
-			local rtId = net.get_unit_property(unit.unitId, 1)
+			local rtId = DCS.getUnitProperty(unit.unitId, 1)
 			if rtId then
 				local x, y, z = slmod.getUnitXYZ(rtId)
 				
@@ -721,7 +741,7 @@ function slmod.updateActiveUnits()  -- the coroutine to update active units tabl
 					activeUnit.y = y
 					activeUnit.z = z
 					if activeUnit.skill == 'Client' or activeUnit.skill == 'Player' then
-						activeUnit.mpname = net.get_unit_property(unit.unitId, 14)
+						activeUnit.mpname = DCS.getUnitProperty(unit.unitId, 14)
 					end
 					
 				end
@@ -786,9 +806,9 @@ function slmod_mem_ls(s)  --The slmod version of mem_loadstring, made especially
 		-- for k, v in pairs(ls_res) do
 			-- ls_res_size = ls_res_size + #k
 		-- end
-		-- print('the size of loadstring_res is:')
-		-- print(ls_res_size)
-		-- print('\n')
+		-- net.log('the size of loadstring_res is:')
+		-- net.log(ls_res_size)
+		-- net.log('\n')
 					
 		-- memoize_c = 0
 	-- end

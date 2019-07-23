@@ -85,6 +85,14 @@ do
 			if slmod.config.coord_converter and slmod.ConvMenu then
 				title = title..'- Slmod Coordinate Conversion Utility (' .. tostring(#slmod.ConvMenu:getItems()) .. ' items), show by saying "-conv" in chat.\n'
 			end
+            
+            if slmod.config.autoAdmin.forgiveEnabled or slmod.config.autoAdmin.forgiveEnabled then
+               title = title..'- Slmod Forgive/Punish (' .. tostring(#SlmodForgivePunishMenu:getItems()) .. ' items), show by saying "-forgive" or "-punish" in chat. \n'
+            end
+            
+            if slmod.config.voteConfig.enabled then
+               title = title..'- Slmod Voting (' .. tostring(#SlmodVoteMenu:getItems()) .. ' items), show by saying "-vote" in chat. \n'
+            end
 			
 			local clientPOS
 			local clientSide = slmod.getClientSide(clientId)
