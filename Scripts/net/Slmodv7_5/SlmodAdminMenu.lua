@@ -53,10 +53,12 @@ do
 					slmod.exemptAll = slmod.exemptAll or {}
                     slmod.exemptPing = slmod.exemptPing or {}
 					slmod.exemptAutoAdmin = slmod.exemptAutoAdmin or {}
+                    slmod.exemptMOTD = slmod.exemptMOTD or {}
 				else
 					slmod.exemptAll = safe_env['slmod_exempt_all'] or {}
                     slmod.exemptPing = safe_env['slmod_exempt_ping'] or {}
 					slmod.exemptAutoAdmin = safe_env['slmod_exempt_autoAdmin'] or {}
+                    slmod.exemptMOTD = safe_env['slmod_exempt_MOTD'] or {}
 					slmod.info('using exempt ucids as defined in ' .. config_dir .. 'ExemptClients.lua')
 				end
 			else
@@ -68,7 +70,7 @@ do
 			slmod.exemptAll = slmod.exemptAll or {}
             slmod.exemptPing = slmod.exemptPing or {}
 			slmod.exemptAutoAdmin = slmod.exemptAutoAdmin or {}
-			
+			slmod.exemptMOTD = slmod.exemptMOTD or {}
 			slmod.update_exempt_clients() -- creates the file.
 		end
 	end
@@ -108,8 +110,8 @@ do
         slmod.exemptAll = slmod.exemptAll or {}
         slmod.exemptPing = slmod.exemptPing or {}
         slmod.exemptAutoAdmin = slmod.exemptAutoAdmin or {}
-        
-        local file_s = slmod.serialize('slmod_exempt_all', slmod.exemptAll) .. '\n\n' .. slmod.serialize('slmod_exempt_ping', slmod.exemptPing) .. '\n\n' .. slmod.serialize('slmod_exempt_autoAdmin', slmod.exemptAutoAdmin)
+        slmod.exemptMOTD = slmod.exemptMOTD or {}
+        local file_s = slmod.serialize('slmod_exempt_all', slmod.exemptAll) .. '\n\n' .. slmod.serialize('slmod_exempt_ping', slmod.exemptPing) .. '\n\n' .. slmod.serialize('slmod_exempt_autoAdmin', slmod.exemptAutoAdmin).. slmod.serialize('slmod_exempt_MOTD', slmod.exemptMOTD)
 
 		local exempt_f = io.open(config_dir .. 'ExemptClients.lua', 'w')
 		if exempt_f then

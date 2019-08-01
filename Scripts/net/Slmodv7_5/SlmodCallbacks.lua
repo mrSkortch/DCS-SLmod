@@ -513,7 +513,7 @@ function slmodCall.onPlayerChangeSlot(id)
 	end
 
     if SlmodMOTDMenu then  -- right now, simple MOTD- send it to player when they select unit.
-        if slmod.clients[id] and (not slmod.clients[id].motdTime or DCS.getRealTime() - slmod.clients[id].motdTime > 5) then
+        if slmod.clients[id] and (not (slmod.clients[id].motdTime or DCS.getRealTime() - slmod.clients[id].motdTime > 5) or (slmod.exemptMOTD[slmod.clients[id].ucid] or slmod.exemptAll[slmod.clients[id].ucid])) then
             slmod.clients[id].motdTime = DCS.getRealTime()
             slmod.scheduleFunctionByRt(SlmodMOTDMenu.show, {SlmodMOTDMenu, id, {clients = {id}}}, DCS.getRealTime() + 0.1)
         end
