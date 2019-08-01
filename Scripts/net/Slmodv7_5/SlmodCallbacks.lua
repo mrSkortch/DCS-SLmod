@@ -509,7 +509,7 @@ end
 function slmodCall.onPlayerChangeSlot(id)
 	--net.log('on change slot')
 	if slmod.stats.onSetUnit then
-			slmod.stats.onSetUnit(id)
+		slmod.stats.onSetUnit(id)
 	end
 
     if SlmodMOTDMenu then  -- right now, simple MOTD- send it to player when they select unit.

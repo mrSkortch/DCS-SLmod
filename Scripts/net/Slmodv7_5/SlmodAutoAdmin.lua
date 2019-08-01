@@ -4,6 +4,7 @@ do
 	]]
 
 	local stats = slmod.stats.getStats()
+    local penStats = slmod.stats.getPenStats()
 	local autoAdmin = slmod.config.autoAdmin
     local delayedPenalty = {}
     local affirmativeTKConsent = {}
@@ -37,6 +38,10 @@ do
             end
         end
         return
+    end
+    
+    function slmod.resetConsent()
+        affirmativeTKConsent = {}
     end
 	
 	local function checkedKick(id, ucid, kickMsg)  -- kick with verification of kicked player Ucid.
@@ -136,7 +141,7 @@ do
 			end
 			
 		
-			local pStats = stats[ucid]
+			local pStats = penStats[ucid]
             local d = {penalties = {[1] = {time = math.huge, type = 'ERASEME'}}, misc = {}}
             --[[
             penalties = {[1] = {type = teamHit, player = {if applicable}, time, pointsAdded, expireTime}}
@@ -386,7 +391,7 @@ do
 				
 				-- Now factor in flight hours
 				local totHours = 0
-				for name, time in pairs(pStats.times) do
+				for name, time in pairs(stats[ucid].times) do
 					if time.inAir then
 						totHours = totHours + time.inAir
 					end
@@ -427,24 +432,24 @@ do
 	
 	function slmod.autoAdminOnConnect(ucid) -- this called from the server.on_connect callback.
 		if ucid and autoAdmin.autoBanEnabled and (not slmod.isAdmin(ucid)) and (not autoAdmin.exemptionList[ucid]) then  -- there BETTER BE a ucid. Oh and Admins are exempt from this check.
-			local pStats = slmod.stats.getUserStats(ucid)
+			local pStats = slmod.stats.getUserPenStats(ucid)
             if pStats then  --previous player..
 				local score = autoAdminScore(ucid)
 				if score then
 					if pStats.autoBanned then -- player was already autoBanned
 						if autoAdmin.reallowLevel and score < autoAdmin.reallowLevel then
 							-- allow player.  "Unban" them too.
-							slmod.stats.changeStatsValue(stats[ucid], 'autoBanned', false)
+							slmod.stats.changePenStatsValue(penStats[ucid], 'autoBanned', false)
 							return true  -- allow connection
 						end
 					end
 					if score > autoAdmin.autoBanLevel then
 						if not pStats.autoBanned then  -- set autoBanned true if wasn't already.
-							slmod.stats.changeStatsValue(stats[ucid], 'autoBanned', true)
+							slmod.stats.changePenStatsValue(penStats[ucid], 'autoBanned', true)
 							
 							-- also, if it wasn't true already, then he probably wasn't autoBanned before, and he should be, so set the numTimesAutoBanned field to 1
 							if not pStats.numTimesAutoBanned then  -- make sure first...
-								slmod.stats.changeStatsValue(stats[ucid], 'numTimesAutoBanned', 1)
+								slmod.stats.changePenStatsValue(penStats[ucid], 'numTimesAutoBanned', 1)
 							end
 						end
 						--slmod.info('AutoAdmin: refusing connection for player with ucid "' .. ucid .. '", player is autobanned.')
@@ -470,15 +475,15 @@ do
                     local score = autoAdminScore(client.ucid)
                     --slmod.info('score: ' .. tostring(score))
                     if score and score > autoAdmin.autoBanLevel then  -- player gets autoBanned.
-                        slmod.stats.changeStatsValue(stats[client.ucid], 'autoBanned', true) -- set as banned.
+                        slmod.stats.changePenStatsValue(penStats[client.ucid], 'autoBanned', true) -- set as banned.
                         
                         local numTimesBanned
-                        if stats[client.ucid].numTimesAutoBanned then
-                            numTimesBanned = stats[client.ucid].numTimesAutoBanned + 1
+                        if penStats[client.ucid].numTimesAutoBanned then
+                            numTimesBanned = penStats[client.ucid].numTimesAutoBanned + 1
                         else
                             numTimesBanned = 1
                         end
-                        slmod.stats.changeStatsValue(stats[client.ucid], 'numTimesAutoBanned', numTimesBanned)  --increment the number of times the player has been banned
+                        slmod.penStats.changePenStatsValue(penStats[client.ucid], 'numTimesAutoBanned', numTimesBanned)  --increment the number of times the player has been banned
                         
                         -- kicking...
                         if client.rtid then  -- attempt to despawn client.
@@ -636,7 +641,7 @@ do
                             else -- choice was to forgive him
                                 for k = 1, #offData.offender do 
                                     local oUCID = offData.offender[k].ucid
-                                    local pStats = slmod.stats.getUserStats(oUCID)
+                                    local pStats = slmod.stats.getUserPenStats(oUCID)
                                     if pStats and autoAdmin and (autoAdmin.autoBanEnabled or autoAdmin.autoKickEnabled or autoAdmin.autoSpecEnabled) and offData.canForgive then
                                         local curTime = os.time()
                                         -- score team hits
@@ -647,7 +652,7 @@ do
                                                 if action.human then 
                                                     for v = 1, #action.human do
                                                         if action.human[v] and vByUCID[action.human[v]] and curTime - offData.canForgive < action.time and (not action.forgiven) then
-                                                            slmod.stats.changeStatsValue(stats[oUCID].friendlyHits[hitInd], 'forgiven', true)
+                                                            slmod.stats.changePenStatsValue(penStats[oUCID].friendlyHits[hitInd], 'forgiven', true)
                                                         end
                                                     end
                                                 end
@@ -659,7 +664,7 @@ do
                                                 if action.human then 
                                                     for v = 1, #action.human do
                                                         if action.human[v] and vByUCID[action.human[v]] and curTime - offData.canForgive < action.time and (not action.forgiven) then
-                                                            slmod.stats.changeStatsValue(stats[oUCID].friendlyKills[kilInd], 'forgiven', true)
+                                                            slmod.stats.changePenStatsValue(penStats[oUCID].friendlyKills[kilInd], 'forgiven', true)
                                                         end
                                                     end
                                                 end
@@ -671,7 +676,7 @@ do
                                                 if action.human then 
                                                     for v = 1, #action.human do
                                                         if action.human[v] and vByUCID[action.human[v]] and curTime - offData.canForgive < action.time and (not action.forgiven) then
-                                                        slmod.stats.changeStatsValue(stats[oUCID].friendlyCollisionHits[hitInd], 'forgiven', true)
+                                                        slmod.stats.changePenStatsValue(penStats[oUCID].friendlyCollisionHits[hitInd], 'forgiven', true)
                                                         end
                                                     end
                                                 end
@@ -683,7 +688,7 @@ do
                                                 if action.human then 
                                                     for v = 1, #action.human do
                                                         if action.human[v] and vByUCID[action.human[v]] and curTime - offData.canForgive < action.time and (not action.forgiven) then
-                                                        slmod.stats.changeStatsValue(stats[oUCID].friendlyCollisionKills[hitInd], 'forgiven', true)
+                                                        slmod.stats.changePenStatsValue(penStats[oUCID].friendlyCollisionKills[hitInd], 'forgiven', true)
                                                         end
                                                     end
                                                 end

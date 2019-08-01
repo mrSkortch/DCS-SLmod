@@ -1355,7 +1355,8 @@ do
             if slmod.config.autoAdmin.autoBanLevel then
                 msg[#msg+1] = '    Auto Spec Level: '
                 msg[#msg+1] = slmod.config.autoAdmin.autoBanLevel
-            end            
+            end
+             
 			for key, val in pairs(slmod.clients) do -- skips host
 				if val.id and val.id ~= 1 then
                     local score = slmod.getUserScore(val.ucid)
@@ -1414,8 +1415,14 @@ do
 			slmod.info('select admin user penalty score')
             if vars and vars.id then
                 local stats = slmod.stats.getStats()
+                slmod.info('iterate stats to find id')
+                local tStart = DCS.getRealTime()
+                local iter = 0
                 for ucid, pStats in pairs(stats) do -- this is inefficient- maybe I need to make a stats by id table.
-					if type(pStats) == 'table' and pStats.id and pStats.id == vars.id then  -- found the id#.
+					iter = iter + 1
+                    if type(pStats) == 'table' and pStats.id and pStats.id == vars.id then  -- found the id#.
+                        slmod.info('found, took: ' .. iter .. ' attempts in '.. DCS.getRealTime() - tStart)
+                        
                         local score, d = slmod.getUserScore(ucid, true)
                         local msg = slmod.playerPenaltyScoreDisplay(d, score, {id = vars.id, name = pStats.names[#pStats.names]})
                         slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg, 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
@@ -1428,6 +1435,114 @@ do
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminGetUserPenaltyScore)  -- add the item into the items table.
+        
+        local statCleanupTbls = {'friendlyHits', 'friendlyKills', 'friendlyCollisionHits', 'friendlyCollisionKills'}
+        local AdminCleanupPen = {}
+		AdminCleanupPen.menu = SlmodAdminMenu
+		AdminCleanupPen.description = 'Say in chat "-admin cleanup <time>" to initiate a stats cleanup. If Time is specified it will erase any penalties that are older than X days.'
+		AdminCleanupPen.active = true
+		AdminCleanupPen.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		AdminCleanupPen.selCmds = {
+				[1] = {
+					[1] = { 
+						type = 'word', 
+						text = '-admin',
+						required = true
+					}, 
+                    [2] = { 
+                        type = 'word',
+                        text = 'cleanup',
+                        required = true
+					},
+                    [3] = { 
+						type = 'number',
+						varname = 'days',
+						required = false
+                    }
+				}
+			} 
+		AdminCleanupPen.onSelect = function(self, vars, client_id)
+			slmod.info('select admin cleanup')
+            local stats = slmod.stats.getStats()
+            local penStats = slmod.stats.getPenStats()
+            local days = tonumber(vars.days) or 0
+            if days > 0 then 
+                days = math.abs(days*(24*3600))
+            end
+            slmod.info(days)
+            local curTime = os.time()
+            for ucid, lStats in pairs(stats) do -- this is inefficient- maybe I need to make a stats by id table.
+                local uPenStats = penStats[ucid]
+                local joinDate = lStats.joinDate or os.time()
+                local anyPens = false
+                for i = 1, #statCleanupTbls do
+                    if lStats[statCleanupTbls[i]] and #lStats[statCleanupTbls[i]] > 0 then
+                        anyPens = true
+                    end
+                end
+                if anyPens == true then -- player has old penalty stats
+                    if not uPenStats then -- need to create new penalty stats for the player
+                        slmod.stats.changePenStatsValue(penStats, ucid, {}) -- use old method because I don't care. 
+                        slmod.stats.changePenStatsValue(penStats[ucid], 'id' , lStats.id)
+                        slmod.stats.changePenStatsValue(penStats[ucid], 'names' , lStats.names)
+                        --slmod.stats.changePenStatsValue(penStats[ucid], 'joinDate' , joinDate)
+                       	slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyKills', {})
+                        slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyHits', {})
+                        slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyCollisionHits', {})
+                        slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyCollisionKills', {}) 
+                    end
+                    for index, cleanup in pairs(statCleanupTbls) do
+                        for p = 1, #lStats[cleanup] do
+                            slmod.stats.changePenStatsValue(penStats[ucid][cleanup], #penStats[ucid][cleanup]+1, lStats[cleanup][p])
+                        end
+                    end
+                end
+                --- insert days cleanup here. Iterate through each type, compare date. If older then throw it out.
+                -- Write indexes for each type
+                slmod.info('do cleanup penalties')
+                if uPenStats then 
+                    for _, cleanup in pairs(statCleanupTbls) do
+                        slmod.info(cleanup)
+                        if days > 0 and #uPenStats[cleanup] > 0 then
+                            local keep = {}
+                            local size = 0
+                            local anyErase = false
+                            slmod.info(cleanup .. ' size : ' .. #uPenStats[cleanup])
+                            for i = 1, #uPenStats[cleanup] do  
+                                size = size + 1
+                                if curTime > uPenStats[cleanup][i].time + days then -- event is older than specified days, erase it
+                                    anyErase = true
+                                    slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, nil)
+                                else
+                                    keep[#keep+1] = i
+                                end
+                            end
+                            slmod.info(#keep)
+                            if anyErase == true then
+                                for i = 1, #keep do -- overwrits values
+                                    local key = keep[i]
+                                    slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, penStats[ucid][cleanup][key])
+                                end
+                                for i = size, #keep + 1, -1 do -- erases old values
+                                    slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, nil)
+                                end
+                            end
+                            
+                        end
+                    end
+                    for i = 1, #statCleanupTbls do -- erase team kill info from normal stats
+                       if stats[ucid][statCleanupTbls[i]] then 
+                            slmod.stats.changeStatsValue(stats[ucid], statCleanupTbls[i], nil)
+                       end
+                    end
+                end
+            end
+            
+             
+			--slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+		end
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminCleanupPen)  -- add the item into the items table.
 
 		-----------------------------------------------------------------------------------------------
         
