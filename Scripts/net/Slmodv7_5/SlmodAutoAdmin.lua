@@ -571,7 +571,7 @@ do
             msg[#msg+1] = mData.id
         end
         msg[#msg+1] = '\n=======================\n'
-        msg[#msg+1] = 'Current Penalty Score: ' .. s
+        msg[#msg+1] = 'Current Penalty Score: ' .. string.format("%.3f", tostring(s))
         msg[#msg+1] = '\n=======================\n'
         msg[#msg+1] = 'Up to last 20 penalties\n'
         if d.penalties and #d.penalties > 0 then 

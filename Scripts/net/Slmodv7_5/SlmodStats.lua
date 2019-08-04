@@ -37,7 +37,6 @@ do
         local statData
         local envName = 'stats'
         if l == 'mission' then
-            slmod.info('mission')
             fileF = misStatsF
             if f then
                 fileName = '\\' .. f
@@ -128,7 +127,6 @@ do
         if not statData then
             statData = {}
         end
-        slmod.info('create file')
         if l == 'meta' then
             local newStatsS = slmod.serialize('metaStats', statData) ..'\n'
             fileF = io.open(lstatsDir .. fileName, 'w')
@@ -166,7 +164,6 @@ do
         statWrites = 0    
     end
     
-    slmod.info('after stats define')
 	-------------------------------------------------------------------------------------------------------
 	-- Create statsTableKeys database
     local statsTableKeys = {}  -- stores strings that corresponds to table indexes within stats... needed for updating file.
@@ -185,7 +182,6 @@ do
 		
 		makeStatsTableKeys('stats', stats)
 	end	
-    slmod.info('after stats define1')
 	------------------------------------------------------------------------------------------------------
 
     ----------------
@@ -193,7 +189,6 @@ do
     -- For all root entries for a player and changing actual values by advChangeStatsValue
 	-- t: the table in stats that this value belongs under
     function slmod.stats.changeStatsValue(t, key, newValue)
-		slmod.info('changeStatsValue')
         if not t then
 			slmod.error('Invalue stats table specified!')
 			return
@@ -208,26 +203,30 @@ do
         if statWrites > 1000 then
             recompileStats()
         end
-		slmod.info(statsChangeString)
+		--slmod.info(statsChangeString)
         --testWrite()
 	end
     
-    slmod.info('after stats define2')
     --[[AdvancedChangeStatsValue()
     New function meant to simplify how stats are added amoung multiple files and multicrew aircraft. 
     - Changes stats for multiple users in the same aircraft at the same time without having to do a whole set of code twice
     - Writes to stats, misStats, and anything else at the same time.
     
     ucid: string or table of UCID strings that stat is to apply to
-    nest: string or table of strings where table index that is to be written to
-    newValue: Value to be written ------ Change to "Add to value" Since the code assumes the value has been already created
-    default: if no value present then use that. Meant for creating table entries that are missing
-    aircraft: Aircraft typename which is used to add to an aircraft
+    nest: string or table of strings where table index that is to be written to. Use string 'typeName' to tell code to change the value to the actual typename for the passed players. 
+    addValue: Value that is added. Accepts table or single value as string/number. 
+    setValue: Sets To this value. Note: Does not accept tables, sets value to highest nest table entry. 
+    default: if no value present then use that. Meant for creating table entries that are missing. If not present defaults to empty table {}
+    typeName: Table matching ucid table indexes. For multicrew stats. 
+    penalty: Add to Penalty stats
     
+    Sample. Ejections can be added multiple ways. 
+    {nest = {'times', 'typeName', 'actions', 'losses', 'eject'}, addValue = 1}
+    {nest = {'times', 'typeName', 'actions', 'losses'}, addValue = {eject = 1}}
     ]]
 	
     function slmod.stats.advChangeStatsValue(vars)
-        slmod.info(slmod.oneLineSerialize(vars))
+        --slmod.info(slmod.oneLineSerialize(vars))
         local useUcid = {}
         local nest = vars.nest
         local addValue = vars.addValue
@@ -238,15 +237,12 @@ do
         else
             useUcid = vars.ucid
         end
-        slmod.info('iterate UCID')
         for j = 1, #useUcid do
-            slmod.info(j) 
             if stats[useUcid[j]] then
                 local lStats = stats[useUcid[j]]
                 if vars.penalty then -- add to penalty stats file
-                    slmod.info('penalty')
                     if not penStats[useUcid[j]] then -- create user pen stats
-                        slmod.info('create Pen stats')
+                        --slmod.info('create Pen stats')
                         slmod.stats.changePenStatsValue(penStats, useUcid[j], {}) -- use old method because I don't care. 
                         slmod.stats.changePenStatsValue(penStats[useUcid[j]], 'id' , lStats.id)
                         slmod.stats.changePenStatsValue(penStats[useUcid[j]], 'names' , lStats.names)
@@ -256,9 +252,7 @@ do
                         slmod.stats.changePenStatsValue(penStats[useUcid[j]], 'friendlyCollisionHits', {})
                         slmod.stats.changePenStatsValue(penStats[useUcid[j]], 'friendlyCollisionKills', {}) 
                     end
-                    slmod.info('adding to : ' .. nest)
-                    slmod.info(#penStats[useUcid[j]][nest])
-                   slmod.stats.changePenStatsValue(penStats[useUcid[j]][nest], #penStats[useUcid[j]][nest] + 1, addValue)
+                    slmod.stats.changePenStatsValue(penStats[useUcid[j]][nest], #penStats[useUcid[j]][nest] + 1, addValue)
                     
                 else
                     local mStats = misStats[useUcid[j]]
@@ -266,40 +260,31 @@ do
                     local mEntry = slmod.deepcopy(nest)
                     if type(nest) == 'table' then -- nest can be a string for root level or table for nested levels
                         for i = 1, #nest - 1 do
-                            slmod.info(i .. ' ' .. lEntry[i])
+                            --slmod.info(i .. ' ' .. lEntry[i])
                             if lEntry[i] == 'typeName' and typeName then
-                                slmod.info('assign typename')
                                 lEntry[i] = typeName[j]
                                 mEntry[i] = typeName[j]
                             end
                             if not lStats[lEntry[i]] then
-                                slmod.info('adding: ' .. tostring(lEntry[i]))
                                 slmod.stats.changeStatsValue(lStats, lEntry[i], {})
                             end
-                            slmod.info('reassign nest lStats')
                             lStats = lStats[lEntry[i]]
-                            
                             if slmod.config.enable_mission_stats then
                                 slmod.info(lEntry[i])
                                 if not mStats[mEntry[i]] then
-                                    slmod.info('adding to mStats: ' .. tostring(mEntry[i]))
                                     slmod.stats.changeMisStatsValue(mStats, tostring(mEntry[i]), {})
                                 end  
-                                slmod.info('reassign nest mStas')
                                 mStats = mStats[mEntry[i]]
                             end
                         end
                         lEntry = lEntry[#lEntry]
                         mEntry = mEntry[#mEntry]
                     end
-                    slmod.info('l: ' .. lEntry)
-                    slmod.info('m: ' .. mEntry)
                     if not lStats[lEntry] then -- if this table is not there, then it needs to create it!
-                        slmod.info(lEntry .. ' does not exist lStats')
                         slmod.stats.changeStatsValue(lStats, lEntry, default or {})
 
                     else
-                        slmod.info(lEntry .. ' exists')
+                        --slmod.info(lEntry .. ' exists')
                     end
                     
                     if slmod.config.enable_mission_stats then
@@ -308,31 +293,26 @@ do
                             if default then 
                                 mDefault = slmod.deepcopy(default)
                             end
-                            slmod.info(lEntry .. ' does not exist in Mission Stats')
                             slmod.stats.changeMisStatsValue(mStats, mEntry, mDefault or {})
                         end
                         -- insert code to create it in mission stats here because if it doesnt exist in main stats then it doesn't exist in mission stats
                     end
                     if addValue then 
                         if type(addValue) == 'table' then 
-                            slmod.info('new is table')
                             for index, value in pairs(addValue) do
-                                slmod.info(index .. ' : ' .. value)
                                 if lStats[lEntry][index] then
-                                    slmod.info('val is ' .. lStats[lEntry][index])
+                                    --slmod.info('val is ' .. lStats[lEntry][index])
                                     slmod.stats.changeStatsValue(lStats[lEntry], index, lStats[lEntry][index] + value)
                                 end
                                 if slmod.config.enable_mission_stats then
-                                    slmod.info(index .. ' : ' .. value)
-                                    slmod.info(slmod.oneLineSerialize(mStats))
                                     if mStats[mEntry][index] then 
-                                        slmod.info('mval is ' .. mStats[mEntry][index])
+                                        --slmod.info('mval is ' .. mStats[mEntry][index])
                                         slmod.stats.changeMisStatsValue(mStats[mEntry], index, mStats[mEntry][index] + value)
                                     end
                                 end
                             end
                         else    
-                            slmod.info(addValue .. ' is added to single val ' .. lEntry)
+                            --slmod.info(addValue .. ' is added to single val ' .. lEntry)
                             slmod.stats.changeStatsValue(lStats, lEntry, lStats[lEntry] + addValue)
                             if  slmod.config.enable_mission_stats then 
                                 slmod.stats.changeMisStatsValue(mStats, mEntry, mStats[mEntry] + addValue)
@@ -1106,11 +1086,9 @@ end]]
 	-- death logic
 	local function runDeathLogic(deadName)
 		if slmod.allMissionUnitsByName[deadName] then -- the dying unit should always be identified properly by name (not necessarily...could be Building).
-			slmod.info('running death Logic')
-            slmod.info(deadName)
             local deadCategory = slmod.allMissionUnitsByName[deadName].category 
 			local deadClient = slmod.clientsByName[deadName] or slmod.oldClientsByName[deadName]
-            slmod.info(slmod.oneLineSerialize(deadClient))
+            --slmod.info(slmod.oneLineSerialize(deadClient))
 			-- Find the object in SlmodStats categories
 			local deadObjType = slmod.allMissionUnitsByName[deadName].objtype
 			local deadStatsCat
@@ -1143,8 +1121,8 @@ end]]
 			local lastHitEvent = getHitData(deadName)
 			if lastHitEvent then  -- either a human died or an AI that was hit by a human died.
 				--local lastHitEvent = hitData[#hitData] --- at least FOR NOW, just using last hit!
-				slmod.info('lastHitEvent')
-                slmod.info(slmod.oneLineSerialize(lastHitEvent))
+				--slmod.info('lastHitEvent')
+                --slmod.info(slmod.oneLineSerialize(lastHitEvent))
                 
 				local hitObj = lastHitEvent.initiator
                 local hitObjType = 'unknown'
@@ -1154,11 +1132,8 @@ end]]
 				local weapon = lastHitEvent.weapon
                 local saveStat = {}
 				if slmod.clientsByRtId and slmod.clientsByRtId[lastHitEvent.rtid] or slmod.oldClientsByRtId[lastHitEvent.rtid] then
-                    slmod.info('valid RTID')                    
                     local ucid, typeName = {}, {}
                     for seat, data in pairs(lastHitEvent.initiator) do
-                        slmod.info(seat)
-                        slmod.info(data.ucid)
                         ucid[seat] = data.ucid
                         if seat > 1 then
                             typeName[seat] = multiCrewNameCheck(hitObjType, seat)
@@ -1264,10 +1239,6 @@ end]]
                         slmod.warning('SlmodStats- hitter (' .. tostring(hitObj) .. ') is not an SlmodClient, and dead unit (unitName = ' .. tostring(deadName) .. ') is not an SlmodClient!')
                     end
                 end    
-                
-                
-                
-			
 			elseif deadClient then  -- client died without being hit.
                 local saveStat = {}
                 local ucid, typeName = {}, {}
@@ -1391,7 +1362,7 @@ end]]
 			while #slmod.events >= eventInd do
 				local event = slmod.events[eventInd]
 				--slmod.info('checking ' .. eventInd)
-                slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
+                --slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
 				eventInd = eventInd + 1  -- increment NOW so if there is a Lua error, I'm not stuck forever on this event.
                 
                 
@@ -1602,7 +1573,6 @@ end]]
 							
 						end
 					elseif initName and event.initiatorPilotName and initName ~= event.initiatorPilotName then  -- almost certainly human, and ALIVE.
-						slmod.info('client fired shot')
 						initClient = slmod.clientsByRtId[event.initiatorID]
 						if initClient then
 							--initUCID = initClient.ucid
@@ -1624,7 +1594,6 @@ end]]
                         for seat, clientData in pairs(initClient) do
                             initSide = clientData.coalition
                         end
-                        slmod.info('human caused hit')
                         -- first, handle the case of nil weapon.  Happens due to a bug in DCS, and is very difficult to solve this bug fully.
                         -- for now, just assume that the weapon is the last weapon the human fired.
                         if (not weapon) and initName and humanShots[initName] then
@@ -1643,15 +1612,12 @@ end]]
                         
                         
                         if (not isCluster) or (isCluster and filterClusterHits(weapon, initName, tgtName, time)) then  -- count this hit, it's not a cluster hit or is a new cluster hit.
-                            slmod.info('check if weapon exists')
-                            if not stats[saveStat.ucid[1]].times[saveStat.typeName[1]].weapons[weapon] then
-                                slmod.info('add Weapon type')
+                             if not stats[saveStat.ucid[1]].times[saveStat.typeName[1]].weapons[weapon] then
                                 saveStat.default = {shot = 0, hit = 0, numHits = 0, kills = 0}
                                 saveStat.nest = {'times', 'typeName', 'weapons', weapon}
                                 slmod.stats.advChangeStatsValue(saveStat)
                             end
-                             slmod.info('end check')
-                            
+
                             if tgtSide and initSide then
                                 local saveToHit = {time = time, initiator = parseOutExtraClientData(initClient), weapon = weapon, shotFrom = initType, rtid = event.initiatorID}
                                 local tgtInfoForFHit = {[1] = {name = tgtName}}
@@ -1671,9 +1637,8 @@ end]]
                                     hitAIs[tgtName] = hitAIs[tgtName] or {}
                                     hitAIs[tgtName][#hitAIs[tgtName] + 1] = saveToHit
                                 end
-                                slmod.info(slmod.oneLineSerialize(saveToHit))
+                                
                                 if tgtSide ~= initSide then  -- hits on enemy units in here
-                                    slmod.info('here8')
                                     saveStat.default = {shot = 0, hit = 0, numHits = 0, kills = 0}
                                     saveStat.nest = {'times', 'typeName', 'weapons', weapon}
                                     saveStat.addValue = {}
@@ -1681,7 +1646,7 @@ end]]
                                     
                                     if (event.weaponID and trackedWeapons[event.weaponID]) or isGun == true then  -- this is the first time this weapon hit something.
                                         if isGun == false then
-                                            slmod.info('remove tracked weapon')
+                                            
                                             trackedWeapons[event.weaponID] = nil
                                         end
                                         saveStat.addValue.hit = 1
@@ -1691,7 +1656,6 @@ end]]
                                     
 
                                 else
-                                    slmod.info('teamkill')
                                     saveStat.penalty = true 
                                     if weapon == 'kamikaze' then
                                        saveStat.nest = 'friendlyCollisionHits'
@@ -1779,6 +1743,7 @@ end]]
                         if landedUnits[event.initiator] then
                             landedUnits[event.initiator] = nil
                         end
+                        -- iterate back up to 10 seconds to see if the player bounced
 					end
 				end
 				----------------------------------------------------------------------------------------------------------
@@ -1926,11 +1891,10 @@ end]]
 		]]
 
 		-- FUNCTION USUALLY EXPECTS A UCID.  However, overload it to directly accept a stats table!
-		slmod.info('basic stats')
+	
         if stats[ucid] or type(ucid) == 'table' then
 			local pStats
-            slmod.info('found stats')
-			if type(ucid) == 'string' then
+            if type(ucid) == 'string' then
 				if (not mode) or mode == 'server' then
 					pStats = stats[ucid]
 				elseif mode == 'mission' and slmod.config.enable_mission_stats and misStats then
@@ -1956,8 +1920,7 @@ end]]
                 local killList = {['Ground Units'] = 0, ['Planes'] = 0, ['Helicopters'] = 0, ['Ships'] = 0, ['Buildings'] = 0}
                 local pvp = {kills = 0, losses = 0}
                 local losses = 0 
-                slmod.info('add times')
-				for platform, times in pairs(pStats.times) do
+                for platform, times in pairs(pStats.times) do
 					totalTime = totalTime + times.total
                     if times.kills then
                         for cat, catData in pairs(times.kills) do
@@ -1988,7 +1951,6 @@ end]]
                 end
 				
 				sTbl[#sTbl + 1] = string.format('%.1f', totalTime/3600)
-				slmod.info('pvp stats')
 				sTbl[#sTbl + 1] = ' hours | PvP K/D: '
 				sTbl[#sTbl + 1] = tostring(pvp.kills)
 				sTbl[#sTbl + 1] = '/'
@@ -1996,7 +1958,6 @@ end]]
 				sTbl[#sTbl + 1] = ' | KILLS: Air = '
                 
                 local vehicleKills, planeKills, heloKills, shipKills, buildingKills = 0, 0, 0, 0 , 0
-                slmod.info('add old kills')
                 if pStats.kills then -- paranoia if people update stats without deleting old stats. 
                     vehicleKills = pStats.kills['Ground Units'].total or 0
                     planeKills = pStats.kills['Planes'].total or 0
@@ -2004,17 +1965,13 @@ end]]
                     shipKills = pStats.kills['Ships'].total or 0
                     buildingKills = pStats.kills['Buildings'].total or 0
                 end
-                slmod.info('add kills')
 				local airKills = killList.Planes + killList.Helicopters + (planeKills + heloKills)
-                slmod.info('add surf')
 				local surfaceKills = killList['Ground Units'] + killList.Ships + killList.Buildings + (vehicleKills + shipKills + buildingKills)
-                slmod.info('add friendly')
 				local friendlyKills =  0
 				if ppStats then
                     friendlyKills = #ppStats.friendlyKills
                 end
 
-				slmod.info('disp kills')
 				sTbl[#sTbl + 1] = tostring(airKills)
 				sTbl[#sTbl + 1] = ', Grnd/Sea = '
 				sTbl[#sTbl + 1] = tostring(surfaceKills)
@@ -2027,10 +1984,6 @@ end]]
 			end
 		end
 	end
-	
-	local function createACStats(ucid, mode, ac)
-    
-    end
 	
 	--Creates the detailed stats page(s).
 	local function createDetailedStats(ucid, mode, ac)
@@ -2064,7 +2017,6 @@ end]]
 			end
 				
 			if pStats then
-                slmod.info('stats found')
 				local p1Tbl = {}  -- faster to use table.concat.
 				p1Tbl[#p1Tbl + 1] = 'Stats for player: "'
 				p1Tbl[#p1Tbl + 1] = pStats.names[#pStats.names]
@@ -2082,7 +2034,6 @@ end]]
                 local killList = slmod.deepcopy(commonStatTbl)
                 local pvp = {kills = 0, losses = 0}
 				local losses = {crash = 0, eject = 0, pilotDeath = 0}
-                slmod.info('do aircraft')
 				for i = 1, #platforms do
 					local line = '                                                                                                                             \n'
 					line = stringInsert(line, platforms[i], 5)  -- insert platform name.
@@ -2103,7 +2054,6 @@ end]]
                             end
                         end                    
                     end
-                    slmod.info('add actions')
                     if pStats.times[platforms[i]].actions then 
                         if pStats.times[platforms[i]].actions.losses then
                             losses.eject = pStats.times[platforms[i]].actions.losses.eject + losses.eject
@@ -2117,7 +2067,6 @@ end]]
                     end
 				end
 				p1Tbl[#p1Tbl + 1] = '\nKILLS:\n     GROUND                PLANES                HELOS                 SHIPS             BUILDINGS\n'
-				slmod.info('iter kills')
                 if pStats.kills and not ac then -- new tables for this won't exist, add it to old list if applicable
                     for cat, catData in pairs(pStats.kills) do
                         if killList[cat] and type(catData) == 'table' then
@@ -2129,7 +2078,6 @@ end]]
                         end
                     end   
                 end
-                slmod.info('do strings')
 				local vehicleKillsStrings = makeKillsColumn(killList['Ground Units'])
 				local planeKillsStrings = makeKillsColumn(killList.Planes)
 				local heloKillsStrings = makeKillsColumn(killList.Helicopters)
@@ -2159,7 +2107,6 @@ end]]
 					maxSize = #buildingKillsStrings
 				end
 				
-				slmod.info('iter size')
 				for i = 1, maxSize do
 					--net.log(i)
 					local line = '                                                                                                                    \n'
@@ -2192,7 +2139,6 @@ end]]
 				end
 							
 				p1Tbl[#p1Tbl + 1] = '---------------------------------------------------------------------------------------------------------------------------\n'
-				slmod.info('add totals')
 				local totalsLine = 'TOTALS:                                                                                                             '
 				totalsLine = stringInsert(totalsLine, tostring(killList['Ground Units'].total), 10)
 				totalsLine = stringInsert(totalsLine, tostring(killList.Planes.total), 36)
@@ -2202,7 +2148,6 @@ end]]
 				p1Tbl[#p1Tbl + 1] = totalsLine
 				
                 local displayPenStats = penStats[pStats.ucid] or {friendlyHits = {}, friendlyKills = {}, friendlyCollisionHits = {}, friendlyCollisionKills = {}}
-				slmod.info('add pens')
 				p1Tbl[#p1Tbl + 1] = '\n\nFRIENDLY FIRE:\n              hits: '
 				p1Tbl[#p1Tbl + 1] = tostring(#displayPenStats.friendlyHits)
 				p1Tbl[#p1Tbl + 1] = ';        kills: '
@@ -2229,8 +2174,7 @@ end]]
 				p1Tbl[#p1Tbl + 1] = tostring(cKills)
 				p1Tbl[#p1Tbl + 1] = ';'
 				
-                slmod.info('add PVP')
-                if pStats.PvP and not ac then
+                 if pStats.PvP and not ac then
                     pvp.kills = pStats.PvP.kills + pvp.kills
                     pvp.losses = pStats.PvP.losses + pvp.losses
                 end
@@ -2259,25 +2203,19 @@ end]]
 				
 				local p2Tbl = {}
 				p2Tbl[#p2Tbl + 1] = 'WEAPONS DATA (Note- due to a bug in DCS, some weapon\'s hits cannot be properly counted for multiplayer clients.)\n'
-				slmod.info('weapon data')
 				-- sort weapons in alphabetical order
 				local weaponNames = {}
                 local weaponDat = {}
                 
 				for acName, acTbl in pairs(pStats.times) do
-                    slmod.info(acName)
-                    if (ac and ac == acName) or not ac then 
+                     if (ac and ac == acName) or not ac then 
                         if acTbl.weapons then 
-                            slmod.info('has weapons')
                             for wepName, wepData in pairs(acTbl.weapons) do
-                                
                                 if not weaponDat[wepName] then
-                                    slmod.info('add new: ' .. wepName)
                                     weaponDat[wepName] = wepData
                                     weaponNames[#weaponNames + 1] = wepName
                                 else
                                     for wepStat, wepVal in pairs(wepData) do
-                                        slmod.info(wepStat .. ' ' .. wepVal)
                                         weaponDat[wepName][wepStat] = weaponDat[wepName][wepStat] + wepVal
                                     end
                                 end
@@ -2285,15 +2223,12 @@ end]]
                         end
                     end
                 end
-                slmod.info('old weapons')
                 if pStats.weapons and not ac then -- fix weapon stats if information is available
                     for weaponName, weaponData in pairs(pStats.weapons) do
                         if not weaponDat[weaponName] then
-                            slmod.info('add old: ' .. weaponName)
                             weaponDat[weaponName] = weaponData
                             weaponNames[#weaponNames + 1] = weaponName
                         else
-                            slmod.info('exists, adding values')
                             for wepStat, wepVal in pairs(weaponData) do
                                 weaponDat[weaponName][wepStat] = weaponDat[weaponName][wepStat] + wepVal
                             end
@@ -2302,9 +2237,7 @@ end]]
                 end
                 
 				table.sort(weaponNames)  -- put in alphabetical order
-				slmod.info('weapon iter')
 				for i = 1, #weaponNames do
-                    slmod.info( weaponNames[i])
 					local line = '                                                                                                                     \n'
 					line = stringInsert(line, weaponNames[i], 1)
 					line = stringInsert(line, 'fired = ' .. tostring(weaponDat[weaponNames[i]].shot), 22)
