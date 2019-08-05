@@ -160,40 +160,32 @@ do
 					for hitInd = 1, #pStats.friendlyHits do
                         local hit = pStats.friendlyHits[hitInd]
                         local pen = 0
+                        local hu = false
 						if type(hit) == 'table' and hit.time and (not hit.forgiven) then -- I may be being obsessive-compulsive here...
                             local timeSince = toDays(curTime - hit.time)
 							local weight = getWeight(autoAdmin.teamHit.decayFunction, timeSince)
 							if hit.human then -- a human was hit
-								if not lastHumanHitTime or ((hit.time - lastHumanHitTime) > autoAdmin.teamHit.minPeriodHuman) then  -- count this hit
+								if not lastHumanHitTime or ((hit.time - lastHumanHitTime) >= autoAdmin.teamHit.minPeriodHuman) then  -- count this hit
 									lastHumanHitTime = hit.time
                                     pen = weight*autoAdmin.teamHit.penaltyPointsHuman
                                     score = score + pen
-									if detailed then 
-                                        for i = 1, #d.penalties do
-                                            if hit.time < d.penalties[i].time then
-                                               table.insert(d.penalties, i, {time = hit.time, type = 'teamHit', pointsAdded = pen, human = true, expireTime = autoAdmin.teamHit.decayFunction[#autoAdmin.teamHit.decayFunction].time - timeSince, weapon = hit.weapon})
-                                               break
-                                            end
-                                        end
-                                    end
+                                    hu = true
 								end
 							else
-                                if not lastAIHitTime or ((hit.time - lastAIHitTime) > autoAdmin.teamHit.minPeriodAI) then  -- count this hit
+                                if not lastAIHitTime or ((hit.time - lastAIHitTime) >= autoAdmin.teamHit.minPeriodAI) then  -- count this hit
                                     lastAIHitTime = hit.time
                                     pen = weight*autoAdmin.teamHit.penaltyPointsAI
                                     score = score + pen
-									if detailed then 
-                                        for i = 1, #d.penalties do
-                                            if hit.time < d.penalties[i].time then
-                                               table.insert(d.penalties, i, {time = hit.time, type = 'teamHit', pointsAdded = pen, human = false, expireTime = autoAdmin.teamHit.decayFunction[#autoAdmin.teamHit.decayFunction].time - timeSince, weapon = hit.weapon})
-                                               break
-                                            end
-                                        end
-                                    end
 								end
 							end
 						end
                         if detailed then
+                            for i = 1, #d.penalties do
+                                if hit.time <= d.penalties[i].time then
+                                   table.insert(d.penalties, i, {time = hit.time, type = 'teamHit', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamHit.decayFunction[#autoAdmin.teamHit.decayFunction].time - timeSince, weapon = hit.weapon})
+                                   break
+                                end
+                            end
                             if type(hit) == 'table' then 
                                 if pen > 0 then
                                     dStats.active = dStats.active + 1
@@ -217,41 +209,33 @@ do
 					for killInd = 1, #pStats.friendlyKills do
                         local kill = pStats.friendlyKills[killInd]
                         local pen = 0
+                        local hu = false
 						if type(kill) == 'table' and kill.time and (not kill.forgiven) then -- I may be being obsessive-compulsive here...
 							local timeSince = toDays(curTime - kill.time)
                             local weight = getWeight(autoAdmin.teamKill.decayFunction, timeSince)
 							if kill.human then -- a human was kill
 							--	slmod.info('killed human')
-								if not lastHumanKillTime or ((kill.time - lastHumanKillTime) > autoAdmin.teamKill.minPeriodHuman) then  -- count this kill
+								if not lastHumanKillTime or ((kill.time - lastHumanKillTime) >= autoAdmin.teamKill.minPeriodHuman) then  -- count this kill
 									lastHumanKillTime = kill.time
                                     pen = weight*autoAdmin.teamKill.penaltyPointsHuman
                                     score = score + pen
-									if detailed then 
-                                        for i = 1, #d.penalties do
-                                            if kill.time < d.penalties[i].time then
-                                               table.insert(d.penalties, i, {time = kill.time, type = 'teamKill', pointsAdded = pen, human = true, expireTime = autoAdmin.teamKill.decayFunction[#autoAdmin.teamKill.decayFunction].time - timeSince, weapon = kill.weapon})
-                                               break
-                                            end
-                                        end
-                                    end
+                                    hu = true
 								end
 							else
-                                if not lastAIKillTime or ((kill.time - lastAIKillTime) > autoAdmin.teamKill.minPeriodAI) then  -- count this kill
+                                if not lastAIKillTime or ((kill.time - lastAIKillTime) >= autoAdmin.teamKill.minPeriodAI) then  -- count this kill
 									lastAIKillTime = kill.time
                                     pen = weight*autoAdmin.teamKill.penaltyPointsAI
                                     score = score + pen
-									if detailed then 
-                                        for i = 1, #d.penalties do
-                                              if kill.time < d.penalties[i].time then
-                                               table.insert(d.penalties, i, {time = kill.time, type = 'teamKill', pointsAdded = pen, human = false, expireTime = autoAdmin.teamKill.decayFunction[#autoAdmin.teamKill.decayFunction].time  - timeSince, weapon = kill.weapon})
-                                               break
-                                            end
-                                        end
-                                    end
 								end
 							end
 						end
                         if detailed then
+                            for i = 1, #d.penalties do
+                                  if kill.time <= d.penalties[i].time then
+                                   table.insert(d.penalties, i, {time = kill.time, type = 'teamKill', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamKill.decayFunction[#autoAdmin.teamKill.decayFunction].time  - timeSince, weapon = kill.weapon})
+                                   break
+                                end
+                            end
                             if type(kill) == 'table' then 
                                 if pen > 0 then
                                     dStats.active = dStats.active + 1
@@ -271,6 +255,7 @@ do
 					--slmod.info('FF colision')
 					local lastAIColHitTime
 					local lastHumanColHitTime
+                    local hu = false
                     local dStats = {total = 0, active = 0, forgiven = 0}
 					for colHitInd = 1, #pStats.friendlyCollisionHits do
 						local colHit = pStats.friendlyCollisionHits[colHitInd]
@@ -280,36 +265,27 @@ do
 							local weight = getWeight(autoAdmin.teamCollisionHit.decayFunction, timeSince)
 							if colHit.human then -- a human was colHit
 								--slmod.info('colide human')
-								if not lastHumanColHitTime or ((colHit.time - lastHumanColHitTime) > autoAdmin.teamCollisionHit.minPeriodHuman) then  -- count this colHit
+								if not lastHumanColHitTime or ((colHit.time - lastHumanColHitTime) >= autoAdmin.teamCollisionHit.minPeriodHuman) then  -- count this colHit
 									lastHumanColHitTime = colHit.time
                                     pen = weight*autoAdmin.teamCollisionHit.penaltyPointsHuman
                                     score = score + pen
-									if detailed then 
-                                        for i = 1, #d.penalties do
-                                            if colHit.time < d.penalties[i].time then
-                                               table.insert(d.penalties, i, {time = colHit.time, type = 'teamCollisionHit', pointsAdded = pen, human = true, expireTime = autoAdmin.teamCollisionHit.decayFunction[#autoAdmin.teamCollisionHit.decayFunction].time - timeSince, weapon = colHit.weapon})
-                                               break
-                                            end
-                                        end
-                                    end
+                                    hu = true
 								end
 							else
-								if not lastAIColHitTime or ((colHit.time - lastAIColHitTime) > autoAdmin.teamCollisionHit.minPeriodAI) then  -- count this hit
+								if not lastAIColHitTime or ((colHit.time - lastAIColHitTime) >= autoAdmin.teamCollisionHit.minPeriodAI) then  -- count this hit
 									lastAIColHitTime = colHit.time
                                     pen = weight*autoAdmin.teamCollisionHit.penaltyPointsAI
                                     score = score + pen
-									if detailed then 
-                                        for i = 1, #d.penalties do
-                                            if colHit.time < d.penalties[i].time then
-                                               table.insert(d.penalties, i, {time = colHit.time, type = 'teamCollisionHit', pointsAdded = pen, human = false, expireTime = autoAdmin.teamCollisionHit.decayFunction[#autoAdmin.teamCollisionHit.decayFunction].time - timeSince, weapon = colHit.weapon})
-                                               break
-                                            end
-                                        end
-                                    end
 								end
 							end
 						end
                         if detailed then
+                             for i = 1, #d.penalties do
+                                if colHit.time <= d.penalties[i].time then
+                                   table.insert(d.penalties, i, {time = colHit.time, type = 'teamCollisionHit', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamCollisionHit.decayFunction[#autoAdmin.teamCollisionHit.decayFunction].time - timeSince, weapon = colHit.weapon})
+                                   break
+                                end
+                            end                       
                             if type(colHit) == 'table' then 
                                 if pen > 0 then
                                     dStats.active = dStats.active + 1
@@ -328,6 +304,7 @@ do
 				if autoAdmin.teamCollisionKill.enabled and pStats.friendlyCollisionKills then 
 					local lastAIColKillTime
 					local lastHumanColKillTime
+                    local hu = false
                     local dStats = {total = 0, active = 0, forgiven = 0}
 					for colKillInd = 1, #pStats.friendlyCollisionKills do
 						local colKill = pStats.friendlyCollisionKills[colKillInd]
@@ -336,36 +313,27 @@ do
 							local timeSince = toDays(curTime - colKill.time)
 							local weight = getWeight(autoAdmin.teamCollisionKill.decayFunction, timeSince)
 							if colKill.human then -- a human was colKill
-								if not lastHumanColKillTime or ((colKill.time - lastHumanColKillTime) > autoAdmin.teamCollisionKill.minPeriodHuman) then  -- count this colKill
+								if not lastHumanColKillTime or ((colKill.time - lastHumanColKillTime) >= autoAdmin.teamCollisionKill.minPeriodHuman) then  -- count this colKill
 									lastHumanColKillTime = colKill.time
                                     pen = weight*autoAdmin.teamCollisionKill.penaltyPointsHuman
                                     score = score + pen
-									if detailed then 
-                                        for i = 1, #d.penalties do
-                                            if colKill.time < d.penalties[i].time then
-                                               table.insert(d.penalties, i, {time = colKill.time, type = 'teamCollisionKill', pointsAdded = pen, human = true, expireTime = autoAdmin.teamCollisionKill.decayFunction[#autoAdmin.teamCollisionKill.decayFunction].time - timeSince, weapon = colKill.weapon})
-                                               break
-                                            end
-                                        end
-                                    end
+                                    hu = true
 								end
 							else
-								if not lastAIColKillTime or ((colKill.time - lastAIColKillTime) > autoAdmin.teamCollisionKill.minPeriodAI) then  -- count this hit
+								if not lastAIColKillTime or ((colKill.time - lastAIColKillTime) >= autoAdmin.teamCollisionKill.minPeriodAI) then  -- count this hit
 									lastAIColKillTime = colKill.time
                                     pen = weight*autoAdmin.teamCollisionKill.penaltyPointsAI
                                     score = score + pen
-									if detailed then 
-                                        for i = 1, #d.penalties do
-                                            if colKill.time < d.penalties[i].time then
-                                               table.insert(d.penalties, i, {time = colKill.time, type = 'teamCollisionKill', pointsAdded = pen, human = false, expireTime = autoAdmin.teamCollisionKill.decayFunction[#autoAdmin.teamCollisionKill.decayFunction].time - timeSince, weapon = colKill.weapon})
-                                               break
-                                            end
-                                        end
-                                    end
 								end
 							end
 						end
                         if detailed then
+                            for i = 1, #d.penalties do
+                                if colKill.time <= d.penalties[i].time then
+                                   table.insert(d.penalties, i, {time = colKill.time, type = 'teamCollisionKill', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamCollisionKill.decayFunction[#autoAdmin.teamCollisionKill.decayFunction].time - timeSince, weapon = colKill.weapon})
+                                   break
+                                end
+                            end                        
                             if type(colKill) == 'table' then 
                                 if pen > 0 then
                                     dStats.active = dStats.active + 1
