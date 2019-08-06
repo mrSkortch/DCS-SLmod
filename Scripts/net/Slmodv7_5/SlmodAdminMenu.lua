@@ -1466,45 +1466,14 @@ do
             end
             local curTime = os.time()
             for ucid, lStats in pairs(stats) do -- this is inefficient- maybe I need to make a stats by id table.
+                if lStats.friendlyKills then -- stats in old format, add player to new penStats and delete old entries from stats
+                    slmod.stats.createPlayerPenaltyStats(ucid)
+                end
                 local uPenStats = penStats[ucid]
-                local joinDate = lStats.joinDate or os.time()
-                local anyPens = false
-                for i = 1, #statCleanupTbls do
-                    if lStats[statCleanupTbls[i]] and #lStats[statCleanupTbls[i]] > 0 then
-                        anyPens = true
-                    end
-                end
-                if anyPens == true then -- player has old penalty stats
-                    if not uPenStats then -- need to create new penalty stats for the player
-                        slmod.stats.changePenStatsValue(penStats, ucid, {}) -- use old method because I don't care. 
-                        slmod.stats.changePenStatsValue(penStats[ucid], 'id' , lStats.id)
-                        slmod.stats.changePenStatsValue(penStats[ucid], 'names' , lStats.names)
-                       	slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyKills', {})
-                        slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyHits', {})
-                        slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyCollisionHits', {})
-                        slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyCollisionKills', {}) 
-                        if lStats.numTimesAutoBanned then
-                             slmod.stats.changePenStatsValue(penStats[ucid], 'numTimesAutoBanned', lStats.numTimesAutoBanned)
-                        end
-                        if lStats.autobanned then
-                            slmod.stats.changePenStatsValue(penStats[ucid], 'autobanned', lStats.autobanned)
-                        end
-                    end
-                    for index, cleanup in pairs(statCleanupTbls) do
-                        for p = 1, #lStats[cleanup] do
-                            if lStats[cleanup][p].time < joinDate then
-                                joinDate =  lStats[cleanup][p].time 
-                            end
-                            slmod.stats.changePenStatsValue(penStats[ucid][cleanup], #penStats[ucid][cleanup]+1, lStats[cleanup][p])
-                        end
-                    end
-                    slmod.stats.changePenStatsValue(penStats[ucid], 'joinDate' , joinDate)
-                end
                 --- insert days cleanup here. Iterate through each type, compare date. If older then throw it out.
                 -- Write indexes for each type
-                if uPenStats then 
+                if uPenStats then -- might not exist. Nothing to clenaup then. 
                     for _, cleanup in pairs(statCleanupTbls) do
-                        slmod.info(cleanup)
                         if days > 0 and #uPenStats[cleanup] > 0 then
                             local keep = {}
                             local size = 0
@@ -1527,13 +1496,7 @@ do
                                     slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, nil)
                                 end
                             end
-                            
                         end
-                    end
-                    for i = 1, #statCleanupTbls do -- erase team kill info from normal stats
-                       if stats[ucid][statCleanupTbls[i]] then 
-                            slmod.stats.changeStatsValue(stats[ucid], statCleanupTbls[i], nil)
-                       end
                     end
                 end
             end

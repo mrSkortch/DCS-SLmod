@@ -139,7 +139,9 @@ do
 					return (time - t1)*slope + w1
 				end
 			end
-			
+			if stats[ucid].friendlyKills and not penStats[ucid] then
+                slmod.stats.createPlayerPenaltyStats(ucid)
+            end
 		
 			local pStats = penStats[ucid]
             local d = {penalties = {[1] = {time = math.huge, type = 'ERASEME'}}, misc = {}}
@@ -379,14 +381,11 @@ do
 				return score*getWeight(autoAdmin.flightHoursWeightFunction, totHours), d  -- factor in flight hours, and return.
 				--return finalScore
 			end
+  
 		end
 		
 		-- pcall - prevents bad config files from making Slmod fail.
 		local err, score, detail = pcall(scorePilot, ucid, det)
-		if detail then
-            
-
-        end
 		if err then
 			return score, detail
 		else

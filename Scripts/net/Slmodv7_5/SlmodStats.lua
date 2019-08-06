@@ -216,9 +216,11 @@ do
     nest: string or table of strings where table index that is to be written to. Use string 'typeName' to tell code to change the value to the actual typename for the passed players. 
     addValue: Value that is added. Accepts table or single value as string/number. 
     setValue: Sets To this value. Note: Does not accept tables, sets value to highest nest table entry. 
+    insert: Inserts the entry to the table
     default: if no value present then use that. Meant for creating table entries that are missing. If not present defaults to empty table {}
     typeName: Table matching ucid table indexes. For multicrew stats. 
     penalty: Add to Penalty stats
+    
     
     Sample. Ejections can be added multiple ways. 
     {nest = {'times', 'typeName', 'actions', 'losses', 'eject'}, addValue = 1}
@@ -243,17 +245,9 @@ do
                 if vars.penalty then -- add to penalty stats file
                     if not penStats[useUcid[j]] then -- create user pen stats
                         --slmod.info('create Pen stats')
-                        slmod.stats.changePenStatsValue(penStats, useUcid[j], {}) -- use old method because I don't care. 
-                        slmod.stats.changePenStatsValue(penStats[useUcid[j]], 'id' , lStats.id)
-                        slmod.stats.changePenStatsValue(penStats[useUcid[j]], 'names' , lStats.names)
-                        slmod.stats.changePenStatsValue(penStats[useUcid[j]], 'joinDate' , os.time())
-                       	slmod.stats.changePenStatsValue(penStats[useUcid[j]], 'friendlyKills', {})
-                        slmod.stats.changePenStatsValue(penStats[useUcid[j]], 'friendlyHits', {})
-                        slmod.stats.changePenStatsValue(penStats[useUcid[j]], 'friendlyCollisionHits', {})
-                        slmod.stats.changePenStatsValue(penStats[useUcid[j]], 'friendlyCollisionKills', {}) 
+                        slmod.stats.createPlayerPenaltyStats(useUcid[j])
                     end
                     slmod.stats.changePenStatsValue(penStats[useUcid[j]][nest], #penStats[useUcid[j]][nest] + 1, addValue)
-                    
                 else
                     local mStats = misStats[useUcid[j]]
                     local lEntry = nest
@@ -325,6 +319,12 @@ do
                             slmod.stats.changeMisStatsValue(mStats, mEntry, vars.setValue)
                         end
                     end
+                    if vars.insert then
+                        slmod.stats.changeStatsValue(lStats[lEntry], #lStats[lEntry] + 1, vars.insert)
+                        if  slmod.config.enable_mission_stats then 
+                            slmod.stats.changeMisStatsValue(mStats[mEntry], #mStats[mEntry] + 1, vars.insert)
+                        end
+                    end
                 end
             end
 
@@ -354,6 +354,51 @@ do
 		slmod.stats.changeStatsValue(stats[ucid], 'times', {})
 
 	end
+    --- new function to create the penalty stats for a player
+    local statCleanupTbls = {'friendlyHits', 'friendlyKills', 'friendlyCollisionHits', 'friendlyCollisionKills'}
+    function slmod.stats.createPlayerPenaltyStats(ucid)
+        local lStats = stats[ucid]
+        
+        local anyPens = false
+        for i = 1, #statCleanupTbls do
+            if lStats[statCleanupTbls[i]] and #lStats[statCleanupTbls[i]] > 0 then
+                anyPens = true
+            end
+        end
+        if anyPens == true then 
+            slmod.stats.changePenStatsValue(penStats,ucid, {}) -- use old method because I don't care. 
+            slmod.stats.changePenStatsValue(penStats[ucid], 'id' , lStats.id)
+            slmod.stats.changePenStatsValue(penStats[ucid], 'names' , slmod.deepcopy(lStats.names))
+            slmod.stats.changePenStatsValue(penStats[ucid], 'joinDate' , os.time())
+            slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyKills', {})
+            slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyHits', {})
+            slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyCollisionHits', {})
+            slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyCollisionKills', {})
+            if lStats.numTimesAutoBanned then
+                 slmod.stats.changePenStatsValue(penStats[ucid], 'numTimesAutoBanned', lStats.numTimesAutoBanned)
+            end
+            if lStats.autobanned then
+                slmod.stats.changePenStatsValue(penStats[ucid], 'autobanned', lStats.autobanned)
+            end 
+            local joinDate = lStats.joinDate
+            for index, cleanup in pairs(statCleanupTbls) do
+                for p = 1, #lStats[cleanup] do
+                    if lStats[cleanup][p].time < joinDate then
+                        joinDate =  lStats[cleanup][p].time 
+                    end
+                    slmod.stats.changePenStatsValue(penStats[ucid][cleanup], #penStats[ucid][cleanup]+1, lStats[cleanup][p])
+                end
+            end
+            slmod.stats.changePenStatsValue(penStats[ucid], 'joinDate' , joinDate)        
+        end
+
+        for i = 1, #statCleanupTbls do -- erase team kill info from normal stats
+           if stats[ucid][statCleanupTbls[i]] then 
+                slmod.stats.changeStatsValue(stats[ucid], statCleanupTbls[i], nil)
+           end
+        end
+    
+    end
 	---------------------------------------------------------------------------------------------------------------------
 	-------------------------------------------------------------------------------------------------------------------
 	-------------------------------------------------------------------------------------------------------------------
@@ -536,26 +581,25 @@ do
 						break
 					end
 				end
-				
+				local save = {nest = 'names', ucid = ucid}
 				if nameFound and nameInd ~= #stats[ucid].names then  -- name was previously used but is not the last one in the names table..
-					newStatsNames = {}
-					local newStatsNames = slmod.deepcopy(stats[ucid].names)
+                    newStatsNames = {}
+					newStatsNames = slmod.deepcopy(stats[ucid].names)
 					table.remove(newStatsNames, nameInd)  -- resort
 					newStatsNames[#stats[ucid].names] = name
-					slmod.stats.changeStatsValue(stats[ucid], 'names', newStatsNames)  -- update stats table.
+                    save.setValue = newStatsNames
 				elseif not nameFound then  -- a new name.
-					slmod.stats.changeStatsValue(stats[ucid].names, #stats[ucid].names + 1, name)  -- update stats table.
+                    save.insert = name
 					newName = true
 				end
+                slmod.stats.advChangeStatsValue(save)
 			end
 			
-			if slmod.config.enable_mission_stats then
-				if not misStats[ucid] then  -- should be true in cases where stats check was true... but wait till after names has been updated.
-					createMisStatsPlayer(ucid)
-				elseif newName then -- update mission stats with new names too.
-					slmod.stats.changeMisStatsValue(misStats[ucid].names, #misStats[ucid].names + 1, name)  -- update misStats table.
+			if penStats[ucid] then
+				if newName then -- update penalty stats with new names too if it exists. 
+					slmod.stats.changePenStatsValue(penStats[ucid].names, #penStats[ucid].names + 1, name)  -- update misStats table.
 				elseif newStatsNames then
-					slmod.stats.changeMisStatsValue(misStats[ucid], 'names', newStatsNames)  -- update misStats table.
+					slmod.stats.changePenStatsValue(penStats[ucid], 'names', newStatsNames)  -- update misStats table.
 				end
 			end
             
