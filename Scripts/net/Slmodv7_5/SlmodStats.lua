@@ -1194,6 +1194,8 @@ end]]
                 if deadClient then 
                     local ucid, typeName = {}, {}
                     for seatId, dData in pairs (deadClient) do
+                        ucid[seatId] = dData.ucid
+                        deadObjData[seatId] = dData.ucid
                         if seatId > 1 then
                             typeName[seatId] = multiCrewNameCheck(deadObjType, seatId)
                         else
@@ -1630,7 +1632,7 @@ end]]
 					
 					-- OK, now we have data on target and initiator- hopefully, 99.999% accurate data!
 					
-					if initClient then  -- a human initiated hit
+					if initClient and tgtClient and initName ~= tgtName then  -- a human initiated hit and they didn't TK themself
 						local givenPenalty = false
                         local addedHit = false
                         --slmod.info(initType)
@@ -1707,8 +1709,14 @@ end]]
                                        saveStat.nest = 'friendlyHits'
                                     end
                                     saveStat.addValue = { time = os.time(), objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon, shotFrom = initType}
-                                    if deadClient then
-                                        saveStat.addValue.human = deadObjData
+                                    if tgtClient then
+                                        local hitClient = {}
+                                        for i = 1, #tgtClient do 
+                                            if tgtClient[i].ucid then 
+                                                table.insert(hitClient, tgtClient[i].ucid)
+                                            end
+                                        end
+                                        saveStat.addValue.human = hitClient
                                     end
                                     slmod.stats.advChangeStatsValue(saveStat)
                                     onFriendlyHit(initClient, tgtInfoForFHit, weapon)
