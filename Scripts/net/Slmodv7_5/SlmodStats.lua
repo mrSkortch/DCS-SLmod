@@ -264,9 +264,8 @@ do
                             end
                             lStats = lStats[lEntry[i]]
                             if slmod.config.enable_mission_stats then
-                                slmod.info(lEntry[i])
                                 if not mStats[mEntry[i]] then
-                                    slmod.stats.changeMisStatsValue(mStats, tostring(mEntry[i]), {})
+                                    slmod.stats.changeMisStatsValue(mStats, mEntry[i], {})
                                 end  
                                 mStats = mStats[mEntry[i]]
                             end
@@ -343,7 +342,7 @@ do
    	---------------------------------------------------------------------------------------------------
 	---------------------------------------------------------------------------------------------------
 	-- function called to add a new player to SlmodStats.
-	local function createNewPlayer(ucid, name) 
+	local function createNewPlayer(ucid, name, cMizStat) 
         slmod.stats.changeStatsValue(stats, ucid, {}) -- use original to write it
 		slmod.stats.changeStatsValue(stats[ucid], 'names', { [1] = name })
 		slmod.stats.changeStatsValue(stats[ucid], 'id', nextIDNum)
@@ -352,6 +351,10 @@ do
 		nextIDNum = nextIDNum + 1
 		
 		slmod.stats.changeStatsValue(stats[ucid], 'times', {})
+        
+        if slmod.config.enable_mission_stats and cMizStat then
+            createMisStatsPlayer(ucid)
+        end
 
 	end
     --- new function to create the penalty stats for a player
@@ -571,9 +574,12 @@ do
 			local newName
 			
 			if not stats[ucid] then
-				createNewPlayer(ucid, name)
+				createNewPlayer(ucid, name, true)
 			else  -- check to see if name matches	
-				local nameFound, nameInd
+				if slmod.config.enable_mission_stats and not misStats[ucid] then  -- should be true in cases where stats check was true... but wait till after names has been updated.
+                    createMisStatsPlayer(ucid)
+                end
+                local nameFound, nameInd
 				for i = 1, #stats[ucid].names do
 					if stats[ucid].names[i] == name then
 						nameFound = true
@@ -592,6 +598,7 @@ do
                     save.insert = name
 					newName = true
 				end
+                
                 slmod.stats.advChangeStatsValue(save)
 			end
 			
@@ -1632,7 +1639,7 @@ end]]
 					
 					-- OK, now we have data on target and initiator- hopefully, 99.999% accurate data!
 					
-					if initClient and tgtClient and initName ~= tgtName then  -- a human initiated hit and they didn't TK themself
+					if initClient and initName ~= tgtName then  -- a human initiated hit and they didn't TK themself
 						local givenPenalty = false
                         local addedHit = false
                         --slmod.info(initType)
