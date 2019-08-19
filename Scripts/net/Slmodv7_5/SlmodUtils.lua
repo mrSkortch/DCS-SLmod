@@ -1004,7 +1004,7 @@ function slmod.scopeText(msg, display_time, scope)
 				groupId = tostring(groupId)  --it should already be, just making sure...
 				net.dostring_in('mission', 'a_out_text_delay_g(' .. groupId .. ', ' .. slmod.basicSerialize(msg) .. ', ' .. tostring(display_time) .. ')')
 			elseif groupId == "No Id" then  --battle commander slot cannot recieve specific text... PROBLEM- now they recieve it twice in echo mode.
-				slmod.scopeMsg(msg, 5, 'chat', {clients = {scope.clients[i]}})  --send the message as chat instead for CA slots.. also, for now, fix length at 5 secs.
+                slmod.scopeMsg(msg, 5, 'chat', {clients = {scope.clients[i]}})  --send the message as chat instead for CA slots.. also, for now, fix length at 5 secs.
 			end
 		end
 	end
@@ -1551,7 +1551,7 @@ end
 
 function slmod.getClientGroupId(client_id)
     local slot_id = net.get_player_info(client_id, 'slot')
-	if slot_id and slot_id ~= '' then
+	if slot_id then
 		if type(slot_id) == 'string' and (slot_id == '' or string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then
 			--net.log('client is on spectators or CA slot')
 			return "No Id"

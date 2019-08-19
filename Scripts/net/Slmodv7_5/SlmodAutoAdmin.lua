@@ -130,13 +130,13 @@ do
 				end
 				
 				if not weight then  -- weight is still nil, it must fall between two points.  Interpolate weight.
-					local t1 = curve[cPoint].time
-					local t2 = curve[cPoint + 1].time
-					local w1 = curve[cPoint].weight
-					local w2 = curve[cPoint + 1].weight
-					local slope = (w2-w1)/(t2-t1)
-					--slmod.info('getWeight value: ' .. tostring((time - t1)*slope + w1))
-					return (time - t1)*slope + w1
+                    local t1 = curve[cPoint].time
+                    local t2 = curve[cPoint + 1].time
+                    local w1 = curve[cPoint].weight
+                    local w2 = curve[cPoint + 1].weight
+                    local slope = (w2-w1)/(t2-t1)
+                    --slmod.info('getWeight value: ' .. tostring((time - t1)*slope + w1))
+                    return (time - t1)*slope + w1
 				end
 			end
 			if stats[ucid].friendlyKills and not penStats[ucid] then
@@ -797,7 +797,7 @@ do
         if autoAdmin.forgiveEnabled then -- forgiving is enabled, then create this menu
             local forgiveVars = {}
             forgiveVars.menu = SlmodForgivePunishMenu
-            forgiveVars.description = 'Say in chat "-forgive" to forgive the player of any team damage/kill/hit/collisions they have done to you. If no action is taken punishment will be automatic.'
+            forgiveVars.description = 'Say in chat "-forgive" to forgive a player of any team damage/kill/hit/collisions they have done to you. If no action is taken punishment will be automatic.'
             forgiveVars.active = true
             forgiveVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
             forgiveVars.selCmds = {
@@ -806,12 +806,17 @@ do
                             type = 'word', 
                             text = '-forgive',
                             required = true
-                        }, 
+                        },
+                        [2] = { 
+                            type = 'text', 
+                            varname = 'playerName',
+                            required = false
+                        },                        
                     },
                 } 
             forgiveVars.onSelect = function(self, vars, client_id)
-                if slmod.clients[vars] then
-                    local requester = slmod.clients[vars]
+                if slmod.clients[client_id] then
+                    local requester = slmod.clients[client_id]
                     if #delayedPenalty > 0 and autoAdmin.forgiveEnabled then -- just to be safe
                         for i = 1, #delayedPenalty do
                             if delayedPenalty[i].canForgive then -- seriously being paranoid
@@ -850,13 +855,18 @@ do
                             type = 'word', 
                             text = '-punish',
                             required = true
-                        }, 
+                        },
+                        [2] = { 
+                            type = 'text', 
+                            varname = 'playerName',
+                            required = false
+                        },                          
                     },
 
                 } 
             punishVars.onSelect = function(self, vars, client_id)
-                if slmod.clients[vars] then
-                    local requester = slmod.clients[vars]
+                if slmod.clients[client_id] then
+                    local requester = slmod.clients[client_id]
                     if #delayedPenalty > 0 and autoAdmin.punishEnabled then -- just to be safe
                         for i = 1, #delayedPenalty do
                             if delayedPenalty[i].canPunish then -- seriously being paranoid
@@ -896,19 +906,24 @@ do
                             type = 'word', 
                             text = '-consent',
                             required = true
-                        }, 
+                        },
+                        [2] = { 
+                            type = 'text', 
+                            varname = 'playerName',
+                            required = false
+                        },                          
                     },
 
                 } 
             cVars.onSelect = function(self, vars, client_id)
-                if slmod.clients[vars] then
-                    local requester = slmod.clients[vars]
+                if slmod.clients[client_id] then
+                    local requester = slmod.clients[client_id]
                     if affirmativeTKConsent[requester.ucid] then
                         affirmativeTKConsent[requester.ucid] = nil
-                        slmod.scheduleFunctionByRt(slmod.scopeMsg, {'You have REMOVED consent for anyone who teamkills you to automatically be granted forgiveness.' , 1, 'chat', {clients = {vars}}}, DCS.getRealTime() + 0.1)
+                        slmod.scheduleFunctionByRt(slmod.scopeMsg, {'You have REMOVED consent for anyone who teamkills you to automatically be granted forgiveness.' , 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)
                     else
                         affirmativeTKConsent[requester.ucid] = true
-                        slmod.scheduleFunctionByRt(slmod.scopeMsg, {'You have GIVEN consent for anyone who teamkills you to automatically be granted forgiveness.' , 1, 'chat', {clients = {vars}}}, DCS.getRealTime() + 0.1)
+                        slmod.scheduleFunctionByRt(slmod.scopeMsg, {'You have GIVEN consent for anyone who teamkills you to automatically be granted forgiveness.' , 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)
                     end
                 end
             end
