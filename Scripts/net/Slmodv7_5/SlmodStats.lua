@@ -245,7 +245,7 @@ do
                 if vars.penalty then -- add to penalty stats file
                     if not penStats[useUcid[j]] then -- create user pen stats
                         --slmod.info('create Pen stats')
-                        slmod.stats.createPlayerPenaltyStats(useUcid[j])
+                        slmod.stats.createPlayerPenaltyStats(useUcid[j], true)
                     end
                     slmod.stats.changePenStatsValue(penStats[useUcid[j]][nest], #penStats[useUcid[j]][nest] + 1, addValue)
                 else
@@ -357,18 +357,23 @@ do
         end
 
 	end
+    
+    
     --- new function to create the penalty stats for a player
     local statCleanupTbls = {'friendlyHits', 'friendlyKills', 'friendlyCollisionHits', 'friendlyCollisionKills'}
-    function slmod.stats.createPlayerPenaltyStats(ucid)
+    function slmod.stats.createPlayerPenaltyStats(ucid, forced)
         local lStats = stats[ucid]
         
         local anyPens = false
-        for i = 1, #statCleanupTbls do
-            if lStats[statCleanupTbls[i]] and #lStats[statCleanupTbls[i]] > 0 then
-                anyPens = true
+        if lStats.friendlyKills then 
+            for i = 1, #statCleanupTbls do
+                if lStats[statCleanupTbls[i]] and #lStats[statCleanupTbls[i]] > 0 then
+                    anyPens = true
+                end
             end
         end
-        if anyPens == true then 
+        -- create default stats
+        if anyPens == true or forced == true then 
             slmod.stats.changePenStatsValue(penStats,ucid, {}) -- use old method because I don't care. 
             slmod.stats.changePenStatsValue(penStats[ucid], 'id' , lStats.id)
             slmod.stats.changePenStatsValue(penStats[ucid], 'names' , slmod.deepcopy(lStats.names))
@@ -377,12 +382,16 @@ do
             slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyHits', {})
             slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyCollisionHits', {})
             slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyCollisionKills', {})
-            if lStats.numTimesAutoBanned then
-                 slmod.stats.changePenStatsValue(penStats[ucid], 'numTimesAutoBanned', lStats.numTimesAutoBanned)
-            end
-            if lStats.autobanned then
-                slmod.stats.changePenStatsValue(penStats[ucid], 'autobanned', lStats.autobanned)
-            end 
+        end
+        -- cleanup for old stats if needed
+        if lStats.numTimesAutoBanned then
+             slmod.stats.changePenStatsValue(penStats[ucid], 'numTimesAutoBanned', lStats.numTimesAutoBanned)
+        end
+        if lStats.autobanned then
+            slmod.stats.changePenStatsValue(penStats[ucid], 'autobanned', lStats.autobanned)
+        end 
+        
+        if anyPens == true then 
             local joinDate = lStats.joinDate
             for index, cleanup in pairs(statCleanupTbls) do
                 for p = 1, #lStats[cleanup] do
@@ -393,13 +402,15 @@ do
                 end
             end
             slmod.stats.changePenStatsValue(penStats[ucid], 'joinDate' , joinDate)        
+            for i = 1, #statCleanupTbls do -- erase team kill info from normal stats
+                if stats[ucid][statCleanupTbls[i]] then 
+                    slmod.stats.changeStatsValue(stats[ucid], statCleanupTbls[i], nil)
+                end
+            end
+        
         end
 
-        for i = 1, #statCleanupTbls do -- erase team kill info from normal stats
-           if stats[ucid][statCleanupTbls[i]] then 
-                slmod.stats.changeStatsValue(stats[ucid], statCleanupTbls[i], nil)
-           end
-        end
+
     
     end
 	---------------------------------------------------------------------------------------------------------------------
@@ -455,7 +466,7 @@ do
 	do
 		local function makeStatsTableKeys(levelKey, t)
             for key, val in pairs(t) do
-                if type(val) == 'table' and type(key) == 'string' then
+                if type(val) == 'table' and (type(key) == 'string' or type(key) == 'number') then
 					key = levelKey .. '[' .. slmod.basicSerialize(key) .. ']'
 					penStatsTableKeys[val] = key  -- works because each table only exists once in Slmod stats- it's REQUIRED!!! DO NOT FORGET THIS!
                     --slmod.info(slmod.basicSerialize(val) .. ' : ' .. key)
@@ -477,8 +488,7 @@ do
         if type(newValue) == 'table' then
             penStatsTableKeys[newValue] = penStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']'
         end	
-       t[key] = newValue
-
+        t[key] = newValue
         if penStatsF then
             local penStatsChangeString = penStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
             penStatsF:write(penStatsChangeString)

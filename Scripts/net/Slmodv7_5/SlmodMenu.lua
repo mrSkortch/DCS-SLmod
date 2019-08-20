@@ -824,17 +824,17 @@ do
 	]]
 
 	local function cmdMatch(cmd, s)  --determines if s is a version of cmd and returns variables from the message
-		--net.log('into cmdMatch')
-		--net.log(type(cmd))
-		--net.log(#cmd)
+		--slmod.info('into cmdMatch')
+		--slmod.info(type(cmd))
+        --slmod.info(slmod.oneLineSerialize(cmd))
 		local vars = {}
 		if not cmd[1] then --just protecting against empty cmd
-			--net.log('here1')
+			--slmod.info('here1')
 			return -1
 		end
 		-- need to first make sure that s can actually be a cmd
 		if not s:find('[^ ]') then -- if no non-spaces found
-			--net.log('here2')
+			--slmod.info('here2')
 			return -1
 		end
 		
@@ -894,7 +894,9 @@ do
 		 -- second variable: returns true if an exact match, false if not an exact match.
 		local function word_match(s_word, cmd_word) 
 			if cmd_word then -- gotta have this check for next_word_match and the way I use it.
-				if type(cmd_word.text) == 'string' then
+				--slmod.info(cmd_word.text)
+               
+                if type(cmd_word.text) == 'string' then
 					if s_word:sub(1, cmd_word.text:len()) == cmd_word.text then 
 						return true, (s_word == cmd_word.text)
 					end
@@ -925,7 +927,7 @@ do
 		
 		do  -- do some simple checks first.  Maybe remove this logic later.
 			if #s_words < 1 then  -- just a dumb check. one can never be too safe
-				--net.log('here3')
+				--slmod.info('here3')
 				return -1
 			end
 			
@@ -936,7 +938,7 @@ do
 				if cmd[1].varname then -- add to vars table
 					vars[cmd[1].varname] = s_original
 				end
-				--net.log('here4')
+				--slmod.info('here4')
 				return 1, vars
 			elseif cmd[1].type == 'word' then
 			
@@ -945,7 +947,7 @@ do
 				-- first element of cmd must be a word word (or text as above), and required, so we can save a some computation time here
 				local cmd_word_ind, exactmatch = word_match(s_words[1], cmd[1])
 				if not cmd_word_ind then
-					--net.log('here5')
+					--slmod.info('here5')
 					return -1
 				elseif #s_words == 1 and #cmd == 1 then  --match with a single word
 					if cmd[1].varname then -- it had a varname, so need to add it to rawvars table
@@ -957,31 +959,31 @@ do
 						
 						
 						if exactmatch then --exact match
-							--net.log('here6')
+							--slmod.info('here6')
 							return 1, vars
 						else --NOT an exact match
-							--net.log('here7')
+							--slmod.info('here7')
 							return 0, vars
 						end
 						
 					end
 					
 					--It wasn't a variable, so no vars table required.			
-					--net.log('here6')
+					--slmod.info('here6')
 					if exactmatch then --exact match
-						--net.log('here8')
+						--slmod.info('here8')
 						return 1
 					else --NOT an exact match
-						--net.log('here9')
+						--slmod.info('here9')
 						return 0
 					end
 				end
 				if #cmd == 1 then --s_words had 2 or more words, and cmd had only 1, not a match
-					--net.log('here10')
+					--slmod.info('here10')
 					return -1
 				end
 			else
-				--net.log('here11')
+				--slmod.info('here11')
 				return -1 -- first command type not 'word' or 'text'.
 			end
 		
@@ -991,32 +993,37 @@ do
 		local cmd_ind = 2
 		local rawvars = {}  -- raw vars extracted from the chat command, not yet processed, word vars can skip this step
 		--cmd and s_words now have at least 2 elements each.  Start on 2nd element
-		
+		--slmod.info('before while')
 		while s_ind <= #s_words and cmd_ind <= #cmd do -- definitely needs to be a while, coords commands can cause s_ind to skip ahead by variable amounts
 			------------------------- 'word' -----------------------------
 			if cmd[cmd_ind].type == 'word' then  --next cmd is a word
-				local cmd_word_ind, exactmatch = word_match(s_words[s_ind], cmd[cmd_ind])
-				if not cmd_word_ind then -- cmd is a word and it doesn't match
-					if cmd[cmd_ind].required then --no match on required word
-						--net.log('here12')
-						return -1
-					else  --not required, it could be the next cmd
-						cmd_ind = cmd_ind + 1 --move on to the next cmd.
-					end
-				else  -- next cmd is a word and it DOES match
-					if cmd[cmd_ind].varname then  -- need to add to the vars table
-						if type(cmd_word_ind) == 'number' then -- cmd[cmd_ind].text was a table
-							vars[cmd[cmd_ind].varname] = cmd[cmd_ind].text[cmd_word_ind]
-						else
-							vars[cmd[cmd_ind].varname] = cmd[cmd_ind].text
-						end
-					end
-					if not exactmatch then
-						part_match = true
-					end
-					s_ind = s_ind + 1
-					cmd_ind = cmd_ind + 1  --move onto the next cmd
-				end
+               --slmod.info('checking: ' .. s_words[s_ind])
+               --slmod.info(slmod.oneLineSerialize(cmd[cmd_ind]))
+                local cmd_word_ind, exactmatch = word_match(s_words[s_ind], cmd[cmd_ind])
+                if not cmd_word_ind then -- cmd is a word and it doesn't match
+                    if cmd[cmd_ind].required then --no match on required word
+                       --slmod.info('here12')
+                        return -1
+                    else  --not required, it could be the next cmd
+                        cmd_ind = cmd_ind + 1 --move on to the next cmd.
+                    end
+                else  -- next cmd is a word and it DOES match
+                    if cmd[cmd_ind].varname then  -- need to add to the vars table
+                        if type(cmd_word_ind) == 'number' then -- cmd[cmd_ind].text was a table
+                            vars[cmd[cmd_ind].varname] = cmd[cmd_ind].text[cmd_word_ind]
+                        else
+                            vars[cmd[cmd_ind].varname] = cmd[cmd_ind].text
+                        end
+                    end
+                    if not exactmatch then
+                        part_match = true
+                    end
+                    s_ind = s_ind + 1
+                    cmd_ind = cmd_ind + 1  --move onto the next cmd
+                end
+                
+                
+                
 				
 			---------------- 'number' ------------------------------------
 			--------------NEEDS TO BE LOGICALLY RE-EXAMINED FOR OPTIONAL WORD FOLLOWING NUMBER--------------------------------------------
@@ -1038,7 +1045,7 @@ do
 					elseif #cmd > cmd_ind and (word_match(s_words[s_ind], cmd[cmd_ind + 1])) then -- THIS s_word matches the word for next cmd
 						cmd_ind = cmd_ind + 1
 					else  -- ok, so, this wasn't the last s_word, the next s_word didn't match the next cmd word, and this s_word didn't match the next cmd word 
-						--net.log('here13')
+						--slmod.info('herebreakout number')
 						return -1 --ok, is this necessary?
 					end	
 				end	
@@ -1148,20 +1155,26 @@ do
 			----------------------------------------------------------------------------------------
 			-- text command
 			elseif cmd[cmd_ind].type == 'text' and (cmd_ind == #cmd) then  --next cmd is raw text entry, and the last command- text can only be last variable
-				--net.log('into the text type command')
+				--slmod.info('into the text type command')
 				local s_original_lower = s_original:lower()
 				local pstart, pend = s_original_lower:find(s_words[s_ind - 1])  -- should find the index of the previous s_word within the original s
 				if cmd[cmd_ind].varname then -- add to vars table
 					vars[cmd[cmd_ind].varname] = s_original:sub(pend + 2, s_original:len())-- THIS FUCKER RIGHT HERE IS THE PROBLEM!
 					
 					
-					--net.log('adding ' .. s_original:sub(pend + 2, s_original:len()) .. ' to vars')
+					--slmod.info('adding ' .. s_original:sub(pend + 2, s_original:len()) .. ' to vars')
 				end
 				cmd_ind = cmd_ind + 1  -- should break out of loop, there can only be one text cmd and it must be the last one.
 
 			-----------------------------------------------------------------------------------------	
-			else -- not number, text, coords, or text, never ever should happen.
-				--net.log('here14')
+			elseif cmd[cmd_ind].type == 'var' then
+               --slmod.info('directPass')
+                vars[cmd[cmd_ind].varname] = s_words[s_ind]
+                
+                s_ind = s_ind + 1
+                cmd_ind = cmd_ind + 1
+            else -- not number, text, coords, or text, never ever should happen.
+				--slmod.info('here14')
 				return -1
 			end
 		end
@@ -1177,7 +1190,7 @@ do
 		if cmd_ind <= #cmd then -- look for any remaining required cmds
 			for i = cmd_ind, #cmd do
 				if cmd[i].required == true then
-					--net.log('here15')
+					--slmod.info('here15')
 					return -1 -- there was a required cmd that wasn't used, return -1
 				end
 				
@@ -1185,17 +1198,17 @@ do
 		end
 		
 		if s_ind ~= #s_words + 1 and cmd[#cmd].type ~= 'text' then -- should be this value to have ended while loop?
-			--net.log('here16')
+			--slmod.info('here16')
 			return -1 -- s_words not properly accounted for in cmd.
 		end
 		
 		if #rawvars == 0 then -- no rawvars, go ahead and return
-			--net.log('here13')
+			--slmod.info('here13')
 			if not part_match then
-				--net.log('here17')
+				--slmod.info('here17')
 				return 1, vars
 			else
-				--net.log('here18')
+				--slmod.info('here18')
 				return 0, vars
 			end
 		else -- there are some variables that need convertin
@@ -1203,14 +1216,14 @@ do
 				if rawvars[i].type == 'coords' then
 				
 					local err_code, coords_msg, coords = getCoords(rawvars[i].value)
-					--net.log(rawvars[i].value)
-					--net.log(str_msg)
+					--slmod.info(rawvars[i].value)
+					--slmod.info(str_msg)
 					if err_code == 1 and type(coords) == 'table' then -- looks like it was successful
 						vars[rawvars[i].varname] = coords
 						vars['coords_msgs'] = vars['coords_msgs'] or {}
 						table.insert(vars['coords_msgs'], coords_msg)  -- allows coordinate messages to be returned
 					else
-						--net.log('here19')
+						--slmod.info('here19')
 						return -1
 					end
 				elseif rawvars[i].type == 'number' then
@@ -1221,28 +1234,28 @@ do
 						elseif not rawvars[i].validrange then -- no validrange specified
 							vars[rawvars[i].varname] = num
 						else
-						--net.log('here20')
+						--slmod.info('here20')
 							return -1 -- not within validrange
 						end
 					else
-						--net.log('here21')
+						--slmod.info('here21')
 						return -1  --failed tonumber conversion
 					
 					end
 					
 				else
-					--net.log('here22')
+					--slmod.info('here22')
 					return -1 --should never get here
 				end	
 			end
 		end
 		--if still here, there there are variables that need to be returned.
-		--net.log('here18')
+		--slmod.info('here18')
 		if not part_match then
-			--net.log('here23')
+			--slmod.info('here23')
 			return 1, vars
 		else
-			--net.log('here24')
+			--slmod.info('here24')
 			return 0, vars
 		end
 		
@@ -1255,17 +1268,18 @@ do
 	-- slmod.doMenuCommands
 	-- Global function that checks if chat message is a valid menu command, and if so, does any onSelect/showing that is required.
 	function slmod.doMenuCommands(client_id, chat_msg)
-		--net.log(chat_msg)
+		--slmod.info(chat_msg)
         local MenuShowTbl = {}
 		local ItemShowTbl = {}
 		for MenuName, Menu in pairs(menus) do
-			if Menu.active then
+            ----slmod.info(Menu.items[1].description)
+            if Menu.active then
 				if slmod.clientInScope(client_id, Menu.scope) then -- make sure that the client actually said something in scope for this menu
-					
-					--slmod.info(slmod.tableshow(Menu, 'Menu'))
+					--slmod.info('inScope')
+
 					for ind, val in pairs(Menu.showCmds) do  --look for menu show commands
 						local matchtype = (cmdMatch(val, chat_msg))
-						if matchtype == 1 then  --exact match, do this now
+                        if matchtype == 1 then  --exact match, do this now
 							Menu:show(client_id)
 							return Menu.options.privacy.access  -- return whether or not this chat message should be shown
 						elseif matchtype == 0 then
@@ -1279,10 +1293,11 @@ do
 					
 					for item_name, item in pairs(Menu.items) do  -- look for item selects
 						if item.selCmds and item.onSelect and item.active then
-							for ind, cmd in pairs(item.selCmds) do
+							--slmod.info(item.description)
+                            for ind, cmd in pairs(item.selCmds) do
                                 local matchtype, vars = cmdMatch(cmd, chat_msg)
 								if matchtype == 1 then  -- exact match, do immediately
-									--net.log('exact')
+									--slmod.info('exact')
                                     if vars then
 										item:onSelect(vars, client_id)
 									else
@@ -1313,6 +1328,7 @@ do
 			return MenuShowTbl[1].Menu.options.privacy.access  -- return whether or not this chat message should be shown
 		end
 		if #ItemShowTbl > 0 then
+           --slmod.info('onSelectItems')
 			if ItemShowTbl[1].vars then
 				ItemShowTbl[1].item:onSelect(ItemShowTbl[1].vars, ItemShowTbl[1].client_id)
 			else

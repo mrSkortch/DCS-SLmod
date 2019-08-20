@@ -180,22 +180,23 @@ do
                                     score = score + pen
 								end
 							end
-						end
-                        if detailed then
-                            for i = 1, #d.penalties do
-                                if hit.time <= d.penalties[i].time then
-                                   table.insert(d.penalties, i, {time = hit.time, type = 'teamHit', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamHit.decayFunction[#autoAdmin.teamHit.decayFunction].time - timeSince, weapon = hit.weapon})
-                                   break
+						
+                            if detailed then
+                                for i = 1, #d.penalties do
+                                    if hit.time <= d.penalties[i].time then
+                                       table.insert(d.penalties, i, {time = hit.time, type = 'teamHit', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamHit.decayFunction[#autoAdmin.teamHit.decayFunction].time - timeSince, weapon = hit.weapon, index = hitInd})
+                                       break
+                                    end
                                 end
-                            end
-                            if type(hit) == 'table' then 
-                                if pen > 0 then
-                                    dStats.active = dStats.active + 1
+                                if type(hit) == 'table' then 
+                                    if pen > 0 then
+                                        dStats.active = dStats.active + 1
+                                    end
+                                    if hit.forgiven then
+                                        dStats.forgiven = dStats.forgiven + 1
+                                    end
+                                    dStats.total = dStats.total + 1
                                 end
-                                if hit.forgiven then
-                                    dStats.forgiven = dStats.forgiven + 1
-                                end
-                                dStats.total = dStats.total + 1
                             end
                         end
 					end
@@ -230,22 +231,23 @@ do
                                     score = score + pen
 								end
 							end
-						end
-                        if detailed then
-                            for i = 1, #d.penalties do
-                                  if kill.time <= d.penalties[i].time then
-                                   table.insert(d.penalties, i, {time = kill.time, type = 'teamKill', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamKill.decayFunction[#autoAdmin.teamKill.decayFunction].time  - timeSince, weapon = kill.weapon})
-                                   break
+						
+                            if detailed then
+                                for i = 1, #d.penalties do
+                                      if kill.time <= d.penalties[i].time then
+                                       table.insert(d.penalties, i, {time = kill.time, type = 'teamKill', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamKill.decayFunction[#autoAdmin.teamKill.decayFunction].time  - timeSince, weapon = kill.weapon, index = killInd})
+                                       break
+                                    end
                                 end
-                            end
-                            if type(kill) == 'table' then 
-                                if pen > 0 then
-                                    dStats.active = dStats.active + 1
+                                if type(kill) == 'table' then 
+                                    if pen > 0 then
+                                        dStats.active = dStats.active + 1
+                                    end
+                                    if kill.forgiven then
+                                        dStats.forgiven = dStats.forgiven + 1
+                                    end
+                                    dStats.total = dStats.total + 1
                                 end
-                                if kill.forgiven then
-                                    dStats.forgiven = dStats.forgiven + 1
-                                end
-                                dStats.total = dStats.total + 1
                             end
                         end
 					end
@@ -280,22 +282,23 @@ do
                                     score = score + pen
 								end
 							end
-						end
-                        if detailed then
-                             for i = 1, #d.penalties do
-                                if colHit.time <= d.penalties[i].time then
-                                   table.insert(d.penalties, i, {time = colHit.time, type = 'teamCollisionHit', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamCollisionHit.decayFunction[#autoAdmin.teamCollisionHit.decayFunction].time - timeSince, weapon = colHit.weapon})
-                                   break
+						
+                            if detailed then
+                                 for i = 1, #d.penalties do
+                                    if colHit.time <= d.penalties[i].time then
+                                       table.insert(d.penalties, i, {time = colHit.time, type = 'teamCollisionHit', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamCollisionHit.decayFunction[#autoAdmin.teamCollisionHit.decayFunction].time - timeSince, weapon = colHit.weapon, index = colHitInd})
+                                       break
+                                    end
+                                end                       
+                                if type(colHit) == 'table' then 
+                                    if pen > 0 then
+                                        dStats.active = dStats.active + 1
+                                    end
+                                    if colHit.forgiven then
+                                        dStats.forgiven = dStats.forgiven + 1
+                                    end
+                                    dStats.total = dStats.total + 1
                                 end
-                            end                       
-                            if type(colHit) == 'table' then 
-                                if pen > 0 then
-                                    dStats.active = dStats.active + 1
-                                end
-                                if colHit.forgiven then
-                                    dStats.forgiven = dStats.forgiven + 1
-                                end
-                                dStats.total = dStats.total + 1
                             end
                         end
 					end
@@ -328,22 +331,23 @@ do
                                     score = score + pen
 								end
 							end
-						end
-                        if detailed then
-                            for i = 1, #d.penalties do
-                                if colKill.time <= d.penalties[i].time then
-                                   table.insert(d.penalties, i, {time = colKill.time, type = 'teamCollisionKill', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamCollisionKill.decayFunction[#autoAdmin.teamCollisionKill.decayFunction].time - timeSince, weapon = colKill.weapon})
-                                   break
+						
+                            if detailed then
+                                for i = 1, #d.penalties do
+                                    if colKill.time <= d.penalties[i].time then
+                                       table.insert(d.penalties, i, {time = colKill.time, type = 'teamCollisionKill', pointsAdded = pen, human = hu, expireTime = autoAdmin.teamCollisionKill.decayFunction[#autoAdmin.teamCollisionKill.decayFunction].time - timeSince, weapon = colKill.weapon, index = colKillInd})
+                                       break
+                                    end
+                                end                        
+                                if type(colKill) == 'table' then 
+                                    if pen > 0 then
+                                        dStats.active = dStats.active + 1
+                                    end
+                                    if colKill.forgiven then
+                                        dStats.forgiven = dStats.forgiven + 1
+                                    end
+                                    dStats.total = dStats.total + 1
                                 end
-                            end                        
-                            if type(colKill) == 'table' then 
-                                if pen > 0 then
-                                    dStats.active = dStats.active + 1
-                                end
-                                if colKill.forgiven then
-                                    dStats.forgiven = dStats.forgiven + 1
-                                end
-                                dStats.total = dStats.total + 1
                             end
                         end
 					end
@@ -544,8 +548,9 @@ do
         if d.penalties and #d.penalties > 0 then 
             for i = #d.penalties, 1, -1  do
                 msg[#msg+1] = '\n'
-                msg[#msg+1] = 'Type: '
+                msg[#msg+1] = ' Type: '
                 msg[#msg+1] = d.penalties[i].type
+                msg[#msg+1] = ' ' ..  d.penalties[i].index
                 msg[#msg+1] = '  with: '
                 msg[#msg+1] = d.penalties[i].weapon
                 msg[#msg+1] = '  on '

@@ -810,7 +810,7 @@ do
 				
 				if initName then
 					if slmod.clientsMission and slmod.clientsMission[initName] and event.weapon and slmod.deepcopy then
-						env.info('slmod: added human weapon')
+						--env.info('slmod: added human weapon')
                         slmod.humanWeapons[event.weapon.id_] = slmod.deepcopy(slmod.clientsMission[initName])
 					end
 				end
