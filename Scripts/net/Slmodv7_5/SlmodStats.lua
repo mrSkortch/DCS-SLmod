@@ -391,8 +391,9 @@ do
             slmod.stats.changePenStatsValue(penStats[ucid], 'autobanned', lStats.autobanned)
         end 
         
+        local joinDate = lStats.joinDate or os.time()
         if anyPens == true then 
-            local joinDate = lStats.joinDate
+            
             for index, cleanup in pairs(statCleanupTbls) do
                 for p = 1, #lStats[cleanup] do
                     if lStats[cleanup][p].time < joinDate then
@@ -407,9 +408,10 @@ do
                     slmod.stats.changeStatsValue(stats[ucid], statCleanupTbls[i], nil)
                 end
             end
-        
         end
-
+        if not stats[ucid].joinDate then -- just in case this creates it for existing users if cleanup is never run. 
+            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', joinDate)
+        end
 
     
     end
@@ -2091,7 +2093,9 @@ end]]
 				p1Tbl[#p1Tbl + 1] = pStats.names[#pStats.names]
 				p1Tbl[#p1Tbl + 1] = '", SlmodStats ID# '
 				p1Tbl[#p1Tbl + 1] = tostring(pStats.id)
-				p1Tbl[#p1Tbl + 1] = ':\n\nFLIGHT TIMES (HOURS):\n    NAME                  IN AIR                TOTAL\n'
+				p1Tbl[#p1Tbl + 1] = ':\n\nFLIGHT TIMES (HOURS): '
+                local ins = #p1Tbl + 1
+                p1Tbl[#p1Tbl + 1] = '\n    NAME                  IN AIR                TOTAL\n'
 				local platforms = {}
 				for platformName, timeTable in pairs(pStats.times) do
 					if (ac and ac == platformName) or not ac then
@@ -2099,19 +2103,22 @@ end]]
                     end
 				end
 				table.sort(platforms)    
-
+                
+                local tTime = 0
+                local aTime = 0
                 local killList = slmod.deepcopy(commonStatTbl)
                 local pvp = {kills = 0, losses = 0}
 				local losses = {crash = 0, eject = 0, pilotDeath = 0}
 				for i = 1, #platforms do
 					local line = '                                                                                                                             \n'
 					line = stringInsert(line, platforms[i], 5)  -- insert platform name.
+                    aTime =  pStats.times[platforms[i]].inAir + aTime
+                    tTime =  pStats.times[platforms[i]].total + tTime
 					local inAirTime = string.format('%.2f', pStats.times[platforms[i]].inAir/3600)
 					local totalTime = string.format('%.2f', pStats.times[platforms[i]].total/3600)
 					line = stringInsert(line, inAirTime, 27)  -- insert inAirTime
 					line = stringInsert(line, totalTime, 49)  -- insert totalTime
 					p1Tbl[#p1Tbl + 1] = line
-                    slmod.info('add kills')
                     if pStats.times[platforms[i]].kills then
                         for cat, catData in pairs(pStats.times[platforms[i]].kills) do
                             if killList[cat] and type(catData) == 'table' then
@@ -2134,7 +2141,11 @@ end]]
                             pvp.losses = pStats.times[platforms[i]].actions.pvp.losses + pvp.losses
                         end
                     end
+                    
+                        
+                    
 				end
+                table.insert(p1Tbl, ins, ' Total Flight: ' .. string.format('%.2f', aTime/3600) .. '  Overall: ' .. string.format('%.2f', tTime/3600))
 				p1Tbl[#p1Tbl + 1] = '\nKILLS:\n     GROUND                PLANES                HELOS                 SHIPS             BUILDINGS\n'
                 if pStats.kills and not ac then -- new tables for this won't exist, add it to old list if applicable
                     for cat, catData in pairs(pStats.kills) do

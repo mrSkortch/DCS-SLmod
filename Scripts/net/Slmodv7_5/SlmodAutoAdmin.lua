@@ -403,9 +403,17 @@ do
 	
 	function slmod.autoAdminOnConnect(ucid) -- this called from the server.on_connect callback.
 		if ucid and autoAdmin.autoBanEnabled and (not slmod.isAdmin(ucid)) and (not autoAdmin.exemptionList[ucid]) then  -- there BETTER BE a ucid. Oh and Admins are exempt from this check.
-			local pStats = slmod.stats.getUserPenStats(ucid)
+			local pStats = penStats[ucid]
+            if not pStats then
+                local lStats = stats[ucid]
+                if lStats and lStats.friendlyKills then
+                    slmod.stats.createPlayerPenaltyStats(ucid)
+                end
+                pStats = slmod.stats.getUserPenStats(ucid)
+            end
+            
             if pStats then  --previous player..
-				local score = autoAdminScore(ucid)
+                local score = autoAdminScore(ucid)
 				if score then
 					if pStats.autoBanned then -- player was already autoBanned
 						if autoAdmin.reallowLevel and score < autoAdmin.reallowLevel then
