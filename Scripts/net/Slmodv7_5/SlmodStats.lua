@@ -339,6 +339,19 @@ do
 			nextIDNum = entry.id + 1
 		end
 	end
+    
+    	-- function called to add a new player to SlmodStats.
+	local function createMisStatsPlayer(ucid)  -- call AFTER the regular stats createNewPlayer.
+        local pStats = stats[ucid]
+		if not pStats then
+			slmod.error('Mission Stats: player (ucid = ' .. tostring(ucid) .. ') does not exist in regular stats!')
+		else
+			slmod.stats.changeMisStatsValue(misStats, ucid, {})
+			slmod.stats.changeMisStatsValue(misStats[ucid], 'names', slmod.deepcopy(pStats.names))
+			slmod.stats.changeMisStatsValue(misStats[ucid], 'id', pStats.id)
+			slmod.stats.changeMisStatsValue(misStats[ucid], 'times', {})
+		end
+ 	end
    	---------------------------------------------------------------------------------------------------
 	---------------------------------------------------------------------------------------------------
 	-- function called to add a new player to SlmodStats.
@@ -432,6 +445,7 @@ do
 	-- call this function each time a value in stats needs to be changed...
 	-- t: the table in misStats that this value belongs under
     function slmod.stats.changeMisStatsValue(t, key, newValue)
+        --slmod.info('write miz stat')
         if not t then
 			slmod.error('Invalid misStats table specified!')
 			return
@@ -449,19 +463,7 @@ do
         
 	end
 	---------------------------------------------------------------------------------------------------
-	-- function called to add a new player to SlmodStats.
-	local function createMisStatsPlayer(ucid)  -- call AFTER the regular stats createNewPlayer.
-        local pStats = stats[ucid]
-		if not pStats then
-			slmod.error('Mission Stats: player (ucid = ' .. tostring(ucid) .. ') does not exist in regular stats!')
-		else
-			slmod.stats.changeMisStatsValue(misStats, ucid, {})
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'names', slmod.deepcopy(pStats.names))
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'id', pStats.id)
 
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'times', {})
-		end
- 	end
 	---------------------------------------------------------------------------------------------------------------------
     local penStatsTableKeys = {}  -- stores strings that corresponds to table indexes within penStats... needed for updating file.
 	penStatsTableKeys[penStats] = 'penStats'
@@ -586,7 +588,7 @@ do
 			local newName
 			
 			if not stats[ucid] then
-				createNewPlayer(ucid, name, true)
+                createNewPlayer(ucid, name, true)
 			else  -- check to see if name matches	
 				if slmod.config.enable_mission_stats and not misStats[ucid] then  -- should be true in cases where stats check was true... but wait till after names has been updated.
                     createMisStatsPlayer(ucid)
@@ -1194,26 +1196,24 @@ end]]
                 end
 				local weapon = lastHitEvent.weapon
                 local saveStat = {}
-				if slmod.clientsByRtId and slmod.clientsByRtId[lastHitEvent.rtid] or slmod.oldClientsByRtId[lastHitEvent.rtid] then
-                    local ucid, typeName = {}, {}
-                    for seat, data in pairs(lastHitEvent.initiator) do
-                        ucid[seat] = data.ucid
-                        if seat > 1 then
-                            typeName[seat] = multiCrewNameCheck(hitObjType, seat)
-                        else
-                            typeName[seat] = hitObjType
-                        end
-                        
+                local ucid, typeName = {}, {}
+                for seat, data in pairs(lastHitEvent.initiator) do
+                    ucid[seat] = data.ucid
+                    if seat > 1 then
+                        typeName[seat] = multiCrewNameCheck(hitObjType, seat)
+                    else
+                        typeName[seat] = hitObjType
                     end
-                    saveStat = {ucid = ucid, typeName = typeName}
+                    
                 end
+                saveStat = {ucid = ucid, typeName = typeName}
                 
                 local deadObjData = {}
                 local dStat = {}
                 if deadClient then 
-                    local ucid, typeName = {}, {}
+                    local ducid, dtypeName = {}, {}
                     for seatId, dData in pairs (deadClient) do
-                        ucid[seatId] = dData.ucid
+                        ducid[seatId] = dData.ucid
                         deadObjData[seatId] = dData.ucid
                         if seatId > 1 then
                             typeName[seatId] = multiCrewNameCheck(deadObjType, seatId)
@@ -1221,7 +1221,7 @@ end]]
                             typeName[seatId] = deadObjType
                         end
                     end
-                    dStat = {ucid = ucid, typeName = typeName}
+                    dStat = {ucid = ducid, typeName = dtypeName}
                 else
                     deadObjData[1] = {name = deadName}
                 end

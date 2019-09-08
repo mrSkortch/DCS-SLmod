@@ -494,13 +494,14 @@ function slmodCall.onPlayerTryConnect(addr, name, ucid)
 	
 	local allow, score = slmod.autoAdminOnConnect(ucid)
     if allow == false  then
-		if slmod.config.autoAdmin.showPenaltyKickBanActions then
-            if autoAdmin.reallowLevel then 
-                return false, 'You are autobanned from this server with: ' .. string.format("%.2f", tostring(score)) .. ' penalty points. Unautoban occurs below ' .. autoAdmin.reallowLevel .. 'points.' 
+        if slmod.config.autoAdmin.showPenaltyKickBanActions then
+            if slmod.config.autoAdmin.reallowLevel then 
+                return false, 'You are autobanned from this server with: ' .. string.format("%.2f", tostring(score)) .. ' penalty points. Unautoban occurs below ' .. slmod.config.autoAdmin.reallowLevel .. ' points.' 
             else
                 return false, 'You are autobanned from this server with: ' .. string.format("%.2f", tostring(score)) .. ' penalty points.' 
             end
         end
+        
         return false, 'You are autobanned from this server'
 	end
 

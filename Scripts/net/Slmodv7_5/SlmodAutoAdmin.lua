@@ -411,20 +411,19 @@ do
                 end
                 pStats = slmod.stats.getUserPenStats(ucid)
             end
-            
             if pStats then  --previous player..
                 local score = autoAdminScore(ucid)
 				if score then
 					if pStats.autoBanned then -- player was already autoBanned
-						if autoAdmin.reallowLevel and score < autoAdmin.reallowLevel then
+                        if autoAdmin.reallowLevel and score < autoAdmin.reallowLevel then
 							-- allow player.  "Unban" them too.
 							slmod.stats.changePenStatsValue(penStats[ucid], 'autoBanned', false)
 							return true  -- allow connection
 						end
 					end
 					if score > autoAdmin.autoBanLevel then
-						if not pStats.autoBanned then  -- set autoBanned true if wasn't already.
-							slmod.stats.changePenStatsValue(penStats[ucid], 'autoBanned', true)
+                        if not pStats.autoBanned then  -- set autoBanned true if wasn't already.
+                            slmod.stats.changePenStatsValue(penStats[ucid], 'autoBanned', true)
 							
 							-- also, if it wasn't true already, then he probably wasn't autoBanned before, and he should be, so set the numTimesAutoBanned field to 1
 							if not pStats.numTimesAutoBanned then  -- make sure first...
@@ -449,9 +448,10 @@ do
             if client.ucid and slmod.clients[client.id] and (slmod.clients[client.id].ucid == client.ucid) and (not slmod.isAdmin(client.ucid)) and (not autoAdmin.exemptionList[client.ucid]) and (not (client.id == 1)) then  -- client is in proper format and is online, and is not exempt
                 --slmod.info('in on offense')
                 -- autoban?
+                local score = autoAdminScore(client.ucid)
                 if autoAdmin.autoBanEnabled and actionTaken == false then
                     --slmod.info('doing autoban eval')
-                    local score = autoAdminScore(client.ucid)
+                    
                     --slmod.info('score: ' .. tostring(score))
                     if score and score > autoAdmin.autoBanLevel then  -- player gets autoBanned.
                         slmod.stats.changePenStatsValue(penStats[client.ucid], 'autoBanned', true) -- set as banned.
@@ -462,7 +462,7 @@ do
                         else
                             numTimesBanned = 1
                         end
-                        slmod.penStats.changePenStatsValue(penStats[client.ucid], 'numTimesAutoBanned', numTimesBanned)  --increment the number of times the player has been banned
+                        slmod.stats.changePenStatsValue(penStats[client.ucid], 'numTimesAutoBanned', numTimesBanned)  --increment the number of times the player has been banned
                         
                         -- kicking...
                         if client.rtid then  -- attempt to despawn client.
@@ -483,7 +483,6 @@ do
                 end
                 -- or autokick?
                 if autoAdmin.autoKickEnabled and actionTaken == false then  -- if still here, check for autoKick.
-                    local score = autoAdminScore(client.ucid)
                     if score and score > autoAdmin.autoKickLevel then
                         
                         -- kicking...
@@ -499,9 +498,8 @@ do
                 end
                
                 if autoAdmin.autoSpecEnabled and actionTaken == false then
-                    local score = autoAdminScore(client.ucid)
                     if score and score > autoAdmin.autoSpecLevel then
-                        
+                       
                         -- kicking...
                         if client.rtid then  -- attempt to despawn client.
                             net.dostring_in('server', 'Object.destroy({id_ = ' .. tostring(client.rtid) .. '})')
