@@ -147,14 +147,16 @@ do
 			
 		else
 			Admins = Admins or {}
-            slmod.update_admins()
+            update_admins()
 		end
+        Admins_f:close()
 	end
 	----------------------------------------------------------------------------------------
 	
 	----------------------------------------------------------------------------------------
-	function slmod.update_admins(client_info)
+	local function update_admins(client_info)
 		-- client_info: {ucid = string, name = string}
+        --slmod.info(slmod.oneLineSerialize(client_info))
 		Admins = Admins or {}
 		
 		if client_info then
@@ -410,7 +412,7 @@ do
 								},
 								[3] = { 
 									type = 'word',
-									text = 'kic',
+									text = 'kick',
 									required = true
 								},
 								[4] = { 
@@ -1523,6 +1525,7 @@ do
 				}
 			} 
 		AdminCleanupPen.onSelect = function(self, vars, client_id)
+            slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Admin Stats Cleanup Started', 20, display_mode , {clients = {client_id}}}, DCS.getRealTime() + 0.1)
             local stats = slmod.stats.getStats()
             local penStats = slmod.stats.getPenStats()
             local days = tonumber(vars.days) or 0
@@ -1565,7 +1568,7 @@ do
                     end
                 end
             end
-            
+            slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Admin Stats Cleanup End', 20, display_mode , {clients = {client_id}}}, DCS.getRealTime() + 0.1)
              
 			--slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 		end

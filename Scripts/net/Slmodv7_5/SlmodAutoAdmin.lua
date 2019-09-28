@@ -695,69 +695,71 @@ do
         return false
     end
     
-    function slmod.autoAdminCheckForgiveOnOffense(clients, dClient)
+    function slmod.autoAdminCheckForgiveOnOffense(clients, dClient, offType)
         local deadClient = {} -- raw UCID of client that is killed
-        if type(dClient) == 'string' then -- shouldn't happen
-            deadClient[1] = dClient
-        else 
-            deadClient = dClient
-        end
-        if deadClient and anyDeadUCID(deadClient) == false then -- it is a bot you killed, Bots never forgive and never forget
-            slmod.autoAdminOnOffense(clients)
-        else
-            local offData = {offender = {}, victim = deadClient, time = os.time()}
-            if autoAdmin.forgiveEnabled then -- set timeout limits
-                offData.canForgive = autoAdmin.forgiveTimeout or 30
+        if autoAdmin[offType] and autoAdmin[offType].enabled == true then 
+            if type(dClient) == 'string' then -- shouldn't happen
+                deadClient[1] = dClient
+            else 
+                deadClient = dClient
             end
-            if autoAdmin.forgiveEnabled or autoAdmin.punishEnabled then -- check if the player is exempt
-                for cInd, client in pairs(clients) do 
-                    if client.ucid and slmod.clients[client.id] and (slmod.clients[client.id].ucid == client.ucid) and (not slmod.isAdmin(client.ucid)) and (not autoAdmin.exemptionList[client.ucid]) and (not (client.id == 1)) then
-                        table.insert(offData.offender, client)
-                    end
-
-                end
-            else -- both punishment and forgiveness disabled
+            if deadClient and anyDeadUCID(deadClient) == false then -- it is a bot you killed, Bots never forgive and never forget
                 slmod.autoAdminOnOffense(clients)
-            end
-            if #offData.offender > 0 then -- because it can be an admin
-                if autoAdmin.punishFirstForgiveLater then
-                    slmod.scheduleFunctionByRt(slmod.autoAdminOnOffense, {offData.offender}, DCS.getRealTime() + 1)
-                else
-                    if autoAdmin.punishEnabled then 
-                        offData.canPunish = autoAdmin.punishTimeout or 30
-                    end
+            else
+                local offData = {offender = {}, victim = deadClient, time = os.time()}
+                if autoAdmin.forgiveEnabled then -- set timeout limits
+                    offData.canForgive = autoAdmin.forgiveTimeout or 30
                 end
-                
-                delayedPenalty[#delayedPenalty+1] = offData
-                if autoAdmin.msgPromptOnKilled then
-                    local dClientIDs = {}
-                    local killerClientNames = getPlayerNamesString(clients)
-                    for i = 1, #deadClient do
-                        table.insert(dClientIDs, deadClient[i].id)
-                    end
+                if autoAdmin.forgiveEnabled or autoAdmin.punishEnabled then -- check if the player is exempt
+                    for cInd, client in pairs(clients) do 
+                        if client.ucid and slmod.clients[client.id] and (slmod.clients[client.id].ucid == client.ucid) and (not slmod.isAdmin(client.ucid)) and (not autoAdmin.exemptionList[client.ucid]) and (not (client.id == 1)) then
+                            table.insert(offData.offender, client)
+                        end
 
-                    local msg = {}
-                    if killerClientNames then 
-                        msg[#msg + 1] = 'You have been teamkilled by '
-                        msg[#msg + 1] = killerClientNames
                     end
-                    if autoAdmin.forgiveEnabled then
-                        msg[#msg + 1] = '\nType "-forgive" into chat to forgive the player for any recent team damage and teamkill on you. '
-                        msg[#msg + 1] = ' You have '
-                        msg[#msg + 1] = autoAdmin.forgiveTimeout or 30
-                        msg[#msg + 1] = ' seconds to forgive them. \n'
-                    end
-                    if autoAdmin.punishEnabled then
-                        msg[#msg + 1] = '\nType "-punish" into chat to punish the player for any recent team damage and teamkill on you. '
-                        msg[#msg + 1] = ' You have '
-                        msg[#msg + 1] = autoAdmin.punishTimeout or 30
-                        msg[#msg + 1] = ' seconds to punish them. \n'
-                    end
-                    slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'both', {clients = dClientIDs}}, DCS.getRealTime() + 0.5)
-                    
+                else -- both punishment and forgiveness disabled
+                    slmod.autoAdminOnOffense(clients)
                 end
-                if penaltyCheckActive == false then 
-                     checkForgivePunishStatus()
+                if #offData.offender > 0 then -- because it can be an admin
+                    if autoAdmin.punishFirstForgiveLater then
+                        slmod.scheduleFunctionByRt(slmod.autoAdminOnOffense, {offData.offender}, DCS.getRealTime() + 1)
+                    else
+                        if autoAdmin.punishEnabled then 
+                            offData.canPunish = autoAdmin.punishTimeout or 30
+                        end
+                    end
+                    
+                    delayedPenalty[#delayedPenalty+1] = offData
+                    if autoAdmin.msgPromptOnKilled then
+                        local dClientIDs = {}
+                        local killerClientNames = getPlayerNamesString(clients)
+                        for i = 1, #deadClient do
+                            table.insert(dClientIDs, deadClient[i].id)
+                        end
+
+                        local msg = {}
+                        if killerClientNames then 
+                            msg[#msg + 1] = 'You have been teamkilled by '
+                            msg[#msg + 1] = killerClientNames
+                        end
+                        if autoAdmin.forgiveEnabled then
+                            msg[#msg + 1] = '\nType "-forgive" into chat to forgive the player for any recent team damage and teamkill on you. '
+                            msg[#msg + 1] = ' You have '
+                            msg[#msg + 1] = autoAdmin.forgiveTimeout or 30
+                            msg[#msg + 1] = ' seconds to forgive them. \n'
+                        end
+                        if autoAdmin.punishEnabled then
+                            msg[#msg + 1] = '\nType "-punish" into chat to punish the player for any recent team damage and teamkill on you. '
+                            msg[#msg + 1] = ' You have '
+                            msg[#msg + 1] = autoAdmin.punishTimeout or 30
+                            msg[#msg + 1] = ' seconds to punish them. \n'
+                        end
+                        slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'both', {clients = dClientIDs}}, DCS.getRealTime() + 0.5)
+                        
+                    end
+                    if penaltyCheckActive == false then 
+                         checkForgivePunishStatus()
+                    end
                 end
             end
         end

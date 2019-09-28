@@ -154,6 +154,11 @@ do
 		createNetviewDetector()  -- prevents slmod from running too early or too late.
 		slmod.clients = slmod.clients or {}
 		slmod.clients[1] = {id = 1, name = net.get_name(1), ucid = slmod.config.host_ucid or 'host' }  -- server host
+        
+        
+       -- for i = 3, 25 do
+        --    slmod.clients[i] = {id = i, name = 'fakeName' .. i, ucid = 'fakeUCID' .. i, ip = 'fakeIp' .. i}
+       -- end
 	end
 	
 

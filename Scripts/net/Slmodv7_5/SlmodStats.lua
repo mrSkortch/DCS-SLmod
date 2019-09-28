@@ -333,12 +333,25 @@ do
    	--------------------------------------------------------------------------------------------------
 	-- Create the nextIdNum variable, so stats knows the next stats ID number it can use for a new player.
 	local nextIDNum = 1
-	
-	for ucid, entry in pairs(stats) do  -- gets the next free ID num.
-		if type(entry) == 'table' and entry.id and entry.id >= nextIDNum then
-			nextIDNum = entry.id + 1
-		end
+	local pIds = {}
+    local function getNextId()
+        while pIds[nextIDNum] do
+            nextIDNum = nextIDNum + 1
+        end
+            
+        return nextIDNum
+    end    
+    
+	for ucid, entry in pairs(stats) do  -- gets the next free ID num. But also adds all of the Ids to a list indexed by Id. 
+		pIds[entry.id] = ucid
+        if type(entry) == 'table' and entry.id and entry.id >= nextIDNum then
+            nextIDNum = entry.id
+        end
 	end
+    -- and because it is possible for stats to be deleted and penStats to be kept. Iterate penStats just in case. 
+    for ucid, entry in pairs(penStats) do
+        pIds[entry.id] = ucid
+    end
     
     	-- function called to add a new player to SlmodStats.
 	local function createMisStatsPlayer(ucid)  -- call AFTER the regular stats createNewPlayer.
@@ -357,11 +370,15 @@ do
 	-- function called to add a new player to SlmodStats.
 	local function createNewPlayer(ucid, name, cMizStat) 
         slmod.stats.changeStatsValue(stats, ucid, {}) -- use original to write it
-		slmod.stats.changeStatsValue(stats[ucid], 'names', { [1] = name })
-		slmod.stats.changeStatsValue(stats[ucid], 'id', nextIDNum)
-		slmod.stats.changeStatsValue(stats[ucid], 'joinDate', os.time())
-        
-		nextIDNum = nextIDNum + 1
+        if penStats[ucid] then -- player existed before in penstats. So re-assign them their initial data
+            slmod.stats.changeStatsValue(stats[ucid], 'names', penStats[ucid].names)
+            slmod.stats.changeStatsValue(stats[ucid], 'id', penStats[ucid].id)
+            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', penStats[ucid].joinDate)   
+        else
+            slmod.stats.changeStatsValue(stats[ucid], 'names', { [1] = name })
+            slmod.stats.changeStatsValue(stats[ucid], 'id', getNextId())
+            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', os.time())
+        end
 		
 		slmod.stats.changeStatsValue(stats[ucid], 'times', {})
         
@@ -416,16 +433,16 @@ do
                 end
             end
             slmod.stats.changePenStatsValue(penStats[ucid], 'joinDate' , joinDate)        
-            for i = 1, #statCleanupTbls do -- erase team kill info from normal stats
-                if stats[ucid][statCleanupTbls[i]] then 
-                    slmod.stats.changeStatsValue(stats[ucid], statCleanupTbls[i], nil)
-                end
-            end
+
         end
         if not stats[ucid].joinDate then -- just in case this creates it for existing users if cleanup is never run. 
             slmod.stats.changeStatsValue(stats[ucid], 'joinDate', joinDate)
         end
-
+        for i = 1, #statCleanupTbls do -- erase team kill info from normal stats
+            if stats[ucid][statCleanupTbls[i]] then 
+                slmod.stats.changeStatsValue(stats[ucid], statCleanupTbls[i], nil)
+            end
+        end
     
     end
 	---------------------------------------------------------------------------------------------------------------------
@@ -799,7 +816,7 @@ end]]
 		end
 		-- autokick/autoban
 
-		slmod.autoAdminCheckForgiveOnOffense(clients, target)
+		slmod.autoAdminCheckForgiveOnOffense(clients, target, 'teamHit')
 	end
 
 	local function onFriendlyKill(clients, target, weapon)
@@ -829,7 +846,7 @@ end]]
 			slmod.chatLogFile:flush()
 		end
 		-- autokick/autoban
-		slmod.autoAdminCheckForgiveOnOffense(clients, target)
+		slmod.autoAdminCheckForgiveOnOffense(clients, target, 'teamKill')
 	end
     
 
