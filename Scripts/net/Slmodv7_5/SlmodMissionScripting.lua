@@ -1278,7 +1278,7 @@ do
 	slmod.MissionScripting_G = slmod.tableshow(_G, '["_G"]') -- do last in case there is a problem
 	
 	
-	sanitizeModule('debug')  -- So malicious missions can't break out of the sandbox and use LuaSocket.
+	--sanitizeModule('debug')  -- So malicious missions can't break out of the sandbox and use LuaSocket.
 	env.info('MissionScripting.lua SLMOD code loaded')
 end
 -------------------------------------------------------------------------------------

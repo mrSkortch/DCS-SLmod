@@ -123,7 +123,29 @@ do
 		end
     end
 	----------------------------------------------------------------------------------------
-	local function load_admins()
+    local function update_admins(client_info)
+		-- client_info: {ucid = string, name = string}
+        --slmod.info(slmod.oneLineSerialize(client_info))
+		Admins = Admins or {}
+		
+		if client_info then
+			Admins[client_info.ucid] = client_info.name
+		end
+		
+		local file_s = slmod.serialize('Admins', Admins)
+
+		local Admins_f = io.open(config_dir .. 'ServerAdmins.lua', 'w')
+		if Admins_f then
+			Admins_f:write(file_s)
+			Admins_f:close()
+			Admins_f = nil
+		else
+			slmod.error('unable to file of allowed server admins.')
+		end
+		
+	end
+    
+    local function load_admins()
 		local Admins_f = io.open(config_dir .. 'ServerAdmins.lua', 'r')
 		if Admins_f then
 			local Admins_s = Admins_f:read('*all')
@@ -154,27 +176,7 @@ do
 	----------------------------------------------------------------------------------------
 	
 	----------------------------------------------------------------------------------------
-	local function update_admins(client_info)
-		-- client_info: {ucid = string, name = string}
-        --slmod.info(slmod.oneLineSerialize(client_info))
-		Admins = Admins or {}
-		
-		if client_info then
-			Admins[client_info.ucid] = client_info.name
-		end
-		
-		local file_s = slmod.serialize('Admins', Admins)
 
-		local Admins_f = io.open(config_dir .. 'ServerAdmins.lua', 'w')
-		if Admins_f then
-			Admins_f:write(file_s)
-			Admins_f:close()
-			Admins_f = nil
-		else
-			slmod.error('unable to file of allowed server admins.')
-		end
-		
-	end
 	----------------------------------------------------------------------------------------
 	local mapStrings = slmod.config.mapStrings or {
         ['Caucasus'] = 'BS',

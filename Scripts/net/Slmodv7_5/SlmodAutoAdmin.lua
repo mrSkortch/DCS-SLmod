@@ -139,7 +139,7 @@ do
                     return (time - t1)*slope + w1
 				end
 			end
-			if stats[ucid].friendlyKills and not penStats[ucid] then
+			if stats[ucid] and stats[ucid].friendlyKills and not penStats[ucid] then
                 slmod.stats.createPlayerPenaltyStats(ucid)
             end
 		
@@ -365,11 +365,13 @@ do
 				
 				-- Now factor in flight hours
 				local totHours = 0
-				for name, time in pairs(stats[ucid].times) do
-					if time.inAir then
-						totHours = totHours + time.inAir
-					end
-				end
+				if stats[ucid] then 
+                    for name, time in pairs(stats[ucid].times) do
+                        if time.inAir then
+                            totHours = totHours + time.inAir
+                        end
+                    end
+                end
 				totHours = totHours/3600 -- actually convert to hours...
 				--slmod.info('totHours')
 				--slmod.info(totHours)

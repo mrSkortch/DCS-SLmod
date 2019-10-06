@@ -335,24 +335,21 @@ do
 	local nextIDNum = 1
 	local pIds = {}
     local function getNextId()
+        
         while pIds[nextIDNum] do
             nextIDNum = nextIDNum + 1
         end
-            
         return nextIDNum
     end    
     
 	for ucid, entry in pairs(stats) do  -- gets the next free ID num. But also adds all of the Ids to a list indexed by Id. 
 		pIds[entry.id] = ucid
-        if type(entry) == 'table' and entry.id and entry.id >= nextIDNum then
-            nextIDNum = entry.id
-        end
 	end
     -- and because it is possible for stats to be deleted and penStats to be kept. Iterate penStats just in case. 
     for ucid, entry in pairs(penStats) do
         pIds[entry.id] = ucid
     end
-    
+
     	-- function called to add a new player to SlmodStats.
 	local function createMisStatsPlayer(ucid)  -- call AFTER the regular stats createNewPlayer.
         local pStats = stats[ucid]
@@ -380,6 +377,8 @@ do
             slmod.stats.changeStatsValue(stats[ucid], 'joinDate', os.time())
         end
 		
+        pIds[stats[ucid].id] = ucid
+        
 		slmod.stats.changeStatsValue(stats[ucid], 'times', {})
         
         if slmod.config.enable_mission_stats and cMizStat then
@@ -1170,7 +1169,6 @@ end]]
 		if slmod.allMissionUnitsByName[deadName] then -- the dying unit should always be identified properly by name (not necessarily...could be Building).
             local deadCategory = slmod.allMissionUnitsByName[deadName].category 
 			local deadClient = slmod.clientsByName[deadName] or slmod.oldClientsByName[deadName]
-            --slmod.info(slmod.oneLineSerialize(deadClient))
 			-- Find the object in SlmodStats categories
 			local deadObjType = slmod.allMissionUnitsByName[deadName].objtype
 			local deadStatsCat
@@ -1227,11 +1225,12 @@ end]]
                 
                 local deadObjData = {}
                 local dStat = {}
+                local ducid, dtypeName = {}, {}
                 if deadClient then 
-                    local ducid, dtypeName = {}, {}
+                   
                     for seatId, dData in pairs (deadClient) do
                         ducid[seatId] = dData.ucid
-                        deadObjData[seatId] = dData.ucid
+                        deadObjData[seatId] = {ucid = dData.ucid, name = dData.name, id = dData.id}
                         if seatId > 1 then
                             typeName[seatId] = multiCrewNameCheck(deadObjType, seatId)
                         else
@@ -1289,6 +1288,7 @@ end]]
                                 dStat.nest = {'times', 'typeName', 'pvp', 'losses'}
                                 dStat.addValue = 1
                                 dStat.default = nil
+                                
                                 slmod.stats.advChangeStatsValue(dStat)
 
                                 onPvPKill(hitObj, deadClient, weapon, killerObj, victimObj)
@@ -1303,10 +1303,9 @@ end]]
                         end
                         saveStat.addValue = { time = os.time(), objCat = deadCategory, objTypeName = deadObjType, weapon = weapon, shotFrom = hitObjType}
                         if deadClient then
-                            saveStat.addValue.human = deadObjData
+                            saveStat.addValue.human = ducid
                         end
                         slmod.stats.advChangeStatsValue(saveStat)
-                        
                         onFriendlyKill(hitObj, deadObjData, weapon)
                     end
                 elseif type(hitObj) == 'string' then  -- AI hit them
@@ -1444,7 +1443,7 @@ end]]
 			while #slmod.events >= eventInd do
 				local event = slmod.events[eventInd]
 				--slmod.info('checking ' .. eventInd)
-                --slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
+               -- slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
 				eventInd = eventInd + 1  -- increment NOW so if there is a Lua error, I'm not stuck forever on this event.
                 
                 
@@ -1606,7 +1605,7 @@ end]]
 							--slmod.info('here2')
 						else
 							slmod.error('error in stats, could not match target unit in hit event with a mission editor unit name.  Could it be a map object? Event Index: ' .. eventInd)
-							slmod.info(slmod.oneLineSerialize(event))
+							--slmod.info(slmod.oneLineSerialize(event))
 						end
 						
 					end
@@ -1654,15 +1653,17 @@ end]]
 							end
 							
 						end
-					elseif initName and event.initiatorPilotName and initName ~= event.initiatorPilotName then  -- almost certainly human, and ALIVE.
-						initClient = slmod.clientsByRtId[event.initiatorID]
-						if initClient then
-							--initUCID = initClient.ucid
-							--initSide = initClient.coalition
-						end
-					
-					else  -- initiator probably not human.
+					elseif initName then
+                        if event.initiatorPilotName and initName ~= event.initiatorPilotName then  -- almost certainly human, and ALIVE.
+                            initClient = slmod.clientsByRtId[event.initiatorID]
+                        elseif slmod.oldClientsByName[initName] then -- was a human, but they are now dead. 
+                            initClient = slmod.oldClientsByName[initName]
+                        else  -- initiator probably not human.
 						-- nothing right now...
+                        
+                        end
+					
+
 					end
 					-----------------------------------------------------------
 					
@@ -1867,7 +1868,8 @@ end]]
 				if slmod.activeUnitsByName[unitName] then
 					if currentTime - landTime > 10 then  -- start checking to see if the unit is stationary.
 						if unitIsStationary(unitName) then
-							hitHumans[unitName] = nil -- human cannot be killed now.
+							--slmod.info(unitName .. ' was a hit unit and has landed safely, clear it so it cant be TKd')
+                            hitHumans[unitName] = nil -- human cannot be killed now.
 							landedUnits[unitName] = nil
 						end
 					end
@@ -2091,7 +2093,6 @@ end]]
 			return killsStrings
 		end
 
-		
 		if stats[ucid] or type(ucid) == 'table' then
 			local pStats
 			if type(ucid) == 'string' then
@@ -2103,7 +2104,6 @@ end]]
 			else
 				pStats = ucid
 			end
-				
 			if pStats then
 				local p1Tbl = {}  -- faster to use table.concat.
 				p1Tbl[#p1Tbl + 1] = 'Stats for player: "'
@@ -2120,7 +2120,6 @@ end]]
                     end
 				end
 				table.sort(platforms)    
-                
                 local tTime = 0
                 local aTime = 0
                 local killList = slmod.deepcopy(commonStatTbl)
@@ -2203,7 +2202,6 @@ end]]
 				if #buildingKillsStrings > maxSize then
 					maxSize = #buildingKillsStrings
 				end
-				
 				for i = 1, maxSize do
 					--net.log(i)
 					local line = '                                                                                                                    \n'
@@ -2270,7 +2268,6 @@ end]]
 		
 				p1Tbl[#p1Tbl + 1] = tostring(cKills)
 				p1Tbl[#p1Tbl + 1] = ';'
-				
                  if pStats.PvP and not ac then
                     pvp.kills = pStats.PvP.kills + pvp.kills
                     pvp.losses = pStats.PvP.losses + pvp.losses
@@ -2303,7 +2300,6 @@ end]]
 				-- sort weapons in alphabetical order
 				local weaponNames = {}
                 local weaponDat = {}
-                
 				for acName, acTbl in pairs(pStats.times) do
                      if (ac and ac == acName) or not ac then 
                         if acTbl.weapons then 
@@ -2313,7 +2309,9 @@ end]]
                                     weaponNames[#weaponNames + 1] = wepName
                                 else
                                     for wepStat, wepVal in pairs(wepData) do
-                                        weaponDat[wepName][wepStat] = weaponDat[wepName][wepStat] + wepVal
+                                        if type(wepVal) == 'number' then 
+                                            weaponDat[wepName][wepStat] = weaponDat[wepName][wepStat] + wepVal
+                                        end
                                     end
                                 end
                             end
@@ -2325,14 +2323,16 @@ end]]
                         if not weaponDat[weaponName] then
                             weaponDat[weaponName] = weaponData
                             weaponNames[#weaponNames + 1] = weaponName
+
                         else
                             for wepStat, wepVal in pairs(weaponData) do
-                                weaponDat[weaponName][wepStat] = weaponDat[weaponName][wepStat] + wepVal
+                                if type(wepVal) == 'number' then 
+                                    weaponDat[weaponName][wepStat] = weaponDat[weaponName][wepStat] + wepVal
+                                end
                             end
                         end
                     end
                 end
-                
 				table.sort(weaponNames)  -- put in alphabetical order
 				for i = 1, #weaponNames do
 					local line = '                                                                                                                     \n'
@@ -2343,7 +2343,6 @@ end]]
 					line = stringInsert(line, 'object hits = ' .. tostring(weaponDat[weaponNames[i]].numHits), 84)
 					p2Tbl[#p2Tbl + 1] = line
 				end
-				
 				return table.concat(p1Tbl), table.concat(p2Tbl)
 			end
 		end
@@ -2611,7 +2610,6 @@ end]]
 				
 					local page1, page2 = createDetailedStats(requester.ucid, requesterMode)
 					if page1 and page2 then
-						--slmod.info(msg)
 						slmod.scopeMsg(page1, self.options.display_time/2, self.options.display_mode, {clients = {clientId}})
 						slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, DCS.getModelTime() + self.options.display_time/2)
 					end

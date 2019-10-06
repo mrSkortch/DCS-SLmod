@@ -895,11 +895,13 @@ do
 		local function word_match(s_word, cmd_word) 
 			if cmd_word then -- gotta have this check for next_word_match and the way I use it.
 				--slmod.info(cmd_word.text)
-               
+                
                 if type(cmd_word.text) == 'string' then
 					if s_word:sub(1, cmd_word.text:len()) == cmd_word.text then 
-						return true, (s_word == cmd_word.text)
+						--slmod.info('substring match')
+                        return true, (s_word == cmd_word.text)
 					end
+                  
 					return false
 				elseif type(cmd_word.text) == 'table' then
 					for i = 1, #cmd_word.text do
@@ -1001,6 +1003,7 @@ do
                --slmod.info(slmod.oneLineSerialize(cmd[cmd_ind]))
                 local cmd_word_ind, exactmatch = word_match(s_words[s_ind], cmd[cmd_ind])
                 if not cmd_word_ind then -- cmd is a word and it doesn't match
+                    --slmod.info('no match')
                     if cmd[cmd_ind].required then --no match on required word
                        --slmod.info('here12')
                         return -1
@@ -1008,6 +1011,8 @@ do
                         cmd_ind = cmd_ind + 1 --move on to the next cmd.
                     end
                 else  -- next cmd is a word and it DOES match
+                    --slmod.info('index')
+                    --slmod.info(tostring(exactmatch))
                     if cmd[cmd_ind].varname then  -- need to add to the vars table
                         if type(cmd_word_ind) == 'number' then -- cmd[cmd_ind].text was a table
                             vars[cmd[cmd_ind].varname] = cmd[cmd_ind].text[cmd_word_ind]
@@ -1016,6 +1021,7 @@ do
                         end
                     end
                     if not exactmatch then
+                        --slmod.info('part match set to true')
                         part_match = true
                     end
                     s_ind = s_ind + 1
@@ -1250,7 +1256,7 @@ do
 			end
 		end
 		--if still here, there there are variables that need to be returned.
-		--slmod.info('here18')
+		--slmod.info('hereend')
 		if not part_match then
 			--slmod.info('here23')
 			return 1, vars
@@ -1305,7 +1311,8 @@ do
 									end
 									return item.options.privacy.access  -- return whether or not this chat message should be shown
 								elseif matchtype == 0 then
-									table.insert(ItemShowTbl, { item = item, client_id = client_id, vars = vars})
+									--slmod.info('add To tbl')
+                                    table.insert(ItemShowTbl, { item = item, client_id = client_id, vars = vars})
 								end
 								
 								-- if match then
