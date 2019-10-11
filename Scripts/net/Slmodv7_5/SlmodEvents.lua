@@ -127,7 +127,8 @@ do
 		local new_events = {}
 		local t_insert = table.insert --declare locally for faster run times
 		if #slmod.rawEvents >= slmod_events_ind then
-			--needs to be a while loop, index it operates on is a global var
+			--env.info('rawEvents > events_ind')
+            --needs to be a while loop, index it operates on is a global var
 			while slmod_events_ind <= #slmod.rawEvents do
 				t_insert(new_events, slmod.rawEvents[slmod_events_ind])
 				
@@ -152,7 +153,7 @@ do
 					--first, get the time of the currently evaluated event in new_events
 					cur_time = new_events[new_events_ind].t 
 					
-					-- env.info('evaluating event #' .. tostring(new_events_ind) .. 'in new_events')
+					 --env.info('evaluating event #' .. tostring(new_events_ind) .. 'in new_events')
 					-- env.info('time is: ' .. tostring(cur_time) .. '\n')
 					
 					------Next, get the index of the first event in slmod_events that occurred within time_res
@@ -330,7 +331,8 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 						end
 					end
 				elseif temp_event.type == 'birth' then
-					if slmod.allMissionUnitsByName and slmod.activeUnitsBase and temp_event.type == 'birth' then
+					--slmod.info('event birth')
+                    if slmod.allMissionUnitsByName and slmod.activeUnitsBase and temp_event.type == 'birth' then
 						
 						local newUnit = {}
 						newUnit.groupId = temp_event.groupId
@@ -345,6 +347,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 						newUnit.coalition = temp_event.coalition
 						newUnit.category = temp_event.category
 						
+                       -- slmod.info('add unit to DB')
 						local lUnitsBase = slmod.activeUnitsBase
 						lUnitsBase[#lUnitsBase + 1] = slmod.deepcopy(newUnit)
 						slmod.allMissionUnitsByName[newUnit.name] = slmod.deepcopy(newUnit)
@@ -899,12 +902,15 @@ do
 		end
 		
 		------ birth logic
-		if slmod.rawEvents and #slmod.rawEvents > 2 then
-			if event.id == world.event.S_EVENT_BIRTH then -- Event births occuring after mission start
-				local lunit = event.initiator
+		if slmod.rawEvents then -- and #slmod.rawEvents > 2 then
+			--env.info('check birth event')
+            if event.id == world.event.S_EVENT_BIRTH then -- Event births occuring after mission start
+				--env.info('birth event')
+                local lunit = event.initiator
 				
                 if ((Object.getCategory(lunit) == 1 and not lunit:getPlayerName()) or Object.getCategory(lunit) ~= 1) then -- only run logic on non clients
-					local newEvent = {}
+					--env.info('c1')
+                    local newEvent = {}
 									
 					local lgroup
                     if lunit:getCategory() == 3 or lunit:getCategory() == 6 then
@@ -912,7 +918,7 @@ do
                     else
                         lgroup  = lunit:getGroup()
                     end
-                     
+                    -- env.info('c2')
 					--local newUnit = {}
 					
 					local lCoa = tonumber(lunit:getCoalition())
@@ -924,7 +930,7 @@ do
 					else
 						newEvent.coalition  = 'neutral'
 					end
-									
+					--env.info('c3')		
 					
 					newEvent.name  = lunit:getName()
 					newEvent.unitId  = (lunit:getID())
@@ -934,7 +940,7 @@ do
                     else
                         newEvent.mpname = lunit:getName()
                     end
-
+                    --env.info('c4')
 					 --at least, for now.
 					newEvent.objtype = lunit:getTypeName()
 					newEvent.group = lgroup:getName()
@@ -942,7 +948,7 @@ do
 					newEvent.skill = "Random" -- cant find this out, so just say its random
 					newEvent.countryName = string.lower(country.name[tonumber(lunit:getCountry())])
 					newEvent.countryId= (lunit:getCountry())
-					
+					--env.info('c5')
 					if tonumber(lunit:getCategory()) == 3 or tonumber(lunit:getCategory()) == 6 then
 						newEvent.category  = 'static'
 					else
@@ -966,7 +972,7 @@ do
 					newEvent.t = timer.getAbsTime()
 					newEvent.numtimes = 1
 					newEvent.initiator = lunit:getName()
-					
+					--env.info('insert into rawEvents')
 					table.insert(slmod.rawEvents, newEvent)
 					--env.info(slmod.tableshow(newEvent))
 					--slmod.allMissionUnitsByName[newUnit.name] = newUnit
