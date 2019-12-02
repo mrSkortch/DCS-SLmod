@@ -708,13 +708,12 @@ end
 	
 -- mission editor name.  Returns the unit information from slmod.activeUnits or slmod.oldActiveUnits (if not in slmod.activeUnits) for this name
 function slmod.getUnitByName(name)
-	
 	if slmod.activeUnitsByName and slmod.activeUnitsByName[name] then
-		return slmod.activeUnitsByName[name]
+        return slmod.activeUnitsByName[name]
 	end
 	
 	if slmod.oldActiveUnitsByName and slmod.oldActiveUnitsByName[name] then
-		return slmod.oldActiveUnitsByName[name]
+        return slmod.oldActiveUnitsByName[name]
 	end
 	
 end	
