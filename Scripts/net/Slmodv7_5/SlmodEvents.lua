@@ -2,7 +2,8 @@ function slmod.create_getNextSlmodEvents()
 
 	local GetNextSlmodEvents_string = [=[-- debriefing module events hook
 do
-	local slmod_events_ind = 1
+	--env.info('slmod GetNextSlmodEvents_string')
+    local slmod_events_ind = 1
 	slmod = slmod or {}
 	slmod.rawEvents = nil
 	
@@ -51,14 +52,18 @@ do
 				--env.info('not addEventOld')
 				debriefing.addEvent_old = debriefing.addEvent
 				function debriefing.addEvent(event)
-					-- env.info('debriefing event:')
+					--env.info('debriefing event:')
 					--env.info(slmod.oneLineSerialize(event))
-					if (('takeoff' == event.type) or ('land' == event.type) or ('base captured' == event.type)) and ( (event.place ~= nil) and (event.place ~= '') ) then
+					if event.type == 'birth' then
+                        return
+                    end
+                    
+                    if (('takeoff' == event.type) or ('land' == event.type) or ('base captured' == event.type)) and ( (event.place ~= nil) and (event.place ~= '') ) then
 						--env.info('do weird transl')
 						event.target = dtransl(event.place);
 					end
 					if slmod and slmod.deepcopy then
-						--env.info('slmod and deepcopy')
+						--log.info('slmod and deepcopy')
 						--env.info(event.initiator)
 						
 						local eventCopy = slmod.deepcopy(event)
@@ -111,15 +116,15 @@ do
 							end
 						end
 						
+						--log.info(slmod.oneLineSerialize(eventCopy))
 						
-						
-						--env.info('add to raw events')
+						--log.info('add to raw events')
 						table.insert(slmod.rawEvents, eventCopy)
 					else
-						--env.info('else')
+						--log.info('else')
 						table.insert(slmod.rawEvents, event)
 					end
-					--env.info('return')
+					--log.info('return')
 					return debriefing.addEvent_old(event)
 				end
 			end		
@@ -209,13 +214,14 @@ do
 				end	
 			
 			end
-            --env.info('exit')
+           -- env.info('exit')
 			return slmod.serialize('slmod_next_events', slmod_events)
 			
 		end
         --env.info('noE')
 		return 'no_new_events'
 	end
+    --env.info('end GetNextSlmodEvents_string')
 end]=]
 	
 
@@ -347,7 +353,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 						newUnit.coalition = temp_event.coalition
 						newUnit.category = temp_event.category
 						
-                       -- slmod.info('add unit to DB')
+                        --slmod.info('add unit to DB')
 						local lUnitsBase = slmod.activeUnitsBase
 						lUnitsBase[#lUnitsBase + 1] = slmod.deepcopy(newUnit)
 						slmod.allMissionUnitsByName[newUnit.name] = slmod.deepcopy(newUnit)

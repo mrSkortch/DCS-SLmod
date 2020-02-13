@@ -2728,7 +2728,7 @@ function slmod.reset()
     local curList = net.get_player_list()
 	for id, dat in pairs(net.get_player_list()) do
 		curClients = curClients + 1
-
+        
         if (slmod.clients[id] and slmod.clients[id].ucid ~= net.get_player_info(id, 'ucid')) or not slmod.clients[id] then
             slmod.clients[id] = {id = id, addr = net.get_player_info(id, 'ipaddr'), name = net.get_player_info(id, 'name'), ucid = net.get_player_info(id, 'ucid'), ip = net.get_player_info(id, 'ipaddr')}
         end
