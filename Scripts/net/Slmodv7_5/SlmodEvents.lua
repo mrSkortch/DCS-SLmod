@@ -411,8 +411,37 @@ function slmod.outputSlmodEvents()  --output of the latest events since the last
 	if slmod.next_event_ind == nil then
 		slmod.next_event_ind = 1
 		beginS = 'slmod.events = {}\n'  -- beginning of file...
+
+		local missionEventsDir = ""
+		local missionName = 'UNKNOWN MISSION'
+		
+		if slmod.config.events_output_per_mission ~= nil and slmod.config.events_output_per_mission then
+			slmod.info("Per mission events activated...")
+			missionEventsDir = lfs.writedir() .. [[Slmod\Mission Events\]]
+			slmod.info(missionEventsDir)
+			if slmod.current_mission then
+				slmod.info(slmod.current_mission)
+				local strInd = slmod.current_mission:len()
+				while strInd > 1 do
+					local char = slmod.current_mission:sub(strInd, strInd)
+					if char == '\\' or char == '/' then
+						strInd = strInd + 1
+						break
+					end
+					strInd = strInd - 1
+				end
+				missionName = slmod.current_mission:sub(strInd, slmod.current_mission:len())
+			end
+			local file_name = missionEventsDir .. (missionName .. '- ' .. os.date('%b %d, %Y at %H %M %S.txt'))
+			slmod.info("Setting mission-events file to: " .. file_name .. "...")
+			slmod.eventsFile = slmod.eventsFile or io.open(file_name, 'w')
+		else
+			slmod.eventsFile = slmod.eventsFile or io.open(lfs.writedir() .. 'Slmod\\slmodEvents.txt', 'w')
+		end
+		slmod.info("Slmod events file created...")
 	end
-	slmod.eventsFile = slmod.eventsFile or io.open(lfs.writedir() .. 'Slmod\\slmodEvents.txt', 'w')
+	
+
 	if slmod.eventsFile then
 		local next_events_st = {}  --table of strings to be concatenated together
 		if beginS then
@@ -457,6 +486,8 @@ function slmod.outputSlmodEvents()  --output of the latest events since the last
 		local next_events_s = table.concat(next_events_st)  --table.concat is fastest way to concatenate strings
 		
 		slmod.eventsFile:write(next_events_s)
+	else
+		slmod.info("No slmod events file!")
 	end
 	
 end
