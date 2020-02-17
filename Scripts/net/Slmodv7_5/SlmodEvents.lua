@@ -18,6 +18,16 @@ do
 			return slmod.clientsMission[name].rtid  -- either nil or a rtid.
 		end
 	end
+    
+    local function getUnitNameById(id)
+        if slmod.allMissionUnitsById then
+            if slmod.allMissionUnitsById[id] then
+                return slmod.allMissionUnitsById[id].name
+            else
+                env.info('entry not found: ' .. id)
+            end
+        end
+    end
 	
 	function slmod.getNextSlmodEvents()
 		--env.info('in getNextSlmodEvents')
@@ -69,8 +79,16 @@ do
 						local eventCopy = slmod.deepcopy(event)
 						
 						--env.info(GetUnitRTidByName(event.initiator))
-						if event.initiator then -- for mission start/stop events
-							eventCopy.initiatorID = GetUnitRTidByName(event.initiator)
+						if eventCopy.initiatorMissionID and not event.initiator then
+                            eventCopy.initiator = getUnitNameById(eventCopy.initiatorMissionID)
+                        end
+                        
+                        if eventCopy.targetMissionID and ((eventCopy.target and not GetUnitRTidByName(eventCopy.target)) or not eventCopy.target) then
+                            eventCopy.target = getUnitNameById(eventCopy.targetMissionID)
+                        end
+                        
+                        if eventCopy.initiator then -- for mission start/stop events
+							eventCopy.initiatorID = GetUnitRTidByName(eventCopy.initiator)
 						end
 						
 						if eventCopy.type == 'shot' or eventCopy.type =='start shooting' or eventCopy.type == 'end shooting' then
@@ -353,11 +371,17 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 						newUnit.coalition = temp_event.coalition
 						newUnit.category = temp_event.category
 						
-                        --slmod.info('add unit to DB')
 						local lUnitsBase = slmod.activeUnitsBase
 						lUnitsBase[#lUnitsBase + 1] = slmod.deepcopy(newUnit)
 						slmod.allMissionUnitsByName[newUnit.name] = slmod.deepcopy(newUnit)
-						
+						slmod.allMissionUnitsById[newUnit.unitId] = slmod.deepcopy(newUnit)
+                        
+                        local s = table.concat({'slmod = slmod or {}\n', 'slmod.allMissionUnitsById[', slmod.oneLineSerialize(newUnit.unitId), '] = ', slmod.oneLineSerialize(newUnit)})
+        
+                        local str, err = net.dostring_in('server', s)
+                        if not err then
+                            slmod.error('failed to Appent slmod.allMissionUnitsById, reason: ' .. str)
+                        end
 					end
 				--slmod.activeUnitsBase[#slmod.activeUnitsBase + 1] = newUnit
 				end
@@ -368,50 +392,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 				
 				--------------------------------------------------------------------------------------------------------------------------------------
 				--------------------------------------------------------------------------------------------------------------------------------------
-				--New Slmodv6_3 code for logging team hits and kicking/banning team hitters.  This should probably be moved elsewhere.
-				-- if slmod.config.chat_log and slmod.config.log_team_hits and slmod.chatLogFile or ((slmod.config.team_hit_result == 'kick' or slmod.config.team_hit_result == 'ban') and (type(slmod.config.team_hit_limit) == 'number' and slmod.config.team_hit_limit > 0)) then
-					-- if temp_event.type == 'hit' and temp_event.initiator_coalition and temp_event.target_coalition and temp_event.initiator_coalition == temp_event.target_coalition then -- team hit
-						-- if temp_event.initiator_mpname and temp_event.initiator_name and temp_event.initiator_mpname ~= temp_event.initiator_name then -- team hit by a likely player
-							-- if slmod.clientsMission then
-								-- for id, data in pairs(slmod.clientsMission) do
-									-- if data.name and data.name == temp_event.initiator_mpname then --found the likely party
-										-- if slmod.config.chat_log and slmod.config.log_team_hits and slmod.chatLogFile then
-											-- local logline = 'TEAM HIT: ' .. os.date('%b %d %H:%M:%S ') .. slmod.oneLineSerialize(data) .. ' hit ' .. temp_event.target_mpname
-											-- if temp_event.weapon then
-												-- logline = logline .. ' with ' .. temp_event.weapon .. '\n'
-											-- else
-												-- logline = logline .. '\n'
-											-- end
-											-- slmod.chatLogFile:write(logline)
-											-- slmod.chatLogFile:flush()
-										-- end
-										-- if slmod.config.team_hit_result == 'kick' or slmod.config.team_hit_result == 'ban' then
-											-- if not data.team_hits then
-												-- data.team_hits = 1
-											-- else
-												-- data.team_hits = data.team_hits + 1
-											-- end
-											-- if type(slmod.config.team_hit_limit) == 'number' and slmod.config.team_hit_limit > 0 then
-												-- if data.team_hits >= slmod.config.team_hit_limit and id ~= 1 then
-													-- if slmod.config.team_hit_result == 'kick' then
-														-- net.kick(id, 'You were kicked from the server for team-hitting.')
-														-- slmod.basicChat('Slmod: ' .. temp_event.initiator_mpname .. ' was kicked for team hitting.')
-													-- elseif slmod.config.team_hit_result == 'ban' and slmod.config.admin_tools then
-														-- net.kick(id, 'You were banned from the server for team-hitting.')
-														-- slmod.basicChat('Slmod: ' .. temp_event.initiator_mpname .. ' was banned for team hitting.')
-														-- slmod.update_banned_clients({ucid = data.ucid, name = data.name, ip = data.addr})
-													-- end
-												-- end
-											-- end
-										-- end
-									-- end
-								-- end
-							-- end
-						-- end
-					-- end
-				-- end
-				--------------------------------------------------------------------------------------------------------------------------------------
-				--------------------------------------------------------------------------------------------------------------------------------------
+				
 			end
 			--slmod.info('end add events')
 		else

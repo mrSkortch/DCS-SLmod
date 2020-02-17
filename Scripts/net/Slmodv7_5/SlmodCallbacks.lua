@@ -154,22 +154,17 @@ do
 		createNetviewDetector()  -- prevents slmod from running too early or too late.
 		slmod.clients = slmod.clients or {}
 		slmod.clients[1] = {id = 1, name = net.get_name(1), ucid = slmod.config.host_ucid or 'host' }  -- server host
-        
-        
-       -- for i = 3, 25 do
-        --    slmod.clients[i] = {id = i, name = 'fakeName' .. i, ucid = 'fakeUCID' .. i, ip = 'fakeIp' .. i}
-       -- end
 	end
 	
 
 end
 	
 	local prevExecTime = 0  -- for once-every-second code.
-	
+	local prevSTest = 0
 	local runF = false
 	
 	local function getNetview()
-		if DCS.isMultiplayer() == true and DCS.isServer() == true then
+        if DCS.isMultiplayer() == true and DCS.isServer() == true then
 			if runF == false then
 				slmodCall.on_net_start()
 				runF = true
@@ -364,7 +359,7 @@ end
 				--slmod_pause_forced is enabled if override is off and the server is paused with the admin pause command
 				--slmod_pause_forced turned off when override is toggled
 			
-			
+
 
 
 			
@@ -456,8 +451,6 @@ function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
 	
 	if suppress then
 		return '' -- don't go any further- suppress any further on_chat.
-	else
-		return realString  -- do the original on_chat
 	end
 end
 
@@ -498,16 +491,17 @@ function slmodCall.onPlayerTryConnect(addr, name, ucid)
 	end
 	
 	local allow, score = slmod.autoAdminOnConnect(ucid)
+
     if allow == false  then
-        if slmod.config.autoAdmin.showPenaltyKickBanActions then
+		if slmod.config.autoAdmin.showPenaltyKickBanActions then
             if slmod.config.autoAdmin.reallowLevel then 
                 return false, 'You are autobanned from this server with: ' .. string.format("%.2f", tostring(score)) .. ' penalty points. Unautoban occurs below ' .. slmod.config.autoAdmin.reallowLevel .. ' points.' 
             else
                 return false, 'You are autobanned from this server with: ' .. string.format("%.2f", tostring(score)) .. ' penalty points.' 
             end
+        else
+            return false, 'You are autobanned from this server'
         end
-        
-        return false, 'You are autobanned from this server'
 	end
 
 
@@ -517,15 +511,15 @@ end
 -- modify on_set_unit
 --slmod.func_old.on_set_unit = slmod.func_old.on_set_unit or onPlayerChangeSlot
 function slmodCall.onPlayerChangeSlot(id)
+	--net.log('on change slot')
 	if slmod.stats.onSetUnit then
-		slmod.stats.onSetUnit(id)
+			slmod.stats.onSetUnit(id)
 	end
+
     if SlmodMOTDMenu then  -- right now, simple MOTD- send it to player when they select unit.
-        if slmod.clients[id] and ((not slmod.clients[id].motdTime) or DCS.getRealTime() - slmod.clients[id].motdTime > 5) then
-            if (not (slmod.exemptMOTD[slmod.clients[id].ucid] or slmod.exemptAll[slmod.clients[id].ucid])) then
-                slmod.clients[id].motdTime = DCS.getRealTime()
-                slmod.scheduleFunctionByRt(SlmodMOTDMenu.show, {SlmodMOTDMenu, id, {clients = {id}}}, DCS.getRealTime() + 0.1)
-            end
+        if slmod.clients[id] and (not slmod.clients[id].motdTime or DCS.getRealTime() - slmod.clients[id].motdTime > 5) then
+            slmod.clients[id].motdTime = DCS.getRealTime()
+            slmod.scheduleFunctionByRt(SlmodMOTDMenu.show, {SlmodMOTDMenu, id, {clients = {id}}}, DCS.getRealTime() + 0.1)
         end
     end
     if slmod.config.pingcheck_conf.enabled then 

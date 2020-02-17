@@ -98,9 +98,9 @@ do
 	
 	--------------------------------------------------------------------------------------------------------------
 	-- evaluate AutoAdmin rules... CALL THIS FUNCTION USING PCALL.   Users might mess up their config files!
-	local function autoAdminScore(ucid, det)
+	local function autoAdminScore(ucid, det, tUCID)
 		--slmod.info('getAutoAdminScore')
-        local function scorePilot(ucid, detailed) -- this will contain all the logic.  autoAdminScore calls this function with pcall.
+        local function scorePilot(ucid, detailed, tUCID) -- this will contain all the logic.  autoAdminScore calls this function with pcall.
 			--slmod.info('scoring pilot: ' .. tostring(ucid))
 			local toDays = function(s)
 				return math.abs(s/(24*3600))
@@ -151,6 +151,7 @@ do
             banInfo = {timesAutoBanned, expectedUnBanTime in Days}
             -- ON player try connect and banned, could try to say when they get unbanned?
             ]]
+            local specTK = {}
 			if pStats and autoAdmin and (autoAdmin.autoBanEnabled or autoAdmin.autoKickEnabled or autoAdmin.autoSpecEnabled) then
 				local score = 0  -- penalty score
 				local curTime = os.time()
@@ -159,7 +160,8 @@ do
                     local lastAIHitTime  -- a time.
 					local lastHumanHitTime
                     local dStats = {total = 0, active = 0, forgiven = 0}
-					for hitInd = 1, #pStats.friendlyHits do
+					--slmod.info('check hits')
+                    for hitInd = 1, #pStats.friendlyHits do
                         local hit = pStats.friendlyHits[hitInd]
                         local pen = 0
                         local hu = false
@@ -172,6 +174,13 @@ do
                                     pen = weight*autoAdmin.teamHit.penaltyPointsHuman
                                     score = score + pen
                                     hu = true
+                                    if pen > 0 and tUCID then
+                                        for x = 1, #hit.human do
+                                            if hit.human[x] == tUCID then
+                                                table.insert(specTK, {time = hit.time, type = 'teamHit', pointsAdded = pen, expireTime = autoAdmin.teamHit.decayFunction[#autoAdmin.teamHit.decayFunction].time  - timeSince, weapon = hit.weapon, index = hitInd})
+                                            end
+                                        end
+                                    end
 								end
 							else
                                 if not lastAIHitTime or ((hit.time - lastAIHitTime) >= autoAdmin.teamHit.minPeriodAI) then  -- count this hit
@@ -217,12 +226,18 @@ do
 							local timeSince = toDays(curTime - kill.time)
                             local weight = getWeight(autoAdmin.teamKill.decayFunction, timeSince)
 							if kill.human then -- a human was kill
-							--	slmod.info('killed human')
 								if not lastHumanKillTime or ((kill.time - lastHumanKillTime) >= autoAdmin.teamKill.minPeriodHuman) then  -- count this kill
-									lastHumanKillTime = kill.time
+                                    lastHumanKillTime = kill.time
                                     pen = weight*autoAdmin.teamKill.penaltyPointsHuman
                                     score = score + pen
                                     hu = true
+                                    if pen > 0 and tUCID then
+                                        for x = 1, #kill.human do
+                                            if kill.human[x] == tUCID then
+                                                table.insert(specTK, {time = kill.time, type = 'teamKill', pointsAdded = pen, expireTime = autoAdmin.teamKill.decayFunction[#autoAdmin.teamKill.decayFunction].time  - timeSince, weapon = kill.weapon, index = killInd})
+                                            end
+                                        end
+                                    end
 								end
 							else
                                 if not lastAIKillTime or ((kill.time - lastAIKillTime) >= autoAdmin.teamKill.minPeriodAI) then  -- count this kill
@@ -274,6 +289,13 @@ do
                                     pen = weight*autoAdmin.teamCollisionHit.penaltyPointsHuman
                                     score = score + pen
                                     hu = true
+                                    if pen > 0 and tUCID then
+                                        for x = 1, #colHit.human do
+                                            if colHit.human[x] == tUCID then
+                                                table.insert(specTK, {time = colHit.time, type = 'teamColHit', pointsAdded = pen, expireTime = autoAdmin.teamCollisionHit.decayFunction[#autoAdmin.teamCollisionHit.decayFunction].time  - timeSince, weapon = colHit.weapon, index = colHitInd})
+                                            end
+                                        end
+                                    end                                    
 								end
 							else
 								if not lastAIColHitTime or ((colHit.time - lastAIColHitTime) >= autoAdmin.teamCollisionHit.minPeriodAI) then  -- count this hit
@@ -323,6 +345,13 @@ do
                                     pen = weight*autoAdmin.teamCollisionKill.penaltyPointsHuman
                                     score = score + pen
                                     hu = true
+                                    if pen > 0 and tUCID then
+                                        for x = 1, #kill.human do
+                                            if colKill.human[x] == tUCID then
+                                                table.insert(specTK, {time = colKill.time, type = 'teamCollKill', pointsAdded = pen, expireTime = autoAdmin.teamCollisionKill.decayFunction[#autoAdmin.teamCollisionKill.decayFunction].time  - timeSince, weapon = colKill.weapon, index = colKillInd})
+                                            end
+                                        end
+                                    end
 								end
 							else
 								if not lastAIColKillTime or ((colKill.time - lastAIColKillTime) >= autoAdmin.teamCollisionKill.minPeriodAI) then  -- count this hit
@@ -384,6 +413,10 @@ do
                     --slmod.info(slmod.oneLineSerialize(d))
                 end
                 
+                if tUCID then
+                    return specTK
+                end
+                
 				return score*getWeight(autoAdmin.flightHoursWeightFunction, totHours), d  -- factor in flight hours, and return.
 				--return finalScore
 			end
@@ -391,7 +424,7 @@ do
 		end
 		
 		-- pcall - prevents bad config files from making Slmod fail.
-		local err, score, detail = pcall(scorePilot, ucid, det)
+		local err, score, detail = pcall(scorePilot, ucid, det, tUCID)
 		if err then
 			return score, detail
 		else
@@ -524,16 +557,35 @@ do
         on forgive modify stats entry with forgive flag. (must be also all related Hits to that unit within timeout of period?)
         
         on punish remove entry for checked function, go to slmod.autoAdminOnOffense
-        
-        
-        
-    
     ]]
     
     function slmod.getUserScore(id, detailed) -- call of local function
        -- slmod.info('getUserScore')
         local score, dets = autoAdminScore(id, detailed)
         return score, dets
+    end
+    
+    --[[Part of function to forgive after timeout has been reached. User can get list of penalties that have been occured via killing player. Can have choice to forgive. 
+    Player calls command. Is given list of active penalties caused by players against them. Up to 20 TKs?
+    Formatted similar to Penalty Score display: Index | OffenderName | Type | Weapon | Amount | Time Remaining
+    
+    Similar to mission voting/mission changing, players can then type a command: "-item X"
+    
+    ]]
+    function slmod.getTKOn(tUCID)
+         local listOfTKsOnPlayer = {}
+        for ucid, data in pairs(penStats) do
+            if tUCID ~= ucid then
+                local tData = autoAdminScore(ucid, false, tUCID)
+                if tData and #tData > 0 then -- player has been TK'd by this person
+                    for i = 1, #tData do
+                        tData[i].ucid = ucid
+                        table.insert(listOfTKsOnPlayer, tData[i])
+                    end
+                end
+            end
+        end
+        return listOfTKsOnPlayer
     end
     
     function slmod.playerPenaltyScoreDisplay(d, s, mData)
@@ -945,6 +997,133 @@ do
             
             forgivePunishItems[#forgivePunishItems + 1] = SlmodMenuItem.create(cVars)  -- add the item into the items table.
             
+        end
+        --------------------
+        if autoAdmin.forgiveEnabled then -- //TODO: Add to its own option in config for 7_6
+            -- Menu to list and forgive a penalty after the time has expired. 
+            local function create_forgiveTKsOnMeMenu(id, tkList)  -- creates a menu to list and forgive penalties that have occured on the player. 
+                local tkShowCommands = {
+                    [1] = {
+                        [1] = {
+                            type = 'word',
+                            text = '-list',
+                            required = true,
+                        },
+                        [2] = {
+                            type = 'word',
+                            text = 'again',
+                            required = true,
+                        }
+                    }
+                }
+                
+                local forgiveItems = {}
+                local display_mode = 'text'
+                local display_time =  30
+                
+                local tkMenu = SlmodMenu.create({showCmds = tkShowCommands, scope = {clients = {id}}, options = {display_time = display_time, display_mode = display_mode, title = 'Teamkill listing (you have 30 seconds to make a choice to forgive). \n Type: "-item X" with X being the index to forgive that specific TeamKill \nINDEX | PlayerName  |  Type  |  Weapon  |  Penalty Value  |  Days Left', privacy = {access = true, show = true}}, items = forgiveItems})
+                slmod.scheduleFunctionByRt(SlmodMenu.destroy, {tkMenu}, DCS.getRealTime() + 30)  --scheduling self-destruct of this menu in two minutes.
+                for i = 1, #tkList do
+                    local tkDat = tkList[i]
+                    local tkVars = {}
+                    tkVars.menu = tkMenu
+                    tkVars.description = 'Index: ' .. tostring(i) .. ' | ' .. penStats[tkDat.ucid].names[#penStats[tkDat.ucid].names] .. '  |  ' .. tkDat.type .. '  |  ' .. tkDat.weapon .. '  |  ' .. string.format("%.2f", tostring(tkDat.pointsAdded)) .. '  |  ' .. string.format("%.2f", tostring(tkDat.expireTime)) .. '  |  ' 
+                    tkVars.active = true
+                    tkVars.choice = i
+                    tkVars.options = {display_mode = 'text', display_time = 30, privacy = {access = true, show = true}}
+                    tkVars.selCmds = {
+                            [1] = {
+                                [1] = { 
+                                    type = 'word', 
+                                    text = '-item',
+                                    required = true
+                                }, 
+                                [2] = { 
+                                    type = 'word',
+                                    text = tostring(i),
+                                    required = true
+                                }
+                            }
+                        } 
+                    tkVars.onSelect = function(self, vars, client_id)
+                        if not client_id then
+                            client_id = vars
+                        end
+                        local f = tkList[self.choice]
+                        local ucid = f.ucid
+                        
+                        if penStats[ucid] then
+                            local pStats = penStats[ucid]
+                            if type(pStats) == 'table'  then  
+                                local check = ''
+                                if f.type == 'teamHit' then
+                                    check = 'friendlyHits'
+                                elseif f.type == 'teamKill' then
+                                    check = 'friendlyKills'
+                                elseif f.type == 'teamColHit' then
+                                    check = 'friendlyCollisionHits'
+                                elseif f.type == 'teamColKill' then
+                                    check = 'friendlyCollisionKills'
+                                end
+                                if check ~= '' then
+                                    if penStats[ucid] and penStats[ucid][check] and penStats[ucid][check][f.index] then
+                                        slmod.stats.changePenStatsValue(penStats[ucid][check][f.index], 'forgiven', true)
+                                        slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Forgiven Applied', 20, 'echo' , {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    forgiveItems[i] = SlmodMenuItem.create(tkVars) 
+                end
+                
+                
+                local ShowAgainVars = {}
+                ShowAgainVars.menu = tkMenu
+                ShowAgainVars.description = 'Say "-list again" in chat to view this menu again.'
+                ShowAgainVars.active = true
+                ShowAgainVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+                ShowAgainVars.selCmds = {} 
+                ShowAgainVars.onSelect = function() end
+                forgiveItems[#tkList+1] = SlmodMenuItem.create(ShowAgainVars) 
+                
+                tkMenu:show()
+            end
+            
+            local showTKsVars = {}
+            showTKsVars.menu = SlmodAdminMenu
+            showTKsVars.description = 'Say in chat "-tk list" to see a list of TKs that have occured on you and to have the option to forgive specific infractions at any time.'
+            showTKsVars.active = true
+            showTKsVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+            showTKsVars.selCmds = {
+                    [1] = {
+                        [1] = { 
+                            type = 'word', 
+                            text = '-tk',
+                            required = true
+                        }, 
+                        [2] = { 
+                            type = 'word',
+                            text = 'list',
+                            required = true
+                        }
+                    }
+                } 
+            showTKsVars.onSelect = function(self, vars, client_id)
+                if not client_id then
+                    client_id = vars
+                end
+                local tkList = slmod.getTKOn(slmod.clients[client_id].ucid)
+                if #tkList > 0 then
+                    create_forgiveTKsOnMeMenu(client_id, tkList)
+                else
+                    slmod.scopeMsg('There are no active Teamkill penalties on you.', 10, 'echo', {clients = {client_id}})
+                end
+                
+            end
+            
+            forgivePunishItems[#forgivePunishItems + 1] = SlmodMenuItem.create(showTKsVars)  -- add the item into the items table.
+        
         end
     end
 

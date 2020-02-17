@@ -735,6 +735,58 @@ do
 		
 		
 		-----------------------------------------------------------------------------------------------
+        		-- extra item, banning via ucid.
+		local AdminBanUCIDVars = {}
+		AdminBanUCIDVars.menu = SlmodAdminMenu
+		AdminBanUCIDVars.description = 'Say in chat "-admin ucidBan <ucid>" to ban a player from the server.'
+		AdminBanUCIDVars.active = true
+		AdminBanUCIDVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		AdminBanUCIDVars.selCmds = {
+				[1] = {
+					[1] = { 
+						type = 'word', 
+						text = '-admin',
+						required = true
+					}, 
+					[2] = { 
+						type = 'word',
+						text = 'ucidBan',
+						required = true
+						},
+					[3] = {
+						type = 'text',  -- new match type- ALL remaining text from chat message!  Can only be the last variable.
+						varname = 'ucid',
+						required = true,
+					}
+				}
+			} 
+		AdminBanUCIDVars.onSelect = function(self, vars, client_id)
+			--net.log('in onSelect')
+			local ucid = vars.ucid or ''
+			for id, client in pairs(slmod.clients) do -- skips host
+				if client.ucid and type(client.ucid) == 'string' and client.ucid == ucid and client.id and client.id ~= 1 then
+					
+					local admin
+					if client_id and slmod.clients[client_id] then
+						admin = slmod.clients[client_id] 
+					else 
+						admin = {name = '!UNKNOWN ADMIN!'} -- should NEVER get to this.
+					end
+
+					net.kick(id, 'You were banned from the server.')
+					slmod.update_banned_clients({ucid = slmod.clients[id].ucid, name = client.name, ip = slmod.clients[id].addr or slmod.clients[id].ip}, {name = admin.name, ucid = admin.ucid})
+					
+					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. admin.name .. '" banned player "' .. client.name .. '" from the server.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+					return
+				end
+			end
+			slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player ucid "' .. ucid .. '".', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+		end
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminBanUCIDVars)  -- add the item into the items table.
+		
+		
+		-----------------------------------------------------------------------------------------------
 		-- forth item, ban by id submenu
 		local adminIdBanVars = {}
 		adminIdBanVars.menu = SlmodAdminMenu
@@ -1538,6 +1590,19 @@ do
             for ucid, lStats in pairs(stats) do -- this is inefficient- maybe I need to make a stats by id table.
                 if lStats.friendlyKills then -- stats in old format, add player to new penStats and delete old entries from stats
                     slmod.stats.createPlayerPenaltyStats(ucid)
+                end
+                for acName, acData in pairs(lStats.times) do
+                    if not acData.total then
+                        slmod.stats.changeStatsValue(stats[ucid].times, acName, nil)
+                    else
+                        if acData.weapons then
+                            for wepName, wepData in pairs(acData.weapons) do
+                                if wepData.shot and wepData.shot == 0 then
+                                    slmod.stats.changeStatsValue(stats[ucid].times[acName].weapons, wepName, nil)
+                                end
+                            end
+                        end
+                    end
                 end
                 local uPenStats = penStats[ucid]
                 --- insert days cleanup here. Iterate through each type, compare date. If older then throw it out.
