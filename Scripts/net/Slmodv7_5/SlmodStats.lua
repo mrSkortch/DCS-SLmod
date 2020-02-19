@@ -1005,7 +1005,7 @@ end]]
 	
 	local function PvPRules(killer, victim)  -- expects unitNames, returns a boolean true if it was a fair match, false otherwise, nil in case of fuck up
 		local attack = {'a%-10', 'su%-25'}
-		
+		--slmod.info('pvp rules')
 		local killerUnit = slmod.allMissionUnitsByName[killer]
 		local victimUnit = slmod.allMissionUnitsByName[victim]
 		if killerUnit and victimUnit then
@@ -1056,12 +1056,12 @@ end]]
 	acft['mig-29'] = true
 	
 	local function isAircraft(weaponName)  -- determines if the weapon was a aircraft.
-
+        --slmod.info('isAC')
 		if weaponName and weaponName:len() > 1 then
-			for planeCat, planes in pairs(slmod.unitCategories.Planes) do
+            for planeCat, planes in pairs(slmod.unitCategories.Planes) do
 				for plane, trashVal in pairs(planes) do
 					if weaponName:sub(1, weaponName:len() - 1):lower():gsub('[^%d%a]', '') == plane:sub(1, plane:len() - 1):lower():gsub('[^%d%a]', '') then  -- take out the last character, convert to lower case, remove anything not a letter or a number... do comparison this way.
-						return true
+                        return true
 					end
 				end
 			end
@@ -1072,7 +1072,8 @@ end]]
 					end
 				end
 			end
-			if acft[weaponName] then
+			
+            if acft[weaponName] then
 				return true
 			end
 		end
@@ -1269,7 +1270,7 @@ end]]
                         --slmod.stats.changeStatsValue(stats[deadClientUCID[i]].losses, 'crash', stats[deadClientUCID[i]].losses.crash + 1)
                         
                         if deadClient then
-                            dStat.nest = {'times', 'typeName', 'losses', 'crash'}
+                            dStat.nest = {'times', 'typeName', 'losses'}
                             dStat.addValue = {crash = 1}
                             dStat.default = {crash = 0, eject = 0, pilotDeath = 0}
                             slmod.stats.advChangeStatsValue(dStat)
@@ -1280,20 +1281,19 @@ end]]
                         --- DO PVP STUFF
                         
                         if lastHitEvent.inAirHit or lastHitEvent.inAirHit == nil then
-                                    --slmod.info('lastHitEvent.inAirHit: '  .. tostring(lastHitEvent.inAirHit))
-                            local countPvP, killerObj, victimObj = PvPRules(hitter.unitName, deadName)
+                            --slmod.info('lastHitEvent.inAirHit: '  .. tostring(lastHitEvent.inAirHit))
+                            local countPvP, killerObj, victimObj = PvPRules(lastHitEvent.unitName, deadName)
                             if countPvP then  -- count in PvP!
                                 saveStat.nest = {'times', 'typeName', 'pvp', 'kills'}
                                 saveStat.addValue = 1
-                                saveStat.default = nil
+                                saveStat.default = 0
                                 slmod.stats.advChangeStatsValue(saveStat)
                                 
                                 dStat.nest = {'times', 'typeName', 'pvp', 'losses'}
                                 dStat.addValue = 1
-                                dStat.default = nil
+                                dStat.default = 0
                                 
                                 slmod.stats.advChangeStatsValue(dStat)
-
                                 onPvPKill(hitObj, deadClient, weapon, killerObj, victimObj)
                            end
                         end
@@ -1301,6 +1301,7 @@ end]]
                         saveStat.penalty = true 
                         if weapon == 'kamikaze' then
                             saveStat.nest = 'friendlyCollisionKills'
+                            --slmod.info('KKill')
                         else
                            saveStat.nest = 'friendlyKills'
                         end
@@ -1343,7 +1344,7 @@ end]]
 			end
 			
 			-- wipe this unit if he is a hitHuman
-			hitHumans[deadName] = nil
+            hitHumans[deadName] = nil
 		end
 	end
 	----------------------------------------------------------------------------------------------------------
@@ -1452,6 +1453,7 @@ end]]
                 local initClient -- load this for each event with standardized table
                 local saveStat = {}
                 local ucid, typeName = {}, {}
+
 				if slmod.clientsByRtId and slmod.clientsByName[event.initiator] or slmod.oldClientsByName[event.initiator] then
                     initClient = slmod.clientsByRtId[event.initiatorID]
                     for seat, data in pairs(initClient) do
@@ -1465,12 +1467,11 @@ end]]
                     end
                     
                 end
-				
-				----------------------------------------------------------------------------------------------------------
+				--slmod.info(slmod.oneLineSerialize(saveStat))
+                ----------------------------------------------------------------------------------------------------------
 				--- Shot events
 				--if (event.type == 'shot' or event.type == 'start shooting') and event.initiator_name and event.initiator_mpname and event.initiator_name ~= event.initiator_mpname then  -- human shot event
 				if (event.type == 'shot' or event.type == 'end shooting' or event.type == 'start shooting') and event.initiator and event.initiatorPilotName and event.initiator ~= event.initiatorPilotName then  -- human shot event
-					--slmod.info('shotting')
 					if slmod.clientsByRtId then
 						local clients = slmod.clientsByRtId[event.initiatorID]
                         if clients then -- don't check for specific seat I guess, just see if it exists. To many variables if hot swapping seats is added to more aircraft
@@ -1697,14 +1698,21 @@ end]]
                         
                         
                         if (not isCluster) or (isCluster and filterClusterHits(weapon, initName, tgtName, time)) then  -- count this hit, it's not a cluster hit or is a new cluster hit.
-                             if not stats[saveStat.ucid[1]].times[saveStat.typeName[1]].weapons[weapon] then
+                            --slmod.info('saveHit')
+                            if not stats[saveStat.ucid[1]].times[saveStat.typeName[1]].weapons then
+                                saveStat.default = {}
+                                saveStat.nest = {'times', 'typeName', 'weapons'}
+                                slmod.stats.advChangeStatsValue(saveStat)  
+                            end
+                            
+                            if not stats[saveStat.ucid[1]].times[saveStat.typeName[1]].weapons[weapon] then
                                 saveStat.default = {shot = 0, hit = 0, numHits = 0, kills = 0}
                                 saveStat.nest = {'times', 'typeName', 'weapons', weapon}
                                 slmod.stats.advChangeStatsValue(saveStat)
                             end
 
                             if tgtSide and initSide then
-                                local saveToHit = {time = time, initiator = parseOutExtraClientData(initClient), weapon = weapon, shotFrom = initType, rtid = event.initiatorID}
+                                local saveToHit = {time = time, initiator = parseOutExtraClientData(initClient), weapon = weapon, shotFrom = initType, rtid = event.initiatorID, unitName = initName}
                                 local tgtInfoForFHit = {[1] = {name = tgtName}}
                                 if tgtSide == initSide then
                                     saveToHit.friendlyHit = true
