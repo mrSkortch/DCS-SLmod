@@ -11,9 +11,13 @@ do
 	-- new slmod.stats.resetStatsFile function.
 	local statsF -- stats file handle; upvalue of slmod.stats.resetStatsFile.
     local metaStatsF -- metaStats file handle
+
     
-    local misStats = {}  -- by-mission stats
+    local misStats = {}-- by-mission stats
     local misStatsF  -- mission stats file
+    
+    local penStats -- penalty stats
+    local penStatsF -- penalty stats file
     
     local missionStatsDir = slmod.config.mission_stats_files_dir or lfs.writedir() .. [[Slmod\Mission Stats\]]
     if missionStatsDir:sub(missionStatsDir:len(), missionStatsDir:len()) ~= '\\' and missionStatsDir:sub(missionStatsDir:len(), missionStatsDir:len()) ~= '/' then
@@ -33,7 +37,6 @@ do
         local statData
         local envName = 'stats'
         if l == 'mission' then
-            --slmod.info('mission')
             fileF = misStatsF
             if f then
                 fileName = '\\' .. f
@@ -46,6 +49,13 @@ do
             lName = 'SlmodMetaStats.lua'
             envName = 'metaStats'
             statData = metaStats
+        elseif l == 'penalty' then
+            --slmod.info('meta')
+            fileName = '\\SlmodPenaltyStats.lua'
+            lName = 'SlmodPenaltyStats.lua'
+            envName = 'penStats'
+            statData = penStats   
+            fileF = penStatsF
         else
            -- slmod.info('stats')
             fileF = statsF
@@ -107,7 +117,11 @@ do
 				end
 				
 			else
-				slmod.warning('Unable to open ' .. lName .. ' , will make a new ' .. lName .. ' file.')	
+                if f then 
+                    slmod.info('Old Mission Stat file doesnt exist')
+                    return
+                end
+                slmod.warning('Unable to open ' .. lName .. ' , will make a new ' .. lName .. ' file.')	
 			end
 		end
         if not statData then
@@ -119,32 +133,36 @@ do
             fileF:write(newStatsS)
             --fileF:close()
            -- fileF = nil -- close meta stats so it can be written elsewhere
-           
         elseif l == 'mission' then
             local newStatsS = slmod.serialize('misStats', statData) ..'\n'
-            fileF = io.open(lstatsDir .. fileName, 'w')
-            fileF:write(newStatsS)
-            fileF:close()
+            --if f or slmod.config.enable_mission_stats then 
+                fileF = io.open(lstatsDir .. fileName, 'w')
+                fileF:write(newStatsS)
+                fileF:close()
+           -- end
             fileF = nil
-        elseif not l then
             
+        elseif l == 'penalty' then
+            local newStatsS = slmod.serialize('penStats', statData) ..'\n'
+            penStatsF = io.open(lstatsDir .. fileName, 'w')
+            penStatsF:write(newStatsS)
+        elseif not l then
             --Now, stats should be opened, or if not run, at least backed up..  Now, write over the old stats and return a file handle.
             local newStatsS = slmod.serialize('stats', statData) ..'\n'
             statsF = io.open(lstatsDir .. fileName, 'w')
             statsF:write(newStatsS)
         end
-        --slmod.info(slmod.oneLineSerialize(statData))
+        
         return statData, fileF
 	end
     stats = slmod.stats.resetFile()
-    
+    penStats = slmod.stats.resetFile('penalty')
     local statWrites = 0
     local function recompileStats()
         --slmod.info('recompile stats')
         stats = slmod.stats.resetFile()
         statWrites = 0    
     end
-    
     
 	-------------------------------------------------------------------------------------------------------
 	-- Create statsTableKeys database
@@ -156,6 +174,7 @@ do
                 if type(val) == 'table' and type(key) == 'string' then
 					key = levelKey .. '[' .. slmod.basicSerialize(key) .. ']'
 					statsTableKeys[val] = key  -- works because each table only exists once in Slmod stats- it's REQUIRED!!! DO NOT FORGET THIS!
+                    --slmod.info(slmod.basicSerialize(val) .. ' : ' .. key)
 					makeStatsTableKeys(key, val)
 				end
 			end
@@ -163,14 +182,13 @@ do
 		
 		makeStatsTableKeys('stats', stats)
 	end	
-
 	------------------------------------------------------------------------------------------------------
 
-    
-	-- call this function each time a value in stats needs to be changed...
+    ----------------
+	-- call this function each time a value in stats needs to be changed... 
+    -- For all root entries for a player and changing actual values by advChangeStatsValue
 	-- t: the table in stats that this value belongs under
     function slmod.stats.changeStatsValue(t, key, newValue)
-		--slmod.info('changeStatsValue')
         if not t then
 			slmod.error('Invalue stats table specified!')
 			return
@@ -185,86 +203,249 @@ do
         if statWrites > 1000 then
             recompileStats()
         end
-		--slmod.info(statsChangeString, true)
+		--slmod.info(statsChangeString)
+        --testWrite()
 	end
+    
+    --[[AdvancedChangeStatsValue()
+    New function meant to simplify how stats are added amoung multiple files and multicrew aircraft. 
+    - Changes stats for multiple users in the same aircraft at the same time without having to do a whole set of code twice
+    - Writes to stats, misStats, and anything else at the same time.
+    
+    ucid: string or table of UCID strings that stat is to apply to
+    nest: string or table of strings where table index that is to be written to. Use string 'typeName' to tell code to change the value to the actual typename for the passed players. 
+    addValue: Value that is added. Accepts table or single value as string/number. 
+    setValue: Sets To this value. Note: Does not accept tables, sets value to highest nest table entry. 
+    insert: Inserts the entry to the table
+    default: if no value present then use that. Meant for creating table entries that are missing. If not present defaults to empty table {}
+    typeName: Table matching ucid table indexes. For multicrew stats. 
+    penalty: Add to Penalty stats
+    
+    
+    Sample. Ejections can be added multiple ways. 
+    {nest = {'times', 'typeName', 'actions', 'losses', 'eject'}, addValue = 1}
+    {nest = {'times', 'typeName', 'actions', 'losses'}, addValue = {eject = 1}}
+    ]]
 	
-	--------------------------------------------------------------------------------------------------
+    function slmod.stats.advChangeStatsValue(vars)
+        --slmod.info(slmod.oneLineSerialize(vars))
+        local useUcid = {}
+        local nest = vars.nest
+        local addValue = vars.addValue
+        local default = vars.default
+        local typeName = vars.typeName
+        if type(vars.ucid) == 'string' then -- can accept a string or multiple ucid to apply stat to
+            useUcid[1] = vars.ucid
+        else
+            useUcid = vars.ucid
+        end
+        for j = 1, #useUcid do
+            if stats[useUcid[j]] then
+                local lStats = stats[useUcid[j]]
+                if vars.penalty then -- add to penalty stats file
+                    if not penStats[useUcid[j]] then -- create user pen stats
+                        --slmod.info('create Pen stats')
+                        slmod.stats.createPlayerPenaltyStats(useUcid[j], true)
+                    end
+                    slmod.stats.changePenStatsValue(penStats[useUcid[j]][nest], #penStats[useUcid[j]][nest] + 1, addValue)
+                else
+                    local mStats = misStats[useUcid[j]]
+                    local lEntry = nest
+                    local mEntry = slmod.deepcopy(nest)
+                    if type(nest) == 'table' then -- nest can be a string for root level or table for nested levels
+                        for i = 1, #nest - 1 do
+                            --slmod.info(i .. ' ' .. lEntry[i])
+                            if lEntry[i] == 'typeName' and typeName then
+                                lEntry[i] = typeName[j]
+                                mEntry[i] = typeName[j]
+                            end
+                            if not lStats[lEntry[i]] then
+                                slmod.stats.changeStatsValue(lStats, lEntry[i], {})
+                            end
+                            lStats = lStats[lEntry[i]]
+                            if slmod.config.enable_mission_stats then
+                                if not mStats[mEntry[i]] then
+                                    slmod.stats.changeMisStatsValue(mStats, mEntry[i], {})
+                                end  
+                                mStats = mStats[mEntry[i]]
+                            end
+                        end
+                        lEntry = lEntry[#lEntry]
+                        mEntry = mEntry[#mEntry]
+                    end
+                    if not lStats[lEntry] then -- if this table is not there, then it needs to create it!
+                        slmod.stats.changeStatsValue(lStats, lEntry, default or {})
+
+                    else
+                        --slmod.info(lEntry .. ' exists')
+                    end
+                    
+                    if slmod.config.enable_mission_stats then
+                        if not mStats[mEntry] then 
+                            local mDefault
+                            if default then 
+                                mDefault = slmod.deepcopy(default)
+                            end
+                            slmod.stats.changeMisStatsValue(mStats, mEntry, mDefault or {})
+                        end
+                        -- insert code to create it in mission stats here because if it doesnt exist in main stats then it doesn't exist in mission stats
+                    end
+                    if addValue then 
+                        if type(addValue) == 'table' then 
+                            for index, value in pairs(addValue) do
+                                if lStats[lEntry][index] then
+                                    --slmod.info('val is ' .. lStats[lEntry][index])
+                                    slmod.stats.changeStatsValue(lStats[lEntry], index, lStats[lEntry][index] + value)
+                                end
+                                if slmod.config.enable_mission_stats then
+                                    if mStats[mEntry][index] then 
+                                        --slmod.info('mval is ' .. mStats[mEntry][index])
+                                        slmod.stats.changeMisStatsValue(mStats[mEntry], index, mStats[mEntry][index] + value)
+                                    end
+                                end
+                            end
+                        else    
+                            --slmod.info(addValue .. ' is added to single val ' .. lEntry)
+                            slmod.stats.changeStatsValue(lStats, lEntry, lStats[lEntry] + addValue)
+                            if  slmod.config.enable_mission_stats then 
+                                slmod.stats.changeMisStatsValue(mStats, mEntry, mStats[mEntry] + addValue)
+                            end
+                        end
+                    end
+                    if vars.setValue then -- change one and only one value to this. 
+                        slmod.stats.changeStatsValue(lStats, lEntry, vars.setValue)
+                        if  slmod.config.enable_mission_stats then 
+                            slmod.stats.changeMisStatsValue(mStats, mEntry, vars.setValue)
+                        end
+                    end
+                    if vars.insert then
+                        slmod.stats.changeStatsValue(lStats[lEntry], #lStats[lEntry] + 1, vars.insert)
+                        if  slmod.config.enable_mission_stats then 
+                            slmod.stats.changeMisStatsValue(mStats[mEntry], #mStats[mEntry] + 1, vars.insert)
+                        end
+                    end
+                end
+            end
+
+        end
+        --slmod.info('end adv write')
+        return
+    end
+      
+   	--------------------------------------------------------------------------------------------------
 	-- Create the nextIdNum variable, so stats knows the next stats ID number it can use for a new player.
 	local nextIDNum = 1
-	
-	for ucid, entry in pairs(stats) do  -- gets the next free ID num.
-		if type(entry) == 'table' and entry.id and entry.id >= nextIDNum then
-			nextIDNum = entry.id + 1
-		end
+	local pIds = {}
+    local function getNextId()
+        
+        while pIds[nextIDNum] do
+            nextIDNum = nextIDNum + 1
+        end
+        return nextIDNum
+    end    
+    
+	for ucid, entry in pairs(stats) do  -- gets the next free ID num. But also adds all of the Ids to a list indexed by Id. 
+		pIds[entry.id] = ucid
 	end
-	---------------------------------------------------------------------------------------------------
+    -- and because it is possible for stats to be deleted and penStats to be kept. Iterate penStats just in case. 
+    for ucid, entry in pairs(penStats) do
+        pIds[entry.id] = ucid
+    end
+
+    	-- function called to add a new player to SlmodStats.
+	local function createMisStatsPlayer(ucid)  -- call AFTER the regular stats createNewPlayer.
+        local pStats = stats[ucid]
+		if not pStats then
+			slmod.error('Mission Stats: player (ucid = ' .. tostring(ucid) .. ') does not exist in regular stats!')
+		else
+			slmod.stats.changeMisStatsValue(misStats, ucid, {})
+			slmod.stats.changeMisStatsValue(misStats[ucid], 'names', slmod.deepcopy(pStats.names))
+			slmod.stats.changeMisStatsValue(misStats[ucid], 'id', pStats.id)
+			slmod.stats.changeMisStatsValue(misStats[ucid], 'times', {})
+		end
+ 	end
+   	---------------------------------------------------------------------------------------------------
 	---------------------------------------------------------------------------------------------------
 	-- function called to add a new player to SlmodStats.
-	local function createNewPlayer(ucid, name)
-        slmod.stats.changeStatsValue(stats, ucid, {})
-		slmod.stats.changeStatsValue(stats[ucid], 'names', { [1] = name })
-		slmod.stats.changeStatsValue(stats[ucid], 'id', nextIDNum)
+	local function createNewPlayer(ucid, name, cMizStat) 
+        slmod.stats.changeStatsValue(stats, ucid, {}) -- use original to write it
+        if penStats[ucid] then -- player existed before in penstats. So re-assign them their initial data
+            slmod.stats.changeStatsValue(stats[ucid], 'names', penStats[ucid].names)
+            slmod.stats.changeStatsValue(stats[ucid], 'id', penStats[ucid].id)
+            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', penStats[ucid].joinDate)   
+        else
+            slmod.stats.changeStatsValue(stats[ucid], 'names', { [1] = name })
+            slmod.stats.changeStatsValue(stats[ucid], 'id', getNextId())
+            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', os.time())
+        end
 		
-		nextIDNum = nextIDNum + 1
-		
+        pIds[stats[ucid].id] = ucid
+        
 		slmod.stats.changeStatsValue(stats[ucid], 'times', {})
-		slmod.stats.changeStatsValue(stats[ucid], 'weapons', {})
-		
-		slmod.stats.changeStatsValue(stats[ucid], 'kills', {})
-		slmod.stats.changeStatsValue(stats[ucid].kills, 'Ground Units', 
-		{
-			['SAM'] = 0, 
-			['AAA'] = 0, 
-			['EWR'] = 0, 
-			['Arty/MLRS'] = 0, 
-			['Infantry'] = 0, 
-			['Tanks'] = 0, 
-			['IFVs'] = 0,
-			['APCs'] = 0, 
-			['Unarmored'] = 0, 
-			['Forts'] = 0, 
-			['Other'] = 0,
-			['total'] = 0,
-		})
-		slmod.stats.changeStatsValue(stats[ucid].kills, 'Planes', 
-		{
-			['Fighters'] = 0,
-			['Attack'] = 0,
-			['Bombers'] = 0,
-			['Support'] = 0,
-			['UAVs'] = 0,
-			['Transports'] = 0,
-			['Other'] = 0,
-			['total'] = 0,
-		})
-		slmod.stats.changeStatsValue(stats[ucid].kills, 'Helicopters', 
-		{
-			['Attack'] = 0,
-			['Utility'] = 0,
-			['Other'] = 0,
-			['total'] = 0,
-		})
-		slmod.stats.changeStatsValue(stats[ucid].kills, 'Ships', 
-		{
-			['Warships'] = 0,
-			['Subs'] = 0,
-			['Unarmed'] = 0,
-			['Other'] = 0,
-			['total'] = 0,
-		})
-		slmod.stats.changeStatsValue(stats[ucid].kills, 'Buildings', 
-		{
-			['Static'] = 0,
-			['Other'] = 0,
-			['total'] = 0,
-		})
-		slmod.stats.changeStatsValue(stats[ucid], 'friendlyKills', {})
-		slmod.stats.changeStatsValue(stats[ucid], 'friendlyHits', {})
-		slmod.stats.changeStatsValue(stats[ucid], 'friendlyCollisionHits', {})
-		slmod.stats.changeStatsValue(stats[ucid], 'friendlyCollisionKills', {})
-		slmod.stats.changeStatsValue(stats[ucid], 'PvP', {kills = 0, losses = 0})
-		slmod.stats.changeStatsValue(stats[ucid], 'losses', {crash = 0, eject = 0, pilotDeath = 0})
+        
+        if slmod.config.enable_mission_stats and cMizStat then
+            createMisStatsPlayer(ucid)
+        end
+
 	end
+    
+    
+    --- new function to create the penalty stats for a player
+    local statCleanupTbls = {'friendlyHits', 'friendlyKills', 'friendlyCollisionHits', 'friendlyCollisionKills'}
+    function slmod.stats.createPlayerPenaltyStats(ucid, forced)
+        local lStats = stats[ucid]
+        
+        local anyPens = false
+        if lStats.friendlyKills then 
+            for i = 1, #statCleanupTbls do
+                if lStats[statCleanupTbls[i]] and #lStats[statCleanupTbls[i]] > 0 then
+                    anyPens = true
+                end
+            end
+        end
+        -- create default stats
+        if anyPens == true or forced == true then 
+            slmod.stats.changePenStatsValue(penStats,ucid, {}) -- use old method because I don't care. 
+            slmod.stats.changePenStatsValue(penStats[ucid], 'id' , lStats.id)
+            slmod.stats.changePenStatsValue(penStats[ucid], 'names' , slmod.deepcopy(lStats.names))
+            slmod.stats.changePenStatsValue(penStats[ucid], 'joinDate' , os.time())
+            slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyKills', {})
+            slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyHits', {})
+            slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyCollisionHits', {})
+            slmod.stats.changePenStatsValue(penStats[ucid], 'friendlyCollisionKills', {})
+        end
+        -- cleanup for old stats if needed
+        if lStats.numTimesAutoBanned then
+             slmod.stats.changePenStatsValue(penStats[ucid], 'numTimesAutoBanned', lStats.numTimesAutoBanned)
+        end
+        if lStats.autobanned then
+            slmod.stats.changePenStatsValue(penStats[ucid], 'autobanned', lStats.autobanned)
+        end 
+        
+        local joinDate = lStats.joinDate or os.time()
+        if anyPens == true then 
+            
+            for index, cleanup in pairs(statCleanupTbls) do
+                for p = 1, #lStats[cleanup] do
+                    if lStats[cleanup][p].time < joinDate then
+                        joinDate =  lStats[cleanup][p].time 
+                    end
+                    slmod.stats.changePenStatsValue(penStats[ucid][cleanup], #penStats[ucid][cleanup]+1, lStats[cleanup][p])
+                end
+            end
+            slmod.stats.changePenStatsValue(penStats[ucid], 'joinDate' , joinDate)        
+
+        end
+        if not stats[ucid].joinDate then -- just in case this creates it for existing users if cleanup is never run. 
+            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', joinDate)
+        end
+        for i = 1, #statCleanupTbls do -- erase team kill info from normal stats
+            if stats[ucid][statCleanupTbls[i]] then 
+                slmod.stats.changeStatsValue(stats[ucid], statCleanupTbls[i], nil)
+            end
+        end
+    
+    end
 	---------------------------------------------------------------------------------------------------------------------
 	-------------------------------------------------------------------------------------------------------------------
 	-------------------------------------------------------------------------------------------------------------------
@@ -273,19 +454,16 @@ do
 	-- Interlude: **BEGINNING OF MISSION STATS**
 	-- needs to be up here for upvalues to be seen by lower functions.
 	
-
-	local misStatFileName 
+  	local misStatFileName 
 	-------------------------------------------------------------------------------------------------------
 	-- Create misStatsTableKeys database
 	local misStatsTableKeys = {}  -- stores strings that corresponds to table indexes within misStats... needed for updating file.
 	misStatsTableKeys[misStats] = 'misStats'
-	
-	
 
 	-- call this function each time a value in stats needs to be changed...
 	-- t: the table in misStats that this value belongs under
     function slmod.stats.changeMisStatsValue(t, key, newValue)
-		local wt = {}
+        --slmod.info('write miz stat')
         if not t then
 			slmod.error('Invalid misStats table specified!')
 			return
@@ -294,119 +472,55 @@ do
         if type(newValue) == 'table' then
             misStatsTableKeys[newValue] = misStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']'
         end	
-       t[key] = newValue
+        t[key] = newValue
         if misStatsF then
             local misStatsChangeString = misStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
             misStatsF:write(misStatsChangeString)
-            --slmod.info(misStatsChangeString, true)
+           -- slmod.info(misStatsChangeString)
         end
         
 	end
-	    ---- new change stats value function.
-    -- passes data to existing write functions. Can be passed multiple UCID. Applies that stat change to each UCID
-    local function changeStatsValue(clients, t, key, newValue)
-        if clients then
-            local iter = {}
-            if type(clients) == 'string' then
-                iter[1] = clients
-            elseif type(clients) == 'table' then
-                for index, cData in pairs(clients) do
-                    if cData.ucid then 
-                        iter[#iter+1] = cData.ucid
-                    end
-                end
-            end
-            
-            if #iter > 0 then
-                for i = 1, #iter do
-                    -- CHANGE NORMAL STATS HERE
-                    slmod.stats.changeStatsValue(stats[iter[i][t]], key, newValue)
-                    if slmod.config.enable_mission_stats then
-                        slmod.stats.changeMisStatsValue(misStats[iter[i]][t], key, newValue)
-                       --slmod.stats.changeMisStatsValue(misStats[ucid], 'kills', {})
-                    end
-                end
-            end
-        else    
-            slmod.error('UCID Not passed to changeStatsValue')
-        end
-    end
-	
 	---------------------------------------------------------------------------------------------------
-	-- function called to add a new player to SlmodStats.
-	local function createMisStatsPlayer(ucid)  -- call AFTER the regular stats createNewPlayer.
-		local pStats = stats[ucid]
-		if not pStats then
-			slmod.error('Mission Stats: player (ucid = ' .. tostring(ucid) .. ') does not exist in regular stats!')
-		else
-			slmod.stats.changeMisStatsValue(misStats, ucid, {})
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'names', slmod.deepcopy(pStats.names))
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'id', pStats.id)
 
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'times', {})
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'weapons', {})
-            
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'kills', {})
-			slmod.stats.changeMisStatsValue(misStats[ucid].kills, 'Ground Units', 
-			{
-				['SAM'] = 0, 
-				['AAA'] = 0, 
-				['EWR'] = 0, 
-				['Arty/MLRS'] = 0, 
-				['Infantry'] = 0, 
-				['Tanks'] = 0, 
-				['IFVs'] = 0,
-				['APCs'] = 0, 
-				['Unarmored'] = 0, 
-				['Forts'] = 0, 
-				['Other'] = 0,
-				['total'] = 0,
-			})
-			slmod.stats.changeMisStatsValue(misStats[ucid].kills, 'Planes', 
-			{
-				['Fighters'] = 0,
-				['Attack'] = 0,
-				['Bombers'] = 0,
-				['Support'] = 0,
-				['UAVs'] = 0,
-				['Transports'] = 0,
-				['Other'] = 0,
-				['total'] = 0,
-			})
-			slmod.stats.changeMisStatsValue(misStats[ucid].kills, 'Helicopters', 
-			{
-				['Attack'] = 0,
-				['Utility'] = 0,
-				['Other'] = 0,
-				['total'] = 0,
-			})
-			slmod.stats.changeMisStatsValue(misStats[ucid].kills, 'Ships', 
-			{
-				['Warships'] = 0,
-				['Subs'] = 0,
-				['Unarmed'] = 0,
-				['Other'] = 0,
-				['total'] = 0,
-			})
-			slmod.stats.changeMisStatsValue(misStats[ucid].kills, 'Buildings', 
-			{
-				['Static'] = 0,
-				['Other'] = 0,
-				['total'] = 0,
-			})
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'friendlyKills', {})
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'friendlyHits', {})
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'friendlyCollisionHits', {})
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'friendlyCollisionKills', {})
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'PvP', {kills = 0, losses = 0})
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'losses', {crash = 0, eject = 0, pilotDeath = 0})
-		end
-	end
 	---------------------------------------------------------------------------------------------------------------------
-    
+    local penStatsTableKeys = {}  -- stores strings that corresponds to table indexes within penStats... needed for updating file.
+	penStatsTableKeys[penStats] = 'penStats'
+	do
+		local function makeStatsTableKeys(levelKey, t)
+            for key, val in pairs(t) do
+                if type(val) == 'table' and (type(key) == 'string' or type(key) == 'number') then
+					key = levelKey .. '[' .. slmod.basicSerialize(key) .. ']'
+					penStatsTableKeys[val] = key  -- works because each table only exists once in Slmod stats- it's REQUIRED!!! DO NOT FORGET THIS!
+                    --slmod.info(slmod.basicSerialize(val) .. ' : ' .. key)
+					makeStatsTableKeys(key, val)
+				end
+			end
+		end
+		
+		makeStatsTableKeys('penStats', penStats)
+	end	
+	-- call this function each time a value in stats needs to be changed...
+	-- t: the table in penStats that this value belongs under
+    function slmod.stats.changePenStatsValue(t, key, newValue)
+        if not t then
+			slmod.error('Invalid pen table specified!')
+			return
+        end
+
+        if type(newValue) == 'table' then
+            penStatsTableKeys[newValue] = penStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']'
+        end	
+        t[key] = newValue
+        if penStatsF then
+            local penStatsChangeString = penStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
+            penStatsF:write(penStatsChangeString)
+            --slmod.info(penStatsChangeString)
+        end
+        
+	end
 	-----------------------------------------------------------------------------------------------------
 	function slmod.stats.onMission()  -- for creating per-mission stats.
-        local err  -- misStatsF already local
+         local err  -- misStatsF already local
         local missionName = 'UNKNOWN MISSION'
         if slmod.current_mission then
             local strInd = slmod.current_mission:len()
@@ -425,25 +539,20 @@ do
         slmod.stats.updateMetaMapInfo(misStatFileName)
         if slmod.config.enable_mission_stats then
             if slmod.config.write_mission_stats_files then
-				if misStatsF then  -- close if open from previous.
+                if misStatsF then  -- close if open from previous.
                     misStatsF:close()
 					misStatsF = nil
 				end
-				
-
                 misStatsF, err = io.open(missionStatsDir .. misStatFileName, 'w')
-
 				if not misStatsF then
 					slmod.error('Mission stats: unable to open '  .. lfs.writedir() .. [[Slmod\Mission Stats\]] .. missionName .. '- ' .. os.date('%b %d, %Y at %H %M %S.lua') .. ' for writing, reason: ' .. tostring(err))
 				else
 					misStatsF:write('misStats = { }\n')
 				end
 			end
-			
 			for ind, val in pairs(misStats) do  -- erases all entries while keeping old reference valid... maybe could have gotten away with redefining though.
 				misStats[ind] = nil
 			end
-			
 			for ind, val in pairs(misStatsTableKeys) do  -- erases all entries while keeping old reference valid... maybe could have gotten away with redefining though.
 				misStatsTableKeys[ind] = nil
 			end
@@ -452,10 +561,12 @@ do
 
 			--misStats = {} -- reset the table.. may need to manually erase all entries though- otherwise, old references could still exist.
 			for id, client in pairs(slmod.clients) do  -- add all clients to the missionStats table.
-				createMisStatsPlayer(client.ucid) 
+                if (slmod.config.host_ucid and id == 1) or id ~= 1 then -- only create mission stats for each player or host if specified 
+                    createMisStatsPlayer(client.ucid) 
+                end
 			end
 		end
-	end
+  	end
 	-- **END OF MISSION STATS**
 	-------------------------------------------------------------------------------------------------------------------
 	-------------------------------------------------------------------------------------------------------------------
@@ -495,9 +606,12 @@ do
 			local newName
 			
 			if not stats[ucid] then
-				createNewPlayer(ucid, name)
+                createNewPlayer(ucid, name, true)
 			else  -- check to see if name matches	
-				local nameFound, nameInd
+				if slmod.config.enable_mission_stats and not misStats[ucid] then  -- should be true in cases where stats check was true... but wait till after names has been updated.
+                    createMisStatsPlayer(ucid)
+                end
+                local nameFound, nameInd
 				for i = 1, #stats[ucid].names do
 					if stats[ucid].names[i] == name then
 						nameFound = true
@@ -505,28 +619,30 @@ do
 						break
 					end
 				end
-				
+				local save = {nest = 'names', ucid = ucid}
 				if nameFound and nameInd ~= #stats[ucid].names then  -- name was previously used but is not the last one in the names table..
-					newStatsNames = {}
-					local newStatsNames = slmod.deepcopy(stats[ucid].names)
+                    newStatsNames = {}
+					newStatsNames = slmod.deepcopy(stats[ucid].names)
 					table.remove(newStatsNames, nameInd)  -- resort
 					newStatsNames[#stats[ucid].names] = name
-					slmod.stats.changeStatsValue(stats[ucid], 'names', newStatsNames)  -- update stats table.
+                    save.setValue = newStatsNames
 				elseif not nameFound then  -- a new name.
-					slmod.stats.changeStatsValue(stats[ucid].names, #stats[ucid].names + 1, name)  -- update stats table.
+                    save.insert = name
 					newName = true
 				end
+                
+                slmod.stats.advChangeStatsValue(save)
 			end
 			
-			if slmod.config.enable_mission_stats then
-				if not misStats[ucid] then  -- should be true in cases where stats check was true... but wait till after names has been updated.
-					createMisStatsPlayer(ucid)
-				elseif newName then -- update mission stats with new names too.
-					slmod.stats.changeMisStatsValue(misStats[ucid].names, #misStats[ucid].names + 1, name)  -- update misStats table.
+			if penStats[ucid] then
+				if newName then -- update penalty stats with new names too if it exists. 
+					slmod.stats.changePenStatsValue(penStats[ucid].names, #penStats[ucid].names + 1, name)  -- update misStats table.
 				elseif newStatsNames then
-					slmod.stats.changeMisStatsValue(misStats[ucid], 'names', newStatsNames)  -- update misStats table.
+					slmod.stats.changePenStatsValue(penStats[ucid], 'names', newStatsNames)  -- update misStats table.
 				end
 			end
+            
+            slmod.stats.advChangeStatsValue({ucid = ucid, default = 0, setValue = os.time(), nest = 'lastJoin'})
 			
 		end
 	end
@@ -701,7 +817,7 @@ end]]
 		end
 		-- autokick/autoban
 
-		slmod.autoAdminCheckForgiveOnOffense(clients, target)
+		slmod.autoAdminCheckForgiveOnOffense(clients, target, 'teamHit')
 	end
 
 	local function onFriendlyKill(clients, target, weapon)
@@ -731,7 +847,7 @@ end]]
 			slmod.chatLogFile:flush()
 		end
 		-- autokick/autoban
-		slmod.autoAdminCheckForgiveOnOffense(clients, target)
+		slmod.autoAdminCheckForgiveOnOffense(clients, target, 'teamKill')
 	end
     
 
@@ -826,7 +942,7 @@ end]]
 	
 	
 	local function getHitData(unitName)
-		if hitHumans[unitName] then
+		 if hitHumans[unitName] then
 			return hitHumans[unitName][#hitHumans[unitName]] -- just return the last hit
 		end
 		if hitAIs[unitName] then
@@ -881,13 +997,15 @@ end]]
 	end
 	
 	local function unsuppressDeath(unitName)  -- allows death counting to occur again for this unit.
-		suppressDeath[unitName] = nil
+		--slmod.info('Unsupress death')
+        --slmod.info(unitName)
+        suppressDeath[unitName] = nil
 	end
 	
 	
 	local function PvPRules(killer, victim)  -- expects unitNames, returns a boolean true if it was a fair match, false otherwise, nil in case of fuck up
 		local attack = {'a%-10', 'su%-25'}
-		
+		--slmod.info('pvp rules')
 		local killerUnit = slmod.allMissionUnitsByName[killer]
 		local victimUnit = slmod.allMissionUnitsByName[victim]
 		if killerUnit and victimUnit then
@@ -938,12 +1056,12 @@ end]]
 	acft['mig-29'] = true
 	
 	local function isAircraft(weaponName)  -- determines if the weapon was a aircraft.
-
+        --slmod.info('isAC')
 		if weaponName and weaponName:len() > 1 then
-			for planeCat, planes in pairs(slmod.unitCategories.Planes) do
+            for planeCat, planes in pairs(slmod.unitCategories.Planes) do
 				for plane, trashVal in pairs(planes) do
 					if weaponName:sub(1, weaponName:len() - 1):lower():gsub('[^%d%a]', '') == plane:sub(1, plane:len() - 1):lower():gsub('[^%d%a]', '') then  -- take out the last character, convert to lower case, remove anything not a letter or a number... do comparison this way.
-						return true
+                        return true
 					end
 				end
 			end
@@ -954,7 +1072,8 @@ end]]
 					end
 				end
 			end
-			if acft[weaponName] then
+			
+            if acft[weaponName] then
 				return true
 			end
 		end
@@ -1053,11 +1172,8 @@ end]]
 	-- death logic
 	local function runDeathLogic(deadName)
 		if slmod.allMissionUnitsByName[deadName] then -- the dying unit should always be identified properly by name (not necessarily...could be Building).
-			--slmod.info('running death Logic')
-           --slmod.info(deadName)
             local deadCategory = slmod.allMissionUnitsByName[deadName].category 
 			local deadClient = slmod.clientsByName[deadName] or slmod.oldClientsByName[deadName]
-            --slmod.info(slmod.oneLineSerialize(deadClient))
 			-- Find the object in SlmodStats categories
 			local deadObjType = slmod.allMissionUnitsByName[deadName].objtype
 			local deadStatsCat
@@ -1087,357 +1203,148 @@ end]]
            -- slmod.info(deadStatsType)
 			--slmod.info('here4')
 			-- see if a human was involved.
-			local lastHit = getHitData(deadName)
-			if lastHit then  -- either a human died or an AI that was hit by a human died.
-				--local lastHit = hitData[#hitData] --- at least FOR NOW, just using last hit!
-				--slmod.info('lastHit')
-                --slmod.info(slmod.oneLineSerialize(lastHit))
-				local hitObj = lastHit.initiator
+			local lastHitEvent = getHitData(deadName)
+			if lastHitEvent then  -- either a human died or an AI that was hit by a human died.
+				--local lastHitEvent = hitData[#hitData] --- at least FOR NOW, just using last hit!
+				--slmod.info('lastHitEvent')
+                --slmod.info(slmod.oneLineSerialize(lastHitEvent))
+                
+				local hitObj = lastHitEvent.initiator
                 local hitObjType = 'unknown'
-                if lastHit.shotFrom then
-                    hitObjType = lastHit.shotFrom
+                if lastHitEvent.shotFrom then
+                    hitObjType = lastHitEvent.shotFrom
                 end
-				--case 1 - deadAI, hit by human.
-				if not deadClient then -- SHOULD be an AI hit by human!
-					if type(hitObj) == 'table' then -- it SHOULD be
-						--slmod.info(slmod.oneLineSerialize(hitObj))
-                        local penaltyOnce = false
-                        for seatId, hitter in pairs(hitObj) do
-                            -- add this killed unit to the human's record.
-                           
-                            if not lastHit.friendlyHit then
-                            
-                                if not stats[hitter.ucid].kills[deadStatsCat] then  -- should never happen
-                                    slmod.warning('SlmodStats- had to make a new category for type ' .. tostring(deadStatsCat) .. ' of dead unit.')
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].kills, deadStatsCat, {})
-                                end
-                                
-                                ----------------------------------------------------------------------------------------------------------------
-                                -- mission stats
-                                if slmod.config.enable_mission_stats then
-                                    if not misStats[hitter.ucid].kills[deadStatsCat] then  -- should never happen
-                                        slmod.warning('SlmodStats- Mission Stats- had to make a new category for type ' .. tostring(deadStatsCat) .. ' of dead unit.')
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].kills, deadStatsCat, {})
-                                    end
-                                end
-                                ----------------------------------------------------------------------------------------------------------------
-                                
-                                if not stats[hitter.ucid].kills[deadStatsCat][deadStatsType] then  -- should also never happen
-                                    slmod.warning('SlmodStats- had to make a new type category for ' .. tostring(deadStatsType) .. ' of dead unit.')
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].kills[deadStatsCat], deadStatsType, 0)
-                                end
-                                
-                                ----------------------------------------------------------------------------------------------------------------
-                                -- mission stats
-                                if slmod.config.enable_mission_stats then
-                                    if not misStats[hitter.ucid].kills[deadStatsCat][deadStatsType] then  -- should also never happen
-                                        slmod.warning('SlmodStats- Mission Stats- had to make a new type category for ' .. tostring(deadStatsType) .. ' of dead unit.')
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].kills[deadStatsCat], deadStatsType, 0)
-                                    end
-                                end
-                                ----------------------------------------------------------------------------------------------------------------
-                                
-                                slmod.stats.changeStatsValue(stats[hitter.ucid].kills[deadStatsCat], deadStatsType, stats[hitter.ucid].kills[deadStatsCat][deadStatsType] + 1)  -- change the type kills
-                                
-                                ----------------------------------------------------------------------------------------------------------------
-                                -- mission stats
-                                if slmod.config.enable_mission_stats then
-                                    slmod.stats.changeMisStatsValue(misStats[hitter.ucid].kills[deadStatsCat], deadStatsType, misStats[hitter.ucid].kills[deadStatsCat][deadStatsType] + 1)  -- change the type kills
-                                end
-                                ----------------------------------------------------------------------------------------------------------------
-                                
-                                if not stats[hitter.ucid].kills[deadStatsCat].total then  -- should also never happen
-                                    slmod.warning('SlmodStats- had to make a new total entry for type ' .. tostring(deadStatsCat) .. ' of dead unit.')
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].kills[deadStatsCat], 'total', 0)
-                                end
-                                
-                                ----------------------------------------------------------------------------------------------------------------
-                                -- mission stats
-                                if slmod.config.enable_mission_stats then
-                                    if not misStats[hitter.ucid].kills[deadStatsCat].total then  -- should also never happen
-                                        slmod.warning('SlmodStats- Mission Stats- had to make a new total entry for type ' .. tostring(deadStatsCat) .. ' of dead unit.')
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].kills[deadStatsCat], 'total', 0)
-                                    end
-                                end
-                                ----------------------------------------------------------------------------------------------------------------
-                                
-                                
-                                slmod.stats.changeStatsValue(stats[hitter.ucid].kills[deadStatsCat], 'total', stats[hitter.ucid].kills[deadStatsCat].total + 1)  -- change the total
-                                
-                                ----------------------------------------------------------------------------------------------------------------
-                                -- mission stats
-                                if slmod.config.enable_mission_stats then
-                                    slmod.stats.changeMisStatsValue(misStats[hitter.ucid].kills[deadStatsCat], 'total', misStats[hitter.ucid].kills[deadStatsCat].total + 1)  -- change the total
-                                end
-                                ----------------------------------------------------------------------------------------------------------------
-                                
-                                --------------------------------------
-                                -- add kill for this weapon.
-                                local weapon = lastHit.weapon
-                                if weapon then
-                                    if not stats[hitter.ucid].weapons[weapon] then  -- this weapon not in this client's database, add it.
-                                        slmod.stats.changeStatsValue(stats[hitter.ucid].weapons, weapon, {shot = 0, hit = 0, numHits = 0, kills = 0})
-                                    end
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].weapons[weapon], 'kills', stats[hitter.ucid].weapons[weapon].kills + 1)
-                                    
-                                    ----------------------------------------------------------------------------------------------------------------
-                                    -- mission stats
-                                    if slmod.config.enable_mission_stats then
-                                        if not misStats[hitter.ucid].weapons[weapon] then  -- this weapon not in this client's database, add it.
-                                            slmod.stats.changeMisStatsValue(misStats[hitter.ucid].weapons, weapon, {shot = 0, hit = 0, numHits = 0, kills = 0})
-                                        end
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].weapons[weapon], 'kills', misStats[hitter.ucid].weapons[weapon].kills + 1)
-                                    end
-                                    ----------------------------------------------------------------------------------------------------------------
-
-                                end
-                                --------------------------------------
-                                
-                                
-                            else -- teamkill
-                                -- { time =  1004215421, human = 'af9142dc121b941274', objCat = 'plane', objTypeName = 'F-15C'},
-                                --local teamKillTable = { time = os.time(), objCat = deadCategory, objTypeName = deadObjType, weapon = lastHit.weapon}
-                                local weapon = lastHit.weapon
-                                if weapon and weapon == 'kamikaze' then  -- friendly collision kill
-                                    if not stats[hitter.ucid].friendlyCollisionKills then -- might be needed for old stats files.
-                                        slmod.stats.changeStatsValue(stats[hitter.ucid], 'friendlyCollisionKills', {})
-                                    end
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].friendlyCollisionKills, #stats[hitter.ucid].friendlyCollisionKills + 1, { time = os.time(), objCat = deadCategory, objTypeName = deadObjType, weapon = weapon, shotFrom = hitObjType})
-                                    
-                                    ----------------------------------------------------------------------------------------------------------------
-                                    -- mission stats
-                                    if slmod.config.enable_mission_stats then
-                                        if not misStats[hitter.ucid].friendlyCollisionKills then -- might be needed for old stats files.
-                                            slmod.stats.changeMisStatsValue(misStats[hitter.ucid], 'friendlyCollisionKills', {})
-                                        end
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].friendlyCollisionKills, #misStats[hitter.ucid].friendlyCollisionKills + 1, { time = os.time(), objCat = deadCategory, objTypeName = deadObjType, weapon = weapon, shotFrom = hitObjType})
-                                    end
-                                    ----------------------------------------------------------------------------------------------------------------
-                                    
-                                else  -- friendly fire kill
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].friendlyKills, #stats[hitter.ucid].friendlyKills + 1, { time = os.time(), objCat = deadCategory, objTypeName = deadObjType, weapon = weapon, shotFrom = hitObjType})
-                                    
-                                    ----------------------------------------------------------------------------------------------------------------
-                                    -- mission stats
-                                    if slmod.config.enable_mission_stats then
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].friendlyKills, #misStats[hitter.ucid].friendlyKills + 1, { time = os.time(), objCat = deadCategory, objTypeName = deadObjType, weapon = weapon, shotFrom = hitObjType})
-                                    end
-                                    ----------------------------------------------------------------------------------------------------------------
-                                    
-                                end
-                                if penaltyOnce == false then 
-                                    --penaltyOnce = true
-                                    onFriendlyKill(hitObj, {[1] = {name = deadName}}, weapon)
-                                end
-                            end
-						end
-					else
-						if type(hitObj) == 'table' then
-							slmod.warning('SlmodStats- hitter (' .. slmod.oneLineSerialize(hitObj) .. ') is not an SlmodClient, and dead unit (unitName = ' .. tostring(deadName) .. ') is not an SlmodClient!')
-						else
-							slmod.warning('SlmodStats- hitter (' .. tostring(hitObj) .. ') is not an SlmodClient, and dead unit (unitName = ' .. tostring(deadName) .. ') is not an SlmodClient!')
-						end
-					end
-				
-				else  -- a human died
-					local deadClientUCID = {}
-                    local giveClientCrashOnce = false
-                    local giveClientCrashPVPOnce = false
-                    local penaltyOnce = false
-                    
+				local weapon = lastHitEvent.weapon
+                local saveStat = {}
+                local ucid, typeName = {}, {}
+                if type(lastHitEvent.initiator) == 'table' then 
+                    for seat, data in pairs(lastHitEvent.initiator) do
+                        ucid[seat] = data.ucid
+                        if seat > 1 then
+                            typeName[seat] = multiCrewNameCheck(hitObjType, seat)
+                        else
+                            typeName[seat] = hitObjType
+                        end
+                    end
+                end
+                saveStat = {ucid = ucid, typeName = typeName}
+                local deadObjData = {}
+                local dStat = {}
+                local ducid, dtypeName = {}, {}
+                if deadClient then 
                     for seatId, dData in pairs (deadClient) do
-                        if dData.ucid then
-                            deadClientUCID[#deadClientUCID+1] = dData.ucid
+                        ducid[seatId] = dData.ucid
+                        deadObjData[seatId] = {ucid = dData.ucid, name = dData.name, id = dData.id}
+                        if seatId > 1 then
+                            dtypeName[seatId] = multiCrewNameCheck(deadObjType, seatId)
+                        else
+                            dtypeName[seatId] = deadObjType
                         end
                     end
-                    if type(hitObj) == 'table' then -- case2 - a human was killed by a human.
-						for seatId, hitter in pairs(hitObj) do
-                            
-                            if not lastHit.friendlyHit then
-                                if not stats[hitter.ucid].kills[deadStatsCat] then  -- should never happen
-                                    slmod.warning('SlmodStats- had to make a new category for type ' .. tostring(deadStatsCat) .. ' of dead unit.')
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].kills, deadStatsCat, {})
-                                end
-                                
-                                ----------------------------------------------------------------------------------------------------------------
-                                -- mission stats
-                                if slmod.config.enable_mission_stats then
-                                    if not misStats[hitter.ucid].kills[deadStatsCat] then  -- should never happen
-                                        slmod.warning('SlmodStats- Mission Stats- had to make a new category for type ' .. tostring(deadStatsCat) .. ' of dead unit.')
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].kills, deadStatsCat, {})
-                                    end
-                                end
-                                ----------------------------------------------------------------------------------------------------------------
-                                
-                                if not stats[hitter.ucid].kills[deadStatsCat][deadStatsType] then  -- should also never happen
-                                    slmod.warning('SlmodStats- had to make a new type category for ' .. tostring(deadStatsType) .. ' of dead unit.')
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].kills[deadStatsCat], deadStatsType, 0)
-                                end
-                                slmod.stats.changeStatsValue(stats[hitter.ucid].kills[deadStatsCat], deadStatsType, stats[hitter.ucid].kills[deadStatsCat][deadStatsType] + 1)  -- give a kill
-                                
-                                ----------------------------------------------------------------------------------------------------------------
-                                -- mission stats
-                                if slmod.config.enable_mission_stats then
-                                    if not misStats[hitter.ucid].kills[deadStatsCat][deadStatsType] then  -- should also never happen
-                                        slmod.warning('SlmodStats- Mission Stats- had to make a new type category for ' .. tostring(deadStatsType) .. ' of dead unit.')
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].kills[deadStatsCat], deadStatsType, 0)
-                                    end
-                                    slmod.stats.changeMisStatsValue(misStats[hitter.ucid].kills[deadStatsCat], deadStatsType, misStats[hitter.ucid].kills[deadStatsCat][deadStatsType] + 1)  -- give a kill
-                                end
-                                ----------------------------------------------------------------------------------------------------------------
-                                
-                                if not stats[hitter.ucid].kills[deadStatsCat].total then  -- should also never happen
-                                    slmod.warning('SlmodStats- had to make a new total entry for type ' .. tostring(deadStatsCat) .. ' of dead unit.')
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].kills[deadStatsCat], 'total', 0)
-                                end
-                                slmod.stats.changeStatsValue(stats[hitter.ucid].kills[deadStatsCat], 'total', stats[hitter.ucid].kills[deadStatsCat].total + 1)  -- change the total							
-                               
-                                
-                                
-                                ----------------------------------------------------------------------------------------------------------------
-                                -- mission stats
-                                if slmod.config.enable_mission_stats then
-                                    if not misStats[hitter.ucid].kills[deadStatsCat].total then  -- should also never happen
-                                        slmod.warning('SlmodStats- Mission Stats- had to make a new total entry for type ' .. tostring(deadStatsCat) .. ' of dead unit.')
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].kills[deadStatsCat], 'total', 0)
-                                    end
-                                    slmod.stats.changeMisStatsValue(misStats[hitter.ucid].kills[deadStatsCat], 'total', misStats[hitter.ucid].kills[deadStatsCat].total + 1)  -- change the total							
-                                    
-                                end
-                                
-                                if giveClientCrashOnce == false then
-                                    for i = 1, #deadClientUCID do
-                                        slmod.stats.changeStatsValue(stats[deadClientUCID[i]].losses, 'crash', stats[deadClientUCID[i]].losses.crash + 1) -- give a crash to killed client.
-                                        if slmod.config.enable_mission_stats then
-                                            slmod.stats.changeMisStatsValue(misStats[deadClientUCID[i]].losses, 'crash', misStats[deadClientUCID[i]].losses.crash + 1) -- give a crash to killed client.
-                                        end
-                                    end
-                                    giveClientCrashOnce = true
-                                end
-                                ----------------------------------------------------------------------------------------------------------------
-                                
-                                
-                                --------------------------------------
-                                -- add kill for this weapon.							
-                                local weapon = lastHit.weapon
-                                if weapon then
-                                    if not stats[hitter.ucid].weapons[weapon] then  -- this weapon not in this client's database, add it.
-                                        slmod.stats.changeStatsValue(stats[hitter.ucid].weapons, weapon, {shot = 0, hit = 0, numHits = 0, kills = 0})
-                                    end
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].weapons[weapon], 'kills', stats[hitter.ucid].weapons[weapon].kills + 1)
-                                    
-                                    ----------------------------------------------------------------------------------------------------------------
-                                    -- mission stats
-                                    if slmod.config.enable_mission_stats then
-                                        if not misStats[hitter.ucid].weapons[weapon] then  -- this weapon not in this client's database, add it.
-                                            slmod.stats.changeMisStatsValue(misStats[hitter.ucid].weapons, weapon, {shot = 0, hit = 0, numHits = 0, kills = 0})
-                                        end
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].weapons[weapon], 'kills', misStats[hitter.ucid].weapons[weapon].kills + 1)
-                                    end
-                                    ----------------------------------------------------------------------------------------------------------------	
-                                end
-                                --------------------------------------	
-
-                                --PvP
-                                if lastHit.inAirHit or lastHit.inAirHit == nil then  --058 -  only count in-air hits (or case of unable to figure out if hit was in air or not... could be a problem for clients after joining though
-                                    --slmod.info('lastHit.inAirHit: '  .. tostring(lastHit.inAirHit))
-                                    local countPvP, killerObj, victimObj = PvPRules(hitter.unitName, deadName)
-                                    if countPvP then  -- count in PvP!
-                                        slmod.stats.changeStatsValue(stats[hitter.ucid].PvP, 'kills', stats[hitter.ucid].PvP.kills + 1)  -- give a PvP kill
-                                        
-                                        
-                                        ----------------------------------------------------------------------------------------------------------------
-                                        -- mission stats
-                                        if slmod.config.enable_mission_stats then
-                                            slmod.stats.changeMisStatsValue(misStats[hitter.ucid].PvP, 'kills', misStats[hitter.ucid].PvP.kills + 1)  -- give a PvP kill
-                                           
-                                        end
-                                        ----------------------------------------------------------------------------------------------------------------	
-                                        if giveClientCrashPVPOnce == false then
-                                            for i = 1, #deadClientUCID do
-                                               slmod.stats.changeStatsValue(stats[deadClientUCID[i]].PvP, 'losses', stats[deadClientUCID].PvP.losses + 1) -- give a PvP death
-                                                if slmod.config.enable_mission_stats then
-                                                     slmod.stats.changeMisStatsValue(misStats[deadClientUCID[i]].PvP, 'losses', misStats[deadClientUCID].PvP.losses + 1) -- give a PvP death
-                                                end
-                                            end
-                                            giveClientCrashPVPOnce = true
-                                            onPvPKill(hitObj, deadClient, weapon, killerObj, victimObj)
-                                        end
-                                        
-                                       
-                                    end
-                                end
-                                
-                            
-                            else  -- friendly fire, human killing human.
-                            -- local teamKillTable = { time = os.time(), human = deadClient.ucid, objCat = deadCategory, objTypeName = deadObjType}
-                            -- multicrew support. Repalaced deadClient.ucid with table of ucid via deadClientUCID. modified changeStatsValue to accept table of values
-                                local weapon = lastHit.weapon
-                                if weapon and weapon == 'kamikaze' then  -- friendly collision kill
-                                    
-                                    if not stats[hitter.ucid].friendlyCollisionKills then -- might be needed for old stats files.
-                                        slmod.stats.changeStatsValue(stats[hitter.ucid], 'friendlyCollisionKills', {})
-                                    end
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].friendlyCollisionKills, #stats[hitter.ucid].friendlyCollisionKills + 1, { time = os.time(), human = deadClientUCID, objCat = deadCategory, objTypeName = deadObjType, weapon = weapon, shotFrom = hitObjType})
-                                    
-                                    ----------------------------------------------------------------------------------------------------------------
-                                    -- mission stats
-                                    if slmod.config.enable_mission_stats then
-                                        if not misStats[hitter.ucid].friendlyCollisionKills then -- might be needed for old stats files.
-                                            slmod.stats.changeMisStatsValue(misStats[hitter.ucid], 'friendlyCollisionKills', {})
-                                        end
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].friendlyCollisionKills, #misStats[hitter.ucid].friendlyCollisionKills + 1, { time = os.time(), human = deadClientUCID, objCat = deadCategory, objTypeName = deadObjType, weapon = weapon, shotFrom = hitObjType})
-                                    end
-                                    ----------------------------------------------------------------------------------------------------------------	
-                                    
-                                else  -- friendly fire kill
-                                    slmod.stats.changeStatsValue(stats[hitter.ucid].friendlyKills, #stats[hitter.ucid].friendlyKills + 1, { time = os.time(), human = deadClientUCID, objCat = deadCategory, objTypeName = deadObjType, weapon = weapon, shotFrom = hitObjType})
-                                    
-                                    ----------------------------------------------------------------------------------------------------------------
-                                    -- mission stats
-                                    if slmod.config.enable_mission_stats then
-                                        slmod.stats.changeMisStatsValue(misStats[hitter.ucid].friendlyKills, #misStats[hitter.ucid].friendlyKills + 1, { time = os.time(), human = deadClientUCID, objCat = deadCategory, objTypeName = deadObjType, weapon = weapon, shotFrom = hitObjType})
-                                    end
-                                    ----------------------------------------------------------------------------------------------------------------
-                                    
-                                end
-
-                                if penaltyOnce == false then 
-                                    onFriendlyKill(hitObj, deadClient, weapon)
-                                    penaltyOnce = true
-                                end
-                            end
-                        end
-					elseif type(hitObj) == 'string' then  -- a human was killed by an AI.
-						for seatId, dClient in pairs(deadClient) do 
-                            slmod.stats.changeStatsValue(stats[dClient.ucid].losses, 'crash', stats[dClient.ucid].losses.crash + 1) -- give a crash
-                            
-                            ----------------------------------------------------------------------------------------------------------------
-                            -- mission stats
-                            if slmod.config.enable_mission_stats then
-                                slmod.stats.changeMisStatsValue(misStats[dClient.ucid].losses, 'crash', misStats[dClient.ucid].losses.crash + 1) -- give a crash
-                            end
-                            ----------------------------------------------------------------------------------------------------------------
-                        end
-					end
-				end
-			
-			elseif deadClient then  -- client died without being hit.
-				for seatId, dClient in pairs(deadClient) do
-                    slmod.stats.changeStatsValue(stats[dClient.ucid].losses, 'crash', stats[dClient.ucid].losses.crash + 1) -- give a crash
-                    
-                    ----------------------------------------------------------------------------------------------------------------
-                    -- mission stats
-                    if slmod.config.enable_mission_stats then
-                        slmod.stats.changeMisStatsValue(misStats[dClient.ucid].losses, 'crash', misStats[dClient.ucid].losses.crash + 1) -- give a crash
-                    end
-                    ----------------------------------------------------------------------------------------------------------------
+                    dStat = {ucid = ducid, typeName = dtypeName}
+                else
+                    deadObjData[1] = {name = deadName}
                 end
+                
+                --case 1 - deadAI, hit by human.
+				
+                if type(hitObj) == 'table' then -- it SHOULD be
+                    --slmod.info(slmod.oneLineSerialize(hitObj))
+                    if not lastHitEvent.friendlyHit then -- good kill
+                        saveStat.nest = {'times', 'typeName', 'kills', deadStatsCat, deadStatsType}
+                        saveStat.addValue = 1
+                        saveStat.default =  0
+                        slmod.stats.advChangeStatsValue(saveStat)
+                        
+                        -- Add to total Kills for a given category
+                        saveStat.nest = {'times', 'typeName', 'kills', deadStatsCat, 'total'}
+                        slmod.stats.advChangeStatsValue(saveStat)
+                        
+                        
+                        if weapon then
+                            saveStat.nest = {'times', 'typeName', 'weapons', weapon}
+                            saveStat.addValue = {kills = 1}
+                            saveStat.default = {shot = 0, hit = 0, numHits = 0, kills = 0}
+                            slmod.stats.advChangeStatsValue(saveStat)
+                        end    
+                        --slmod.stats.changeStatsValue(stats[deadClientUCID[i]].losses, 'crash', stats[deadClientUCID[i]].losses.crash + 1)
+                        
+                        if deadClient then
+                            dStat.nest = {'times', 'typeName', 'losses'}
+                            dStat.addValue = {crash = 1}
+                            dStat.default = {crash = 0, eject = 0, pilotDeath = 0}
+                            slmod.stats.advChangeStatsValue(dStat)
+                        
+                        
+                        end
+                        
+                        --- DO PVP STUFF
+                        
+                        if lastHitEvent.inAirHit or lastHitEvent.inAirHit == nil then
+                            --slmod.info('lastHitEvent.inAirHit: '  .. tostring(lastHitEvent.inAirHit))
+                            local countPvP, killerObj, victimObj = PvPRules(lastHitEvent.unitName, deadName)
+                            if countPvP then  -- count in PvP!
+                                saveStat.nest = {'times', 'typeName', 'pvp', 'kills'}
+                                saveStat.addValue = 1
+                                saveStat.default = 0
+                                slmod.stats.advChangeStatsValue(saveStat)
+                                
+                                dStat.nest = {'times', 'typeName', 'pvp', 'losses'}
+                                dStat.addValue = 1
+                                dStat.default = 0
+                                
+                                slmod.stats.advChangeStatsValue(dStat)
+                                onPvPKill(hitObj, deadClient, weapon, killerObj, victimObj)
+                           end
+                        end
+                    else -- teamkilled 
+                        saveStat.penalty = true 
+                        if weapon == 'kamikaze' then
+                            saveStat.nest = 'friendlyCollisionKills'
+                            --slmod.info('KKill')
+                        else
+                           saveStat.nest = 'friendlyKills'
+                        end
+                        saveStat.addValue = { time = os.time(), objCat = deadCategory, objTypeName = deadObjType, weapon = weapon, shotFrom = hitObjType}
+                        if deadClient then
+                            saveStat.addValue.human = ducid
+                        end
+                        slmod.stats.advChangeStatsValue(saveStat)
+                        onFriendlyKill(hitObj, deadObjData, weapon)
+                    end
+                elseif type(hitObj) == 'string' then  -- AI hit them
+                    dStat.nest = {'times', 'typeName', 'actions', 'losses'}
+                    dStat.default = {crash = 0, eject = 0, pilotDeath = 0}
+                    dStat.addValue = {crash = 1}
+                    slmod.stats.advChangeStatsValue(dStat)
+                else
+                    if type(hitObj) == 'table' then
+                        slmod.warning('SlmodStats- hitter (' .. slmod.oneLineSerialize(hitObj) .. ') is not an SlmodClient, and dead unit (unitName = ' .. tostring(deadName) .. ') is not an SlmodClient!')
+                    else
+                        slmod.warning('SlmodStats- hitter (' .. tostring(hitObj) .. ') is not an SlmodClient, and dead unit (unitName = ' .. tostring(deadName) .. ') is not an SlmodClient!')
+                    end
+                end    
+			elseif deadClient then  -- client died without being hit.
+                local saveStat = {}
+                local ucid, typeName = {}, {}
+                    for seat, data in pairs(deadClient) do
+                        ucid[seat] = data.ucid
+                        if seat > 1 then
+                            typeName[seat] = multiCrewNameCheck(deadObjType)
+                        else
+                            typeName[seat] = deadObjType
+                        end
+                        saveStat = {ucid = ucid, typeName = typeName}
+                    end
+                
+                saveStat.nest = {'times', 'typeName', 'actions', 'losses'}
+                saveStat.default = {crash = 0}
+                saveStat.addValue = {crash = 1}
+                slmod.stats.advChangeStatsValue(saveStat)
 			end
 			
 			-- wipe this unit if he is a hitHuman
-
-			hitHumans[deadName] = nil
+            hitHumans[deadName] = nil
 		end
 	end
 	----------------------------------------------------------------------------------------------------------
@@ -1448,6 +1355,20 @@ end]]
             tName = tName .. ' ' .. multiCrewDefs[tName][seatId]
         end
         return tName
+    end
+    
+    local function parseOutExtraClientData(client)
+        local cTbl = {}
+        for index, cData in pairs(client) do
+            local new = {}
+            new.ucid = cData.ucid
+            new.name = cData.name
+            new.id = cData.id
+            cTbl[index] = new
+        end
+        
+        return cTbl
+    
     end
 
 	----------------------------------------------------------------------------------------------------------
@@ -1467,20 +1388,7 @@ end]]
                 if unitId then -- if in a unit.
 					if is_BC(unitId) then  -- if it is a CA slot
 						if client.ucid and stats[client.ucid] then
-							if not stats[client.ucid].times.CA then  -- add this typeName to the client's stats
-								slmod.stats.changeStatsValue(stats[client.ucid].times, 'CA', {total = 0, inAir = 0})
-							end
-							slmod.stats.changeStatsValue(stats[client.ucid].times.CA, 'total', stats[client.ucid].times.CA.total + dt)
-							
-							---------------------------------------------------------------------
-							if slmod.config.enable_mission_stats then  -- mission stats
-								if not misStats[client.ucid].times.CA then  -- add this typeName to the client's stats
-									slmod.stats.changeMisStatsValue(misStats[client.ucid].times, 'CA', {total = 0, inAir = 0})
-								end
-								slmod.stats.changeMisStatsValue(misStats[client.ucid].times.CA, 'total', misStats[client.ucid].times.CA.total + dt)
-							end
-							----------------------------------------------------------------------
-							
+							slmod.stats.advChangeStatsValue({ucid = client.ucid, nest = {'times', 'CA'}, addValue = {total = dt }, default = {total = 0, inAir = 0}})
 						end
 					else -- not a CA slot.
 						unitId = tonumber(unitId)
@@ -1495,26 +1403,10 @@ end]]
                                             if seatId > 0 then
                                                 typeName = multiCrewNameCheck(typeName, seatId)
                                             end
-											
-                                            if not stats[client.ucid].times[typeName] then  -- add this typeName to the client's stats
-												slmod.stats.changeStatsValue(stats[client.ucid].times, typeName, {total = 0, inAir = 0})
-											end
-											slmod.stats.changeStatsValue(stats[client.ucid].times, typeName, {total = stats[client.ucid].times[typeName].total + dt, inAir = stats[client.ucid].times[typeName].inAir + dt}) -- do both at once, saves lines.
-											
-											---------------------------------------------------------------------
-											if slmod.config.enable_mission_stats then  -- mission stats
-												if not misStats[client.ucid].times[typeName] then  -- add this typeName to the client's stats
-													slmod.stats.changeMisStatsValue(misStats[client.ucid].times, typeName, {total = 0, inAir = 0})
-												end
-												slmod.stats.changeMisStatsValue(misStats[client.ucid].times, typeName, {total = misStats[client.ucid].times[typeName].total + dt, inAir = misStats[client.ucid].times[typeName].inAir + dt}) -- do both at once, saves lines.
-											end
-											---------------------------------------------------------------------
+                                            slmod.stats.advChangeStatsValue({ucid = client.ucid, nest = {'times', typeName}, addValue = {total = dt, inAir = dt}, default = {total = 0, inAir = 0}})
+
                                             metaFlightTime = metaFlightTime + dt
-                                            
-											
 											inAirClients[client.ucid] = true  -- used for PvP kills to avoid counting hits in the air
-											-- slmod.stats.changeStatsValue(stats[client.ucid].times[typeName], 'total', stats[client.ucid].times[typeName].total + dt)
-											-- slmod.stats.changeStatsValue(stats[client.ucid].times[typeName], 'inAir', stats[client.ucid].times[typeName].inAir + dt)
 										end
 									elseif retStr:sub(1,5) == 'false' then  -- not in air
 										local typeName = retStr:sub(7) -- seven to end.
@@ -1522,20 +1414,7 @@ end]]
                                             typeName = multiCrewNameCheck(typeName, seatId)
                                         end
                                         if client.ucid and stats[client.ucid] then
-											if not stats[client.ucid].times[typeName] then  -- add this typeName to the client's stats
-												slmod.stats.changeStatsValue(stats[client.ucid].times, typeName, {total = 0, inAir = 0})
-											end
-											slmod.stats.changeStatsValue(stats[client.ucid].times[typeName], 'total', stats[client.ucid].times[typeName].total + dt)
-											
-											---------------------------------------------------------------------
-											if slmod.config.enable_mission_stats then  -- mission stats
-												if not misStats[client.ucid].times[typeName] then  -- add this typeName to the client's stats
-													slmod.stats.changeMisStatsValue(misStats[client.ucid].times, typeName, {total = 0, inAir = 0})
-												end
-												slmod.stats.changeMisStatsValue(misStats[client.ucid].times[typeName], 'total', misStats[client.ucid].times[typeName].total + dt)
-											end
-											---------------------------------------------------------------------
-											
+											slmod.stats.advChangeStatsValue({ucid = client.ucid, nest = {'times', typeName}, addValue = {total = dt}, default = {total = 0, inAir = 0}})
 											inAirClients[client.ucid] = false
 										end
 									end
@@ -1569,14 +1448,30 @@ end]]
 				--slmod.info('checking ' .. eventInd)
                 --slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
 				eventInd = eventInd + 1  -- increment NOW so if there is a Lua error, I'm not stuck forever on this event.
+                
+                
+                local initClient -- load this for each event with standardized table
+                local saveStat = {}
+                local ucid, typeName = {}, {}
 
-				
-				
-				----------------------------------------------------------------------------------------------------------
+				if slmod.clientsByRtId and slmod.clientsByName[event.initiator] or slmod.oldClientsByName[event.initiator] then
+                    initClient = slmod.clientsByRtId[event.initiatorID]
+                    for seat, data in pairs(initClient) do
+                        ucid[seat] = data.ucid
+                        if seat > 1 then
+                            typeName[seat] = multiCrewNameCheck(event.initiator_objtype, seat)
+                        else
+                            typeName[seat] = event.initiator_objtype
+                        end
+                        saveStat = {ucid = ucid, typeName = typeName}
+                    end
+                    
+                end
+				--slmod.info(slmod.oneLineSerialize(saveStat))
+                ----------------------------------------------------------------------------------------------------------
 				--- Shot events
 				--if (event.type == 'shot' or event.type == 'start shooting') and event.initiator_name and event.initiator_mpname and event.initiator_name ~= event.initiator_mpname then  -- human shot event
 				if (event.type == 'shot' or event.type == 'end shooting' or event.type == 'start shooting') and event.initiator and event.initiatorPilotName and event.initiator ~= event.initiatorPilotName then  -- human shot event
-					--slmod.info('shotting')
 					if slmod.clientsByRtId then
 						local clients = slmod.clientsByRtId[event.initiatorID]
                         if clients then -- don't check for specific seat I guess, just see if it exists. To many variables if hot swapping seats is added to more aircraft
@@ -1610,7 +1505,6 @@ end]]
                                     if shotFirstEvent and type(shotFirstEvent) == 'number' then
                                         event.numtimes = slmod.events[shotFirstEvent].numShells - event.numShells
                                     end
-                                    --slmod.info(event.numtimes)
                                 else
                                     weapon = event.weapon
                                     -------------------
@@ -1628,48 +1522,19 @@ end]]
                                 if gunTypes[weapon] then
                                     isGun = true
                                 end
-                            
-                                for cIndex, client in pairs(clients) do
-                                    -- slmod.info('apply weapon stats to each client')
-                                
-                                    --slmod.info(weapon)
-                                    --slmod.info('global stats')
-                                    if not stats[client.ucid].weapons[weapon] then  -- this weapon not in this client's database, add it.
-                                        --slmod.info('add weapon type')
-                                        slmod.stats.changeStatsValue(stats[client.ucid].weapons, weapon, {shot = 0, hit = 0, numHits = 0, kills= 0})
-                                    end
-                                    
-                                    if isGun == true and not stats[client.ucid].weapons[weapon].gun then -- fix for adding gun category
-                                        slmod.stats.changeStatsValue(stats[client.ucid].weapons[weapon], 'gun', true)
-                                    end
-                                    
-                                    if event.numtimes then  -- there should ALWAYS be a numtimes.
-                                        --slmod.info('numtimes exists')
-                                        slmod.stats.changeStatsValue(stats[client.ucid].weapons[weapon], 'shot', stats[client.ucid].weapons[weapon].shot + event.numtimes)
-                                    else
-                                        --slmod.info('no numtimes')
-                                        slmod.stats.changeStatsValue(stats[client.ucid].weapons[weapon], 'shot', stats[client.ucid].weapons[weapon].shot + 1)
-                                    end
-                                    --slmod.info('mission stats')
-                                    ----------------------------------------------------------------------------------------------------------------
-                                    -- mission stats
-                                    if slmod.config.enable_mission_stats then
-                                        if not misStats[client.ucid].weapons[weapon] then  -- this weapon not in this client's database, add it.
-                                            slmod.stats.changeMisStatsValue(misStats[client.ucid].weapons, weapon, {shot = 0, hit = 0, numHits = 0, kills= 0})
-                                        end
-                                        if isGun == true and not misStats[client.ucid].weapons[weapon].gun then -- fix for adding gun category
-                                            slmod.stats.changeStatsValue(misStats[client.ucid].weapons[weapon], 'gun', true)
-                                        end
-                                        if event.numtimes then  -- there should ALWAYS be a numtimes.
-                                            slmod.stats.changeMisStatsValue(misStats[client.ucid].weapons[weapon], 'shot', misStats[client.ucid].weapons[weapon].shot + event.numtimes)
-                                        else
-                                            slmod.stats.changeMisStatsValue(misStats[client.ucid].weapons[weapon], 'shot', misStats[client.ucid].weapons[weapon].shot + 1)
-                                        end
-                                    end
-                                    ----------------------------------------------------------------------------------------------------------------
-                                    --slmod.info('human shots')
-                                    -- Now, add to humanShots
+                                saveStat.nest = {'times', 'typeName', 'weapons', weapon}
+                                saveStat.default = {shot = 0, hit = 0, numHits = 0, kills = 0}
+                                if event.numtimes then
+                                    saveStat.addValue = {shot = event.numtimes}
+                                else
+                                    saveStat.addValue = {shot = 1}
                                 end
+                                if isGun == true then
+                                    saveStat.default.gun = true
+                                end
+                                slmod.stats.advChangeStatsValue(saveStat)
+                                    
+                                
                                 humanShots[event.initiator] = weapon   -- for this initiator, store the name of the last weapon fired.
                                 
                                 if event.weaponID then  -- add to tracked weapons.  Right now, only bombs, rockets, and missiles will have an ID.
@@ -1678,8 +1543,8 @@ end]]
                                 
 							end
 						end
-					end
-				
+					
+                    end
 				end -- end shot events/start shooting events
 				----------------------------------------------------------------------------------------------------------
 				
@@ -1743,7 +1608,7 @@ end]]
 							--slmod.info('here2')
 						else
 							slmod.error('error in stats, could not match target unit in hit event with a mission editor unit name.  Could it be a map object? Event Index: ' .. eventInd)
-							
+							--slmod.info(slmod.oneLineSerialize(event))
 						end
 						
 					end
@@ -1791,241 +1656,126 @@ end]]
 							end
 							
 						end
-					elseif initName and event.initiatorPilotName and initName ~= event.initiatorPilotName then  -- almost certainly human, and ALIVE.
-						--slmod.info('client fired shot')
-						initClient = slmod.clientsByRtId[event.initiatorID]
-						if initClient then
-							--initUCID = initClient.ucid
-							--initSide = initClient.coalition
-						end
-					
-					else  -- initiator probably not human.
+					elseif initName then
+                        if event.initiatorPilotName and initName ~= event.initiatorPilotName then  -- almost certainly human, and ALIVE.
+                            initClient = slmod.clientsByRtId[event.initiatorID]
+                        elseif slmod.oldClientsByName[initName] then -- was a human, but they are now dead. 
+                            initClient = slmod.oldClientsByName[initName]
+                        else  -- initiator probably not human.
 						-- nothing right now...
+                        
+                        end
+					
+
 					end
 					-----------------------------------------------------------
 					
 					-- OK, now we have data on target and initiator- hopefully, 99.999% accurate data!
 					
-					if initClient then  -- a human initiated hit
+					if initClient and initName ~= tgtName then  -- a human initiated hit and they didn't TK themself
 						local givenPenalty = false
                         local addedHit = false
                         --slmod.info(initType)
-                        for seat, clientData in pairs(initClient) do
-                            initUCID = clientData.ucid
-                            initSide = clientData.coalition
-                          --  slmod.info('human caused hit')
-                            -- first, handle the case of nil weapon.  Happens due to a bug in DCS, and is very difficult to solve this bug fully.
-                            -- for now, just assume that the weapon is the last weapon the human fired.
-                            if (not weapon) and initName and humanShots[initName] then
-                                weapon = humanShots[initName]
-                            elseif not weapon then
-                                weapon = 'unknown'
-                                slmod.warning('SlmodStats - nil weapon in hit event, and no weapons fired by client!')
-                            end
-                            
                         
-                            local isCluster = false  
-                            if subToCluster[weapon] then
-                                weapon = subToCluster[weapon]
-                                isCluster = true
-                            end
-                            
-                            
-                            if (not isCluster) or (isCluster and filterClusterHits(weapon, initName, tgtName, time)) then  -- count this hit, it's not a cluster hit or is a new cluster hit.
-                                
-                                -- create weapon category for this weapon if it does not exist.
-                                if not stats[initUCID].weapons[weapon] then -- this could happen if stats re-enabled while weapons in flight, or unknown weapon.
-                                    slmod.stats.changeStatsValue(stats[initUCID].weapons, weapon, {shot = 0, hit = 0, numHits = 0, kills = 0})
-                                end
-                                
-                                ----------------------------------------------------------------------------------------------------------------
-                                -- mission stats
-                                if slmod.config.enable_mission_stats then
-                                    -- create weapon category for this weapon if it does not exist.
-                                    if not misStats[initUCID].weapons[weapon] then -- this could happen if stats re-enabled while weapons in flight, or unknown weapon.
-                                        slmod.stats.changeMisStatsValue(misStats[initUCID].weapons, weapon, {shot = 0, hit = 0, numHits = 0, kills = 0})
-                                    end
-                                end
-                                ----------------------------------------------------------------------------------------------------------------
-                                
-                                if tgtSide and initSide then
-                                    if tgtSide ~= initSide then  -- hits on enemy units in here
-                                        --slmod.info('here8')
-                                        if event.numtimes then  -- there should ALWAYS be a numtimes.
-                                            slmod.stats.changeStatsValue(stats[initUCID].weapons[weapon], 'numHits', stats[initUCID].weapons[weapon].numHits + event.numtimes)
-                                            
-                                            ----------------------------------------------------------------------------------------------------------------
-                                            -- mission stats
-                                            if slmod.config.enable_mission_stats then
-                                                slmod.stats.changeMisStatsValue(misStats[initUCID].weapons[weapon], 'numHits', misStats[initUCID].weapons[weapon].numHits + event.numtimes)
-                                            end
-                                            ----------------------------------------------------------------------------------------------------------------
-                                            
-                                        else
-                                            slmod.stats.changeStatsValue(stats[initUCID].weapons[weapon], 'numHits', stats[initUCID].weapons[weapon].numHits + 1)
-                                            
-                                            ----------------------------------------------------------------------------------------------------------------
-                                            -- mission stats
-                                            if slmod.config.enable_mission_stats then
-                                                slmod.stats.changeMisStatsValue(misStats[initUCID].weapons[weapon], 'numHits', misStats[initUCID].weapons[weapon].numHits + 1)
-                                            end
-                                            ----------------------------------------------------------------------------------------------------------------
-                                        end
-                                        
-                                        if (event.weaponID and trackedWeapons[event.weaponID]) or isGun == true then  -- this is the first time this weapon hit something.
-                                            if isGun == false then
-                                                trackedWeapons[event.weaponID] = nil
-                                            end
-                                            slmod.stats.changeStatsValue(stats[initUCID].weapons[weapon], 'hit', stats[initUCID].weapons[weapon].hit + 1)
-                                            
-                                            ----------------------------------------------------------------------------------------------------------------
-                                            -- mission stats
-                                            if slmod.config.enable_mission_stats then
-                                                slmod.stats.changeMisStatsValue(misStats[initUCID].weapons[weapon], 'hit', misStats[initUCID].weapons[weapon].hit + 1)
-                                            end
-                                            ----------------------------------------------------------------------------------------------------------------
-                                        end
-                                        
-                                        
-                                        if tgtClient then -- human hit an enemy human
-                                            local inAirHit
-                                            if tgtClient[1].ucid and inAirClients[tgtClient[1].ucid] ~= nil then
-                                                inAirHit = inAirClients[tgtClient[1].ucid]
-                                            end
-                                            if addedHit == false then 
-                                                hitHumans[tgtName] = hitHumans[tgtName] or {}
-                                                hitHumans[tgtName][#hitHumans[tgtName] + 1] = {time = time, initiator = slmod.deepcopy(initClient), target = slmod.deepcopy(tgtClient[1]), weapon = weapon, inAirHit = inAirHit}
-                                                addedHit = true
-                                            end
-                                        else  -- human hit an enemy AI
-                                            if addedHit == false then  
-                                                hitAIs[tgtName] = hitAIs[tgtName] or {}
-                                                hitAIs[tgtName][#hitAIs[tgtName] + 1] = {time = time, initiator = slmod.deepcopy(initClient), weapon = weapon}
-                                                addedHit = true
-                                            end
-                                        end
-                                        
-                            
-                                    
-                                    else  -- friendly fire
-                                        --slmod.info('in friendly fire')
-                                        if tgtName ~= initName then  -- hit a friendly unit!
-                                            if weapon ~= 'kamikaze' then
-                                                if tgtClient then -- human hit a friendly human
-                                                    slmod.stats.changeStatsValue(stats[initUCID].friendlyHits, #stats[initUCID].friendlyHits + 1, { time = os.time(), human = tgtClient[1].ucid, objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon, shotFrom = initType})	
-                                                    
-                                                    ----------------------------------------------------------------------------------------------------------------
-                                                    -- mission stats
-                                                    if slmod.config.enable_mission_stats then
-                                                        slmod.stats.changeMisStatsValue(misStats[initUCID].friendlyHits, #misStats[initUCID].friendlyHits + 1, { time = os.time(), human = tgtClient[1].ucid, objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon, shotFrom = initType})
-                                                    end
-                                                    ----------------------------------------------------------------------------------------------------------------
-                                                    
-                                                    local inAirHit
-                                                    if tgtClient[1].ucid and inAirClients[tgtClient[1].ucid] ~= nil then
-                                                        inAirHit = inAirClients[tgtClient[1].ucid]
-                                                    end
-                                                    if addedHit == false then 
-                                                        hitHumans[tgtName] = hitHumans[tgtName] or {}
-                                                        hitHumans[tgtName][#hitHumans[tgtName] + 1] = {time = time, initiator = slmod.deepcopy(initClient), friendlyHit = true, target = slmod.deepcopy(tgtClient), weapon = weapon, inAirHit = inAirHit, shotFrom = initType}
-                                                        addedHit = true
-                                                    end
-                                                    if givenPenalty == false then -- applies penalty on first iteration of unit.
-                                                        onFriendlyHit(initClient, tgtClient, weapon)
-                                                        givenPenalty = true
-                                                    end
-                                                else  -- human hit a friendly AI
-                                                    slmod.stats.changeStatsValue(stats[initUCID].friendlyHits, #stats[initUCID].friendlyHits + 1, { time = os.time(), objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon, shotFrom = initType})
-                                                    
-                                                    ----------------------------------------------------------------------------------------------------------------
-                                                    -- mission stats
-                                                    if slmod.config.enable_mission_stats then
-                                                        slmod.stats.changeMisStatsValue(misStats[initUCID].friendlyHits, #misStats[initUCID].friendlyHits + 1, { time = os.time(), objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon, shotFrom = initType})
-                                                    end
-                                                    ----------------------------------------------------------------------------------------------------------------
-                                                    if addedHit == false then 
-                                                        hitAIs[tgtName] = hitAIs[tgtName] or {}
-                                                        hitAIs[tgtName][#hitAIs[tgtName] + 1] = {time = time, initiator = slmod.deepcopy(initClient), friendlyHit = true, weapon = weapon, shotFrom = initType}
-                                                        addedHit = true
-                                                    end
-                                                    if givenPenalty == false then
-                                                        onFriendlyHit(initClient, {[1] = {name = tgtName}}, weapon)
-                                                        givenPenalty = true
-                                                    end
-                                                end
-                                            else -- friendly collision  (weapon = 'kamikaze')
-                                            
-                                                if not stats[initUCID].friendlyCollisionHits then -- might be needed for old stats files.
-                                                    slmod.stats.changeStatsValue(stats[initUCID], 'friendlyCollisionHits', {})
-                                                end
-                                                
-                                                ----------------------------------------------------------------------------------------------------------------
-                                                -- mission stats
-                                                if slmod.config.enable_mission_stats then
-                                                    if not misStats[initUCID].friendlyCollisionHits then -- might be needed for old stats files.
-                                                        slmod.stats.changeMisStatsValue(misStats[initUCID], 'friendlyCollisionHits', {})
-                                                    end
-                                                end
-                                                ----------------------------------------------------------------------------------------------------------------
-                                                
-                                                if tgtClient then -- human hit a friendly human
-                                                    slmod.stats.changeStatsValue(stats[initUCID].friendlyCollisionHits, #stats[initUCID].friendlyCollisionHits + 1, { time = os.time(), human = tgtClient.ucid, objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon, shotFrom = initType})
-                                                    
-                                                    ----------------------------------------------------------------------------------------------------------------
-                                                    -- mission stats
-                                                    if slmod.config.enable_mission_stats then
-                                                        slmod.stats.changeMisStatsValue(misStats[initUCID].friendlyCollisionHits, #misStats[initUCID].friendlyCollisionHits + 1, { time = os.time(), human = tgtClient.ucid, objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon, shotFrom = initType})
-                                                    end
-                                                    ----------------------------------------------------------------------------------------------------------------
-                                                    
-                                                    local inAirHit
-                                                    if tgtClient.ucid and inAirClients[tgtClient.ucid] ~= nil then
-                                                        inAirHit = inAirClients[tgtClient.ucid]
-                                                    end
-                                                    if addedHit == false then 
-                                                        hitHumans[tgtName] = hitHumans[tgtName] or {}
-                                                        hitHumans[tgtName][#hitHumans[tgtName] + 1] = {time = time, initiator = slmod.deepcopy(initClient), friendlyHit = true, target = slmod.deepcopy(tgtClient), weapon = weapon, inAirHit = inAirHit, shotFrom = initType}
-                                                        addedHit = true
-                                                    end
-                                                    if givenPenalty == false then
-                                                        onFriendlyHit(initClient, tgtClient, weapon)
-                                                        givenPenalty = true
-                                                    end
-                                                else  -- human hit a friendly AI	
-                                                    slmod.stats.changeStatsValue(stats[initUCID].friendlyCollisionHits, #stats[initUCID].friendlyCollisionHits + 1, { time = os.time(), objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon, shotFrom = initType})
-                                                    
-                                                    ----------------------------------------------------------------------------------------------------------------
-                                                    -- mission stats
-                                                    if slmod.config.enable_mission_stats then
-                                                        slmod.stats.changeMisStatsValue(misStats[initUCID].friendlyCollisionHits, #misStats[initUCID].friendlyCollisionHits + 1, { time = os.time(), objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon, shotFrom = initType})
-                                                    end
-                                                    ----------------------------------------------------------------------------------------------------------------
-                                                    if addedHit == false then 
-                                                        hitAIs[tgtName] = hitAIs[tgtName] or {}
-                                                        hitAIs[tgtName][#hitAIs[tgtName] + 1] = {time = time, initiator = slmod.deepcopy(initClient), friendlyHit = true, weapon = weapon, shotFrom = initType}
-                                                        addedHit = true
-                                                    end
-                                                    if givenPenalty == false then
-                                                        onFriendlyHit(initClient, {[1] = {name = tgtName}}, weapon)
-                                                        givenPenalty = true
-                                                    end
-                                                end
-                                            end
-                                            
-                                            
-                                        
-                                        else  -- self-inflicted
-                                            
-                                        end
-                                    
-                                    end
-                                
-                                else
-                                    slmod.error('SlmodStats error- either tgtSide or initSide does not exist for hit event!')
-                                end
-                                
-                            end
+                        for seat, clientData in pairs(initClient) do
+                            initSide = clientData.coalition
                         end
+                        -- first, handle the case of nil weapon.  Happens due to a bug in DCS, and is very difficult to solve this bug fully.
+                        -- for now, just assume that the weapon is the last weapon the human fired.
+                        if (not weapon) and initName and humanShots[initName] then
+                            weapon = humanShots[initName]
+                        elseif not weapon then
+                            weapon = 'unknown'
+                            slmod.warning('SlmodStats - nil weapon in hit event, and no weapons fired by client!')
+                        end
+                        
+                    
+                        local isCluster = false  
+                        if subToCluster[weapon] then
+                            weapon = subToCluster[weapon]
+                            isCluster = true
+                        end
+                        
+                        
+                        if (not isCluster) or (isCluster and filterClusterHits(weapon, initName, tgtName, time)) then  -- count this hit, it's not a cluster hit or is a new cluster hit.
+                            --slmod.info('saveHit')
+                            if not stats[saveStat.ucid[1]].times[saveStat.typeName[1]].weapons then
+                                saveStat.default = {}
+                                saveStat.nest = {'times', 'typeName', 'weapons'}
+                                slmod.stats.advChangeStatsValue(saveStat)  
+                            end
+                            
+                            if not stats[saveStat.ucid[1]].times[saveStat.typeName[1]].weapons[weapon] then
+                                saveStat.default = {shot = 0, hit = 0, numHits = 0, kills = 0}
+                                saveStat.nest = {'times', 'typeName', 'weapons', weapon}
+                                slmod.stats.advChangeStatsValue(saveStat)
+                            end
+
+                            if tgtSide and initSide then
+                                local saveToHit = {time = time, initiator = parseOutExtraClientData(initClient), weapon = weapon, shotFrom = initType, rtid = event.initiatorID, unitName = initName}
+                                local tgtInfoForFHit = {[1] = {name = tgtName}}
+                                if tgtSide == initSide then
+                                    saveToHit.friendlyHit = true
+                                end
+                                
+                                if tgtClient then 
+                                    if tgtClient[1].ucid and inAirClients[tgtClient[1].ucid] ~= nil then
+                                        saveToHit.inAirHit = inAirClients[tgtClient[1].ucid]
+                                    end
+                                    saveToHit.target = slmod.deepcopy(tgtClient)
+                                    hitHumans[tgtName] = hitHumans[tgtName] or {}
+                                    hitHumans[tgtName][#hitHumans[tgtName] + 1] = saveToHit
+                                    tgtInfoForFHit = slmod.deepcopy(tgtClient)
+                                else
+                                    hitAIs[tgtName] = hitAIs[tgtName] or {}
+                                    hitAIs[tgtName][#hitAIs[tgtName] + 1] = saveToHit
+                                end
+                                
+                                if tgtSide ~= initSide then  -- hits on enemy units in here
+                                    saveStat.default = {shot = 0, hit = 0, numHits = 0, kills = 0}
+                                    saveStat.nest = {'times', 'typeName', 'weapons', weapon}
+                                    saveStat.addValue = {}
+                                    saveStat.addValue.numHits = event.numtimes or 1
+                                    
+                                    if (event.weaponID and trackedWeapons[event.weaponID]) or isGun == true then  -- this is the first time this weapon hit something.
+                                        if isGun == false then
+                                            
+                                            trackedWeapons[event.weaponID] = nil
+                                        end
+                                        saveStat.addValue.hit = 1
+                                    end
+                                    
+                                    slmod.stats.advChangeStatsValue(saveStat)
+                                    
+
+                                else
+                                    saveStat.penalty = true 
+                                    if weapon == 'kamikaze' then
+                                       saveStat.nest = 'friendlyCollisionHits'
+                                    else
+                                       saveStat.nest = 'friendlyHits'
+                                    end
+                                    saveStat.addValue = { time = os.time(), objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon, shotFrom = initType}
+                                    if tgtClient then
+                                        local hitClient = {}
+                                        for i = 1, #tgtClient do 
+                                            if tgtClient[i].ucid then 
+                                                table.insert(hitClient, tgtClient[i].ucid)
+                                            end
+                                        end
+                                        saveStat.addValue.human = hitClient
+                                    end
+                                    slmod.stats.advChangeStatsValue(saveStat)
+                                    onFriendlyHit(initClient, tgtInfoForFHit, weapon)
+                                        
+                                end
+                            else
+                                slmod.error('SlmodStats error- either tgtSide or initSide does not exist for hit event! Event Line follows:')
+                                slmod.info(slmod.oneLineSerialize(event))
+                            end
+                            
+                        end
+                        
                     elseif tgtClient and not initClient then -- only case left unhandled in above code: AI hits human.
                         local inAirHit
                         if tgtClient[1].ucid and inAirClients[tgtClient[1].ucid] ~= nil then
@@ -2060,19 +1810,13 @@ end]]
 				
 				----------------------------------------------------------------------------------------------------------
 				if event.type == 'pilot dead' then
-					if event.initiator then
+                    saveStat.default = {crash = 0, eject = 0, pilotDeath = 0}
+                    saveStat.nest = {'times', 'typeName', 'actions', 'losses'}
+                    if event.initiator then
 						local deadClient = slmod.clientsByName[event.initiator] or slmod.oldClientsByName[event.initiator]
 						if deadClient then
-							for seatId, dClient in pairs(deadClient) do
-                                slmod.stats.changeStatsValue(stats[dClient.ucid].losses, 'pilotDeath', stats[dClient.ucid].losses.pilotDeath + 1) -- give a pilotDeath
-                                
-                                ----------------------------------------------------------------------------------------------------------------
-                                -- mission stats
-                                if slmod.config.enable_mission_stats then
-                                    slmod.stats.changeMisStatsValue(misStats[dClient.ucid].losses, 'pilotDeath', misStats[dClient.ucid].losses.pilotDeath + 1) -- give a pilotDeath
-                                end
-                                ----------------------------------------------------------------------------------------------------------------
-							end
+							saveStat.addValue = {pilotDeath = 1}
+                            slmod.stats.advChangeStatsValue(saveStat)
 						end
 					end				
 				end -- end of pilot dead
@@ -2082,8 +1826,10 @@ end]]
 				
 				----------------------------------------------------------------------------------------------------------
 				if event.type == 'land' then  -- check if this is the valid name.
-					if event.initiator and hitHumans[event.initiator] then
-						landedUnits[event.initiator] = DCS.getModelTime()
+					if event.initiator then 
+                        if hitHumans[event.initiator] then
+                            landedUnits[event.initiator] = DCS.getModelTime()
+                        end
 					end
 				end -- end of land
 				----------------------------------------------------------------------------------------------------------
@@ -2092,8 +1838,11 @@ end]]
 				
 				----------------------------------------------------------------------------------------------------------
 				if event.type == 'takeoff' then  -- check if this is the valid name.
-					if event.initiator and landedUnits[event.initiator] then
-						landedUnits[event.initiator] = nil
+					if event.initiator then
+                        if landedUnits[event.initiator] then
+                            landedUnits[event.initiator] = nil
+                        end
+                        -- iterate back up to 10 seconds to see if the player bounced
 					end
 				end
 				----------------------------------------------------------------------------------------------------------
@@ -2105,16 +1854,10 @@ end]]
 					if event.initiator then
 						local deadClient = slmod.clientsByName[event.initiator] or slmod.oldClientsByName[event.initiator]
 						if deadClient then
-							for seat, dClient in pairs(deadClient) do
-                                slmod.stats.changeStatsValue(stats[dClient.ucid].losses, 'eject', stats[dClient.ucid].losses.eject + 1)
-                                
-                                ----------------------------------------------------------------------------------------------------------------
-                                -- mission stats
-                                if slmod.config.enable_mission_stats then
-                                    slmod.stats.changeMisStatsValue(misStats[dClient.ucid].losses, 'eject', misStats[dClient.ucid].losses.eject + 1)
-                                end
-                                ----------------------------------------------------------------------------------------------------------------
-							end
+							saveStat.default = {crash = 0, eject = 0, pilotDeath = 0}
+                            saveStat.nest = {'times', 'typeName', 'actions', 'losses'}
+                            saveStat.addValue = {eject = 1}
+                            slmod.stats.advChangeStatsValue(saveStat)
 						end
 					end				
 				end	-- end of eject
@@ -2124,6 +1867,8 @@ end]]
                     
                     end
                 end
+                
+                
 				
 			end  -- end of while loop.
 			
@@ -2133,7 +1878,8 @@ end]]
 				if slmod.activeUnitsByName[unitName] then
 					if currentTime - landTime > 10 then  -- start checking to see if the unit is stationary.
 						if unitIsStationary(unitName) then
-							hitHumans[unitName] = nil -- human cannot be killed now.
+							--slmod.info(unitName .. ' was a hit unit and has landed safely, clear it so it cant be TKd')
+                            hitHumans[unitName] = nil -- human cannot be killed now.
 							landedUnits[unitName] = nil
 						end
 					end
@@ -2153,7 +1899,7 @@ end]]
 			-- NOW, check to see if any hitHumans are non-existant.
 			for unitName, hits in pairs(hitHumans) do
 				if not unitIsAlive(unitName) then
-					--slmod.info('SlmodStats- hit client unitName: ' .. unitName .. ', hits[#hits]: ' .. slmod.oneLineSerialize(hits[#hits]) .. '  no longer exists, running death logic.')
+					slmod.info('SlmodStats- hit client unitName: ' .. unitName .. ', hits[#hits]: ' .. slmod.oneLineSerialize(hits[#hits]) .. '  no longer exists, running death logic.')
 					
 					suppressDeath[unitName] = true
 					runDeathLogic(unitName)
@@ -2173,6 +1919,10 @@ end]]
 			statsF:close()
 			statsF = nil
 		end
+        if penStatsF then
+        	penStatsF:close()
+			penStatsF = nil
+        end
 	end
 
 	-- ***END OF STATS TRACKING**
@@ -2184,12 +1934,28 @@ end]]
 	function slmod.stats.getStats()
 		return stats
 	end
+    function slmod.stats.getPenStats()
+        return penStats
+    end
+    function slmod.stats.getUserPenStats(ucid)
+        if penStats[ucid] then
+            return penStats[ucid]
+        end
+    end
     function slmod.stats.getUserStats(ucid)
         if stats[ucid] then
             return stats[ucid]
         end
     end
 	-- ***BEGINNING OF STATS USER INTERFACE***
+    
+    local commonStatTbl = {
+    ['Ground Units'] =  {['SAM'] = 0,['AAA'] = 0,['EWR'] = 0, ['Arty/MLRS'] = 0, ['Infantry'] = 0, ['Tanks'] = 0, ['IFVs'] = 0,['APCs'] = 0, ['Unarmored'] = 0, ['Forts'] = 0, ['Other'] = 0, ['total'] =0, },
+	['Planes'] =  {['Fighters'] = 0,['Attack'] = 0,['Bombers'] = 0,['Support'] = 0,['UAVs'] = 0,['Transports'] = 0,['Other'] = 0,['total'] = 0,	},
+	['Helicopters'] =  	{['Attack'] = 0,['Utility'] = 0,['Other'] = 0,['total'] = 0,		},
+	['Ships'] = 	{['Warships'] = 0,['Subs'] = 0,['Unarmed'] = 0,['Other'] = 0,['total'] = 0,		},
+	['Buildings'] =  	{['Static'] = 0,['Other'] = 0,['total'] = 0,}
+    }
 	
 	-- inserts and overwrites string "ins" into string s at location loc without changing length.
 	local function stringInsert(s, ins, loc) -- WHY DO YOU HAVE TO MESS WITH THE FORMATTING? DAMN YOU. DAMN YOU ALL TO HELL!
@@ -2223,11 +1989,12 @@ end]]
 		
 		
 		]]
-		
+
 		-- FUNCTION USUALLY EXPECTS A UCID.  However, overload it to directly accept a stats table!
-		if stats[ucid] or type(ucid) == 'table' then
+	
+        if stats[ucid] or type(ucid) == 'table' then
 			local pStats
-			if type(ucid) == 'string' then
+            if type(ucid) == 'string' then
 				if (not mode) or mode == 'server' then
 					pStats = stats[ucid]
 				elseif mode == 'mission' and slmod.config.enable_mission_stats and misStats then
@@ -2237,7 +2004,10 @@ end]]
 				pStats = ucid
 			end
 			if pStats then
-			
+                local ppStats
+                if penStats[pStats.ucid] then
+                    ppStats = penStats[pStats.ucid]
+                end
 				local sTbl = {}  -- faster to use table.concat.
 				sTbl[#sTbl + 1] = 'Summarized stats for player: "'
 				sTbl[#sTbl + 1] = pStats.names[#pStats.names]
@@ -2246,48 +2016,78 @@ end]]
 				sTbl[#sTbl + 1] = ':\n   | TIME: '
 				
 				local totalTime = 0
-				for platform, times in pairs(pStats.times) do
+                
+                local killList = {['Ground Units'] = 0, ['Planes'] = 0, ['Helicopters'] = 0, ['Ships'] = 0, ['Buildings'] = 0}
+                local pvp = {kills = 0, losses = 0}
+                local losses = 0 
+                for platform, times in pairs(pStats.times) do
 					totalTime = totalTime + times.total
+                    if times.kills then
+                        for cat, catData in pairs(times.kills) do
+                            if killList[cat] then
+                                killList[cat] = killList[cat] + catData.total
+                            end
+                        end                    
+                    end
+                    if times.action then 
+                        if times.actions.losses then
+                            losses = times.actions.losses.crash + losses
+                        end
+                        
+                        if times.actions.pvp then
+                            pvp.kills = times.actions.pvp.kills + pvp.kills
+                            pvp.losses = times.actions.pvp.losses + pvp.losses
+                        end
+                    end
 				end
+                
+                if pStats.PvP then
+                    pvp.kills = pStats.PvP.kills + pvp.kills
+                    pvp.losses = pStats.PvP.losses + pvp.losses
+                end
+                
+                if pStats.losses then
+                    losses = losses + pStats.losses.crash
+                end
 				
 				sTbl[#sTbl + 1] = string.format('%.1f', totalTime/3600)
-				
 				sTbl[#sTbl + 1] = ' hours | PvP K/D: '
-				sTbl[#sTbl + 1] = tostring(pStats.PvP.kills)
+				sTbl[#sTbl + 1] = tostring(pvp.kills)
 				sTbl[#sTbl + 1] = '/'
-				sTbl[#sTbl + 1] = tostring(pStats.PvP.losses)
+				sTbl[#sTbl + 1] = tostring(pvp.losses)
 				sTbl[#sTbl + 1] = ' | KILLS: Air = '
-				
-				
-				
-				local vehicleKills = pStats.kills['Ground Units'].total or 0
-				local planeKills = pStats.kills['Planes'].total or 0
-				local heloKills = pStats.kills['Helicopters'].total or 0
-				local shipKills = pStats.kills['Ships'].total or 0
-				local buildingKills = pStats.kills['Buildings'].total or 0
-				
-				local airKills = planeKills + heloKills
-				local surfaceKills = vehicleKills + shipKills + buildingKills
-				local friendlyKills = #pStats.friendlyKills
-				
+                
+                local vehicleKills, planeKills, heloKills, shipKills, buildingKills = 0, 0, 0, 0 , 0
+                if pStats.kills then -- paranoia if people update stats without deleting old stats. 
+                    vehicleKills = pStats.kills['Ground Units'].total or 0
+                    planeKills = pStats.kills['Planes'].total or 0
+                    heloKills = pStats.kills['Helicopters'].total or 0
+                    shipKills = pStats.kills['Ships'].total or 0
+                    buildingKills = pStats.kills['Buildings'].total or 0
+                end
+				local airKills = killList.Planes + killList.Helicopters + (planeKills + heloKills)
+				local surfaceKills = killList['Ground Units'] + killList.Ships + killList.Buildings + (vehicleKills + shipKills + buildingKills)
+				local friendlyKills =  0
+				if ppStats then
+                    friendlyKills = #ppStats.friendlyKills
+                end
+
 				sTbl[#sTbl + 1] = tostring(airKills)
 				sTbl[#sTbl + 1] = ', Grnd/Sea = '
 				sTbl[#sTbl + 1] = tostring(surfaceKills)
 				sTbl[#sTbl + 1] = ', friendly = '
 				sTbl[#sTbl + 1] = tostring(friendlyKills)
 				sTbl[#sTbl + 1] = ' | LOSSES: '
-				sTbl[#sTbl + 1] = tostring(pStats.losses.crash)
+				sTbl[#sTbl + 1] = tostring(losses)
 				
 				return table.concat(sTbl)
 			end
 		end
 	end
 	
-	
-	
 	--Creates the detailed stats page(s).
-	local function createDetailedStats(ucid, mode)
-
+	local function createDetailedStats(ucid, mode, ac)
+        
 		local function makeKillsColumn(kills)
 			local types = {}
 			for typeName, typeKills in pairs(kills) do
@@ -2302,8 +2102,7 @@ end]]
 			end
 			return killsStrings
 		end
-
-		
+        
 		if stats[ucid] or type(ucid) == 'table' then
 			local pStats
 			if type(ucid) == 'string' then
@@ -2315,41 +2114,91 @@ end]]
 			else
 				pStats = ucid
 			end
-				
 			if pStats then
+                --slmod.info('in pStats') 
 				local p1Tbl = {}  -- faster to use table.concat.
 				p1Tbl[#p1Tbl + 1] = 'Stats for player: "'
 				p1Tbl[#p1Tbl + 1] = pStats.names[#pStats.names]
 				p1Tbl[#p1Tbl + 1] = '", SlmodStats ID# '
 				p1Tbl[#p1Tbl + 1] = tostring(pStats.id)
-				p1Tbl[#p1Tbl + 1] = ':\n\nFLIGHT TIMES (HOURS):\n    NAME                  IN AIR                TOTAL\n'
+				p1Tbl[#p1Tbl + 1] = ':\n\nFLIGHT TIMES (HOURS): '
+                local ins = #p1Tbl + 1
+                p1Tbl[#p1Tbl + 1] = '\n    NAME                  IN AIR                TOTAL\n'
 				local platforms = {}
 				for platformName, timeTable in pairs(pStats.times) do
-					platforms[#platforms + 1] = platformName
+					if (ac and ac == platformName) or not ac then
+                       platforms[#platforms + 1] = platformName
+                    end
 				end
-				table.sort(platforms)
-				
+                --slmod.info('sort plat') 
+				table.sort(platforms)    
+                local tTime = 0
+                local aTime = 0
+                local killList = slmod.deepcopy(commonStatTbl)
+                local pvp = {kills = 0, losses = 0}
+				local losses = {crash = 0, eject = 0, pilotDeath = 0}
+                --slmod.info('do plat') 
 				for i = 1, #platforms do
-					local line = '                                                                                                                             \n'
+					--slmod.info(i)
+                    --slmod.info(platforms[i])
+                    local line = '                                                                                                                             \n'
 					line = stringInsert(line, platforms[i], 5)  -- insert platform name.
+                    aTime =  pStats.times[platforms[i]].inAir + aTime
+                    tTime =  pStats.times[platforms[i]].total + tTime
 					local inAirTime = string.format('%.2f', pStats.times[platforms[i]].inAir/3600)
 					local totalTime = string.format('%.2f', pStats.times[platforms[i]].total/3600)
 					line = stringInsert(line, inAirTime, 27)  -- insert inAirTime
 					line = stringInsert(line, totalTime, 49)  -- insert totalTime
 					p1Tbl[#p1Tbl + 1] = line
+                    --slmod.info('plat kills')
+                    if pStats.times[platforms[i]].kills then
+                        for cat, catData in pairs(pStats.times[platforms[i]].kills) do
+                            if killList[cat] and type(catData) == 'table' then
+                                for killType, killNum in pairs(catData) do
+                                    if killList[cat][killType] then
+                                       killList[cat][killType] = killList[cat][killType] + killNum -- add to the killType
+                                    end                                    
+                                end
+                            end
+                        end                    
+                    end
+                    --slmod.info('actions')
+                    if pStats.times[platforms[i]].actions then 
+                        --slmod.info('losses')
+                        if pStats.times[platforms[i]].actions.losses then
+                            losses.eject = pStats.times[platforms[i]].actions.losses.eject + losses.eject
+                            losses.crash = pStats.times[platforms[i]].actions.losses.crash + losses.crash
+                            losses.pilotDeath = pStats.times[platforms[i]].actions.losses.pilotDeath + losses.pilotDeath
+                        end
+                        --slmod.info('pvp')
+                        if pStats.times[platforms[i]].actions.pvp then
+                            pvp.kills = pStats.times[platforms[i]].actions.pvp.kills + pvp.kills
+                            pvp.losses = pStats.times[platforms[i]].actions.pvp.losses + pvp.losses
+                        end
+                    end
+                    
+                        
+                    
 				end
+                --slmod.info('do kills') 
+                table.insert(p1Tbl, ins, ' Total Flight: ' .. string.format('%.2f', aTime/3600) .. '  Overall: ' .. string.format('%.2f', tTime/3600))
 				p1Tbl[#p1Tbl + 1] = '\nKILLS:\n     GROUND                PLANES                HELOS                 SHIPS             BUILDINGS\n'
-				local vehicleKills = pStats.kills['Ground Units']
-				local planeKills = pStats.kills['Planes']
-				local heloKills = pStats.kills['Helicopters']
-				local shipKills = pStats.kills['Ships']
-				local buildingKills = pStats.kills['Buildings']
-				
-				local vehicleKillsStrings = makeKillsColumn(vehicleKills)
-				local planeKillsStrings = makeKillsColumn(planeKills)
-				local heloKillsStrings = makeKillsColumn(heloKills)
-				local shipKillsStrings = makeKillsColumn(shipKills)
-				local buildingKillsStrings = makeKillsColumn(buildingKills)
+                if pStats.kills and not ac then -- new tables for this won't exist, add it to old list if applicable
+                    for cat, catData in pairs(pStats.kills) do
+                        if killList[cat] and type(catData) == 'table' then
+                            for killType, killNum in pairs(catData) do
+                                if killList[cat][killType] then
+                                   killList[cat][killType] = killList[cat][killType] + killNum -- add to the killType
+                                end                                    
+                            end
+                        end
+                    end   
+                end
+				local vehicleKillsStrings = makeKillsColumn(killList['Ground Units'])
+				local planeKillsStrings = makeKillsColumn(killList.Planes)
+				local heloKillsStrings = makeKillsColumn(killList.Helicopters)
+				local shipKillsStrings = makeKillsColumn(killList.Ships)
+				local buildingKillsStrings = makeKillsColumn(killList.Buildings)
 				
 				--slmod.info(slmod.tableshow(vehicleKillsStrings))
 				--slmod.info(slmod.tableshow(planeKillsStrings))
@@ -2373,8 +2222,6 @@ end]]
 				if #buildingKillsStrings > maxSize then
 					maxSize = #buildingKillsStrings
 				end
-				
-				
 				for i = 1, maxSize do
 					--net.log(i)
 					local line = '                                                                                                                    \n'
@@ -2407,25 +2254,24 @@ end]]
 				end
 							
 				p1Tbl[#p1Tbl + 1] = '---------------------------------------------------------------------------------------------------------------------------\n'
-				
 				local totalsLine = 'TOTALS:                                                                                                             '
-				totalsLine = stringInsert(totalsLine, tostring(vehicleKills.total), 10)
-				totalsLine = stringInsert(totalsLine, tostring(planeKills.total), 36)
-				totalsLine = stringInsert(totalsLine, tostring(heloKills.total), 62)
-				totalsLine = stringInsert(totalsLine, tostring(shipKills.total), 88)
-				totalsLine = stringInsert(totalsLine, tostring(buildingKills.total), 110)
+				totalsLine = stringInsert(totalsLine, tostring(killList['Ground Units'].total), 10)
+				totalsLine = stringInsert(totalsLine, tostring(killList.Planes.total), 36)
+				totalsLine = stringInsert(totalsLine, tostring(killList.Helicopters.total), 62)
+				totalsLine = stringInsert(totalsLine, tostring(killList.Ships.total), 88)
+				totalsLine = stringInsert(totalsLine, tostring(killList.Buildings.total), 110)
 				p1Tbl[#p1Tbl + 1] = totalsLine
 				
-				
+                local displayPenStats = penStats[pStats.ucid] or {friendlyHits = {}, friendlyKills = {}, friendlyCollisionHits = {}, friendlyCollisionKills = {}}
 				p1Tbl[#p1Tbl + 1] = '\n\nFRIENDLY FIRE:\n              hits: '
-				p1Tbl[#p1Tbl + 1] = tostring(#pStats.friendlyHits)
+				p1Tbl[#p1Tbl + 1] = tostring(#displayPenStats.friendlyHits)
 				p1Tbl[#p1Tbl + 1] = ';        kills: '
-				p1Tbl[#p1Tbl + 1] = tostring(#pStats.friendlyKills)
+				p1Tbl[#p1Tbl + 1] = tostring(#displayPenStats.friendlyKills)
 				p1Tbl[#p1Tbl + 1] = ';  Friendly collision hits: '
 				
 				local cHits -- old stats may not have collision hits/kills
-				if pStats.friendlyCollisionHits then
-					cHits = #pStats.friendlyCollisionHits
+				if displayPenStats.friendlyCollisionHits then
+					cHits = #displayPenStats.friendlyCollisionHits
 				else
 					cHits = 0
 				end
@@ -2434,75 +2280,92 @@ end]]
 				p1Tbl[#p1Tbl + 1] = ';  Friendly collision kills: '
 				
 				local cKills -- old stats may not have collision hits/kills
-				if pStats.friendlyCollisionKills then
-					cKills = #pStats.friendlyCollisionKills
+				if displayPenStats.friendlyCollisionKills then
+					cKills = #displayPenStats.friendlyCollisionKills
 				else
 					cKills = 0
 				end
 		
 				p1Tbl[#p1Tbl + 1] = tostring(cKills)
 				p1Tbl[#p1Tbl + 1] = ';'
+                 if pStats.PvP and not ac then
+                    pvp.kills = pStats.PvP.kills + pvp.kills
+                    pvp.losses = pStats.PvP.losses + pvp.losses
+                end
+                
+                if pStats.losses and not ac then
+                    losses.crash = losses.crash + pStats.losses.crash
+                    losses.pilotDeath = losses.pilotDeath + pStats.losses.pilotDeath
+                    losses.eject = losses.eject + pStats.losses.eject
+                end
 				
-				
-				p1Tbl[#p1Tbl + 1] = '\n\nPLAYER VS. PLAYER:\n    Kills: '
-				p1Tbl[#p1Tbl + 1] = tostring(pStats.PvP.kills)
+				p1Tbl[#p1Tbl + 1] = '\nPLAYER VS. PLAYER:\n    Kills: '
+				p1Tbl[#p1Tbl + 1] = tostring(pvp.kills)
 				p1Tbl[#p1Tbl + 1] = ';  Losses: '
-				p1Tbl[#p1Tbl + 1] = tostring(pStats.PvP.losses)
+				p1Tbl[#p1Tbl + 1] = tostring(pvp.losses)
 				p1Tbl[#p1Tbl + 1] = ';\n\n'
 
 				p1Tbl[#p1Tbl + 1] = 'LOSSES:\n    Crashes: '
-				p1Tbl[#p1Tbl + 1] = tostring(pStats.losses.crash)
+				p1Tbl[#p1Tbl + 1] = tostring(losses.crash)
 				p1Tbl[#p1Tbl + 1] = ';  Ejections: '
-				p1Tbl[#p1Tbl + 1] = tostring(pStats.losses.eject)
+				p1Tbl[#p1Tbl + 1] = tostring(losses.eject)
 				p1Tbl[#p1Tbl + 1] = ';  Pilot Deaths: '
-				p1Tbl[#p1Tbl + 1] = tostring(pStats.losses.pilotDeath)
+				p1Tbl[#p1Tbl + 1] = tostring(losses.pilotDeath)
 				p1Tbl[#p1Tbl + 1] = ';\n\n'
 				-- END OF FIRST PAGE
 				---------------------------------------
-				
+				--slmod.info('page 2') 
 				local p2Tbl = {}
 				p2Tbl[#p2Tbl + 1] = 'WEAPONS DATA (Note- due to a bug in DCS, some weapon\'s hits cannot be properly counted for multiplayer clients.)\n'
-				
 				-- sort weapons in alphabetical order
 				local weaponNames = {}
-				local gStats = {shot = 0, hit = 0, numHits = 0, kills= 0}
-				for weaponName, weaponData in pairs(pStats.weapons) do
-					if weaponData.gun then
-						if slmod.config.simple_gun_stats then
-							gStats.shot = gStats.shot + weaponData.shot
-                            gStats.hit = gStats.hit + weaponData.hit
-                            gStats.numHits = gStats.numHits + weaponData.numHits
-                            gStats.kills = gStats.kills + weaponData.kills
-                        else
-							 weaponNames[#weaponNames + 1] = weaponName
+                local weaponDat = {}
+                --slmod.info('common weaps') 
+				for acName, acTbl in pairs(pStats.times) do
+                     if (ac and ac == acName) or not ac then 
+                        if acTbl.weapons then 
+                            for wepName, wepData in pairs(acTbl.weapons) do
+                                if not weaponDat[wepName] then
+                                    weaponDat[wepName] = wepData
+                                    weaponNames[#weaponNames + 1] = wepName
+                                else
+                                    for wepStat, wepVal in pairs(wepData) do
+                                        if type(wepVal) == 'number' then 
+                                            weaponDat[wepName][wepStat] = weaponDat[wepName][wepStat] + wepVal
+                                        end
+                                    end
+                                end
+                            end
                         end
-                        
-                    else
-                        weaponNames[#weaponNames + 1] = weaponName
                     end
-				end
+                end
+                --slmod.info('do weaps') 
+                if pStats.weapons and not ac then -- fix weapon stats if information is available
+                    for weaponName, weaponData in pairs(pStats.weapons) do
+                        if not weaponDat[weaponName] then
+                            weaponDat[weaponName] = weaponData
+                            weaponNames[#weaponNames + 1] = weaponName
+
+                        else
+                            for wepStat, wepVal in pairs(weaponData) do
+                                if type(wepVal) == 'number' then 
+                                    weaponDat[weaponName][wepStat] = weaponDat[weaponName][wepStat] + wepVal
+                                end
+                            end
+                        end
+                    end
+                end
+                --slmod.info('sort weaps') 
 				table.sort(weaponNames)  -- put in alphabetical order
-				
 				for i = 1, #weaponNames do
-                     
 					local line = '                                                                                                                     \n'
 					line = stringInsert(line, weaponNames[i], 1)
-					line = stringInsert(line, 'fired = ' .. tostring(pStats.weapons[weaponNames[i]].shot), 22)
-					line = stringInsert(line, 'hit = ' .. tostring(pStats.weapons[weaponNames[i]].hit), 44)
-					line = stringInsert(line, 'kills = ' .. tostring(pStats.weapons[weaponNames[i]].kills), 66)
-					line = stringInsert(line, 'object hits = ' .. tostring(pStats.weapons[weaponNames[i]].numHits), 84)
+					line = stringInsert(line, 'fired = ' .. tostring(weaponDat[weaponNames[i]].shot), 22)
+					line = stringInsert(line, 'hit = ' .. tostring(weaponDat[weaponNames[i]].hit), 44)
+					line = stringInsert(line, 'kills = ' .. tostring(weaponDat[weaponNames[i]].kills), 66)
+					line = stringInsert(line, 'object hits = ' .. tostring(weaponDat[weaponNames[i]].numHits), 84)
 					p2Tbl[#p2Tbl + 1] = line
 				end
-                if slmod.config.simple_gun_stats then
-                    local line = '                                                                                                                     \n'
-					line = stringInsert(line, 'guns', 1)
-					line = stringInsert(line, 'fired = ' .. tostring(gStats.shot), 22)
-					line = stringInsert(line, 'hit = ' .. tostring(gStats.hit), 44)
-					line = stringInsert(line, 'kills = ' .. tostring(gStats.kills), 66)
-					line = stringInsert(line, 'object hits = ' .. tostring(gStats.numHits), 84)
-					p2Tbl[#p2Tbl + 1] = line                   
-                end
-				
 				return table.concat(p1Tbl), table.concat(p2Tbl)
 			end
 		end
@@ -2770,7 +2633,6 @@ end]]
 				
 					local page1, page2 = createDetailedStats(requester.ucid, requesterMode)
 					if page1 and page2 then
-						--slmod.info(msg)
 						slmod.scopeMsg(page1, self.options.display_time/2, self.options.display_mode, {clients = {clientId}})
 						slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, DCS.getModelTime() + self.options.display_time/2)
 					end
@@ -2827,9 +2689,11 @@ end]]
 		
 		statsForIdVars.onSelect = function(self, vars, clientId)
 			if vars and vars.id then
-				local pId = vars.id
-				local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
 				
+                local pId = vars.id
+				local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
+				--slmod.info('stats byId select')
+                --slmod.info(pId)
 				local statsToUse = stats
 				if requesterMode and requesterMode == 'mission' and slmod.config.enable_mission_stats then
 					statsToUse = misStats
@@ -2837,7 +2701,8 @@ end]]
 
 				for ucid, pStats in pairs(statsToUse) do -- this is inefficient- maybe I need to make a stats by id table.
 					if type(pStats) == 'table' and pStats.id and pStats.id == pId then  -- found the id#.
-						local msg = createSimpleStats(pStats)
+						--slmod.info('stats found create')
+                        local msg = createSimpleStats(pStats)
 						if msg then
 							slmod.scopeMsg(msg, self.options.display_time, self.options.display_mode, {clients = {clientId}})
 						end
@@ -2954,17 +2819,18 @@ end]]
 		fullStatsForIdVars.onSelect = function(self, vars, clientId)
 			if vars and vars.id then
 				local pId = vars.id
-				
+				--slmod.info('full stats id') 
 				local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
 	
 				local statsToUse = stats
 				if requesterMode and requesterMode == 'mission' and slmod.config.enable_mission_stats then
 					statsToUse = misStats
 				end
-
+                --slmod.info(pId) 
 				for ucid, pStats in pairs(statsToUse) do -- this is inefficient- maybe I need to make a stats by id table.
 					if type(pStats) == 'table' and pStats.id and pStats.id == pId then  -- found the id#.
-						local page1, page2 = createDetailedStats(pStats)
+						--slmod.info('found, create fullstats') 
+                        local page1, page2 = createDetailedStats(pStats)
 						if page1 and page2 then
 							--slmod.info(msg)
 							slmod.scopeMsg(page1, self.options.display_time/2, self.options.display_mode, {clients = {clientId}})
@@ -3047,6 +2913,64 @@ end]]
 		end	
 		
 		statsItems[#statsItems + 1] = SlmodMenuItem.create(fullStatsForNameVars)
+        
+        local aircraftStatsMe = {}
+		aircraftStatsMe.menu = SlmodStatsMenu
+		aircraftStatsMe.description = 'Say in chat "-stats ac me" to display stats for your current aircraft'
+		aircraftStatsMe.active = true
+		aircraftStatsMe.options = {
+			display_mode = 'text', 
+			display_time = 50, 
+			privacy = {
+				access = true, 
+				show = true
+			}
+		}
+		aircraftStatsMe.selCmds = {
+			[1] = {
+				[1] = { 
+					type = 'word', 
+					text = '-stats',
+					required = true
+				}, 
+				[2] = { 
+					type = 'word', 
+					text = 'ac',
+					required = true
+				}, 
+				[3] = { 
+					type = 'word', 
+					text = 'me',
+					required = true
+				}
+			}				
+		} 
+		
+		aircraftStatsMe.onSelect = function(self, vars, clientId)
+			local requester = slmod.clients[clientId]
+			if requester then
+				if stats[requester.ucid] then  -- this check invalid if server stats ever optionally disabled.
+					local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
+                    local statsToUse = stats
+                    if requesterMode and requesterMode == 'mission' and slmod.config.enable_mission_stats then
+                        statsToUse = misStats
+                    end
+                    local uName, seat = slmod.getClientUnitName(clientId)
+                    local ac = slmod.allMissionUnitsByName[uName].objtype
+                    if seat > 0 then
+                        ac = multiCrewNameCheck(ac, seat)
+                    end
+                    local page1, page2 = createDetailedStats(statsToUse[slmod.clients[clientId].ucid], requesterMode, ac)
+                    if page1 and page2 then
+								--slmod.info(msg)
+                        slmod.scopeMsg(page1, self.options.display_time/2, self.options.display_mode, {clients = {clientId}})
+                        slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, DCS.getModelTime() + self.options.display_time/2)
+                    end
+                end
+            end
+		end	
+		
+		statsItems[#statsItems + 1] = SlmodMenuItem.create(aircraftStatsMe)
         
         -- 9th item, -full stats for name <player name>
 		local detailedPenaltyScoreMe = {}

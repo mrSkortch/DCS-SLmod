@@ -2,7 +2,8 @@ function slmod.create_getNextSlmodEvents()
 
 	local GetNextSlmodEvents_string = [=[-- debriefing module events hook
 do
-	local slmod_events_ind = 1
+	--env.info('slmod GetNextSlmodEvents_string')
+    local slmod_events_ind = 1
 	slmod = slmod or {}
 	slmod.rawEvents = nil
 	
@@ -17,6 +18,16 @@ do
 			return slmod.clientsMission[name].rtid  -- either nil or a rtid.
 		end
 	end
+    
+    local function getUnitNameById(id)
+        if slmod.allMissionUnitsById then
+            if slmod.allMissionUnitsById[id] then
+                return slmod.allMissionUnitsById[id].name
+            else
+                env.info('entry not found: ' .. id)
+            end
+        end
+    end
 	
 	function slmod.getNextSlmodEvents()
 		--env.info('in getNextSlmodEvents')
@@ -51,21 +62,33 @@ do
 				--env.info('not addEventOld')
 				debriefing.addEvent_old = debriefing.addEvent
 				function debriefing.addEvent(event)
-					-- env.info('debriefing event:')
+					--env.info('debriefing event:')
 					--env.info(slmod.oneLineSerialize(event))
-					if (('takeoff' == event.type) or ('land' == event.type) or ('base captured' == event.type)) and ( (event.place ~= nil) and (event.place ~= '') ) then
+					if event.type == 'birth' then
+                        return
+                    end
+                    
+                    if (('takeoff' == event.type) or ('land' == event.type) or ('base captured' == event.type)) and ( (event.place ~= nil) and (event.place ~= '') ) then
 						--env.info('do weird transl')
 						event.target = dtransl(event.place);
 					end
 					if slmod and slmod.deepcopy then
-						--env.info('slmod and deepcopy')
+						--log.info('slmod and deepcopy')
 						--env.info(event.initiator)
 						
 						local eventCopy = slmod.deepcopy(event)
 						
 						--env.info(GetUnitRTidByName(event.initiator))
-						if event.initiator then -- for mission start/stop events
-							eventCopy.initiatorID = GetUnitRTidByName(event.initiator)
+						if eventCopy.initiatorMissionID and not event.initiator then
+                            eventCopy.initiator = getUnitNameById(eventCopy.initiatorMissionID)
+                        end
+                        
+                        if eventCopy.targetMissionID and ((eventCopy.target and not GetUnitRTidByName(eventCopy.target)) or not eventCopy.target) then
+                            eventCopy.target = getUnitNameById(eventCopy.targetMissionID)
+                        end
+                        
+                        if eventCopy.initiator then -- for mission start/stop events
+							eventCopy.initiatorID = GetUnitRTidByName(eventCopy.initiator)
 						end
 						
 						if eventCopy.type == 'shot' or eventCopy.type =='start shooting' or eventCopy.type == 'end shooting' then
@@ -111,15 +134,15 @@ do
 							end
 						end
 						
+						--log.info(slmod.oneLineSerialize(eventCopy))
 						
-						
-						--env.info('add to raw events')
+						--log.info('add to raw events')
 						table.insert(slmod.rawEvents, eventCopy)
 					else
-						--env.info('else')
+						--log.info('else')
 						table.insert(slmod.rawEvents, event)
 					end
-					--env.info('return')
+					--log.info('return')
 					return debriefing.addEvent_old(event)
 				end
 			end		
@@ -127,7 +150,8 @@ do
 		local new_events = {}
 		local t_insert = table.insert --declare locally for faster run times
 		if #slmod.rawEvents >= slmod_events_ind then
-			--needs to be a while loop, index it operates on is a global var
+			--env.info('rawEvents > events_ind')
+            --needs to be a while loop, index it operates on is a global var
 			while slmod_events_ind <= #slmod.rawEvents do
 				t_insert(new_events, slmod.rawEvents[slmod_events_ind])
 				
@@ -152,7 +176,7 @@ do
 					--first, get the time of the currently evaluated event in new_events
 					cur_time = new_events[new_events_ind].t 
 					
-					-- env.info('evaluating event #' .. tostring(new_events_ind) .. 'in new_events')
+					 --env.info('evaluating event #' .. tostring(new_events_ind) .. 'in new_events')
 					-- env.info('time is: ' .. tostring(cur_time) .. '\n')
 					
 					------Next, get the index of the first event in slmod_events that occurred within time_res
@@ -208,13 +232,14 @@ do
 				end	
 			
 			end
-            --env.info('exit')
+           -- env.info('exit')
 			return slmod.serialize('slmod_next_events', slmod_events)
 			
 		end
         --env.info('noE')
 		return 'no_new_events'
 	end
+    --env.info('end GetNextSlmodEvents_string')
 end]=]
 	
 
@@ -330,7 +355,8 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 						end
 					end
 				elseif temp_event.type == 'birth' then
-					if slmod.allMissionUnitsByName and slmod.activeUnitsBase and temp_event.type == 'birth' then
+					--slmod.info('event birth')
+                    if slmod.allMissionUnitsByName and slmod.activeUnitsBase and temp_event.type == 'birth' then
 						
 						local newUnit = {}
 						newUnit.groupId = temp_event.groupId
@@ -348,7 +374,14 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 						local lUnitsBase = slmod.activeUnitsBase
 						lUnitsBase[#lUnitsBase + 1] = slmod.deepcopy(newUnit)
 						slmod.allMissionUnitsByName[newUnit.name] = slmod.deepcopy(newUnit)
-						
+						slmod.allMissionUnitsById[newUnit.unitId] = slmod.deepcopy(newUnit)
+                        
+                        local s = table.concat({'slmod = slmod or {}\n', 'slmod.allMissionUnitsById[', slmod.oneLineSerialize(newUnit.unitId), '] = ', slmod.oneLineSerialize(newUnit)})
+        
+                        local str, err = net.dostring_in('server', s)
+                        if not err then
+                            slmod.error('failed to Appent slmod.allMissionUnitsById, reason: ' .. str)
+                        end
 					end
 				--slmod.activeUnitsBase[#slmod.activeUnitsBase + 1] = newUnit
 				end
@@ -359,50 +392,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 				
 				--------------------------------------------------------------------------------------------------------------------------------------
 				--------------------------------------------------------------------------------------------------------------------------------------
-				--New Slmodv6_3 code for logging team hits and kicking/banning team hitters.  This should probably be moved elsewhere.
-				-- if slmod.config.chat_log and slmod.config.log_team_hits and slmod.chatLogFile or ((slmod.config.team_hit_result == 'kick' or slmod.config.team_hit_result == 'ban') and (type(slmod.config.team_hit_limit) == 'number' and slmod.config.team_hit_limit > 0)) then
-					-- if temp_event.type == 'hit' and temp_event.initiator_coalition and temp_event.target_coalition and temp_event.initiator_coalition == temp_event.target_coalition then -- team hit
-						-- if temp_event.initiator_mpname and temp_event.initiator_name and temp_event.initiator_mpname ~= temp_event.initiator_name then -- team hit by a likely player
-							-- if slmod.clientsMission then
-								-- for id, data in pairs(slmod.clientsMission) do
-									-- if data.name and data.name == temp_event.initiator_mpname then --found the likely party
-										-- if slmod.config.chat_log and slmod.config.log_team_hits and slmod.chatLogFile then
-											-- local logline = 'TEAM HIT: ' .. os.date('%b %d %H:%M:%S ') .. slmod.oneLineSerialize(data) .. ' hit ' .. temp_event.target_mpname
-											-- if temp_event.weapon then
-												-- logline = logline .. ' with ' .. temp_event.weapon .. '\n'
-											-- else
-												-- logline = logline .. '\n'
-											-- end
-											-- slmod.chatLogFile:write(logline)
-											-- slmod.chatLogFile:flush()
-										-- end
-										-- if slmod.config.team_hit_result == 'kick' or slmod.config.team_hit_result == 'ban' then
-											-- if not data.team_hits then
-												-- data.team_hits = 1
-											-- else
-												-- data.team_hits = data.team_hits + 1
-											-- end
-											-- if type(slmod.config.team_hit_limit) == 'number' and slmod.config.team_hit_limit > 0 then
-												-- if data.team_hits >= slmod.config.team_hit_limit and id ~= 1 then
-													-- if slmod.config.team_hit_result == 'kick' then
-														-- net.kick(id, 'You were kicked from the server for team-hitting.')
-														-- slmod.basicChat('Slmod: ' .. temp_event.initiator_mpname .. ' was kicked for team hitting.')
-													-- elseif slmod.config.team_hit_result == 'ban' and slmod.config.admin_tools then
-														-- net.kick(id, 'You were banned from the server for team-hitting.')
-														-- slmod.basicChat('Slmod: ' .. temp_event.initiator_mpname .. ' was banned for team hitting.')
-														-- slmod.update_banned_clients({ucid = data.ucid, name = data.name, ip = data.addr})
-													-- end
-												-- end
-											-- end
-										-- end
-									-- end
-								-- end
-							-- end
-						-- end
-					-- end
-				-- end
-				--------------------------------------------------------------------------------------------------------------------------------------
-				--------------------------------------------------------------------------------------------------------------------------------------
+				
 			end
 			--slmod.info('end add events')
 		else
@@ -810,7 +800,7 @@ do
 				
 				if initName then
 					if slmod.clientsMission and slmod.clientsMission[initName] and event.weapon and slmod.deepcopy then
-						env.info('slmod: added human weapon')
+						--env.info('slmod: added human weapon')
                         slmod.humanWeapons[event.weapon.id_] = slmod.deepcopy(slmod.clientsMission[initName])
 					end
 				end
@@ -899,12 +889,15 @@ do
 		end
 		
 		------ birth logic
-		if slmod.rawEvents and #slmod.rawEvents > 2 then
-			if event.id == world.event.S_EVENT_BIRTH then -- Event births occuring after mission start
-				local lunit = event.initiator
+		if slmod.rawEvents then -- and #slmod.rawEvents > 2 then
+			--env.info('check birth event')
+            if event.id == world.event.S_EVENT_BIRTH then -- Event births occuring after mission start
+				--env.info('birth event')
+                local lunit = event.initiator
 				
                 if ((Object.getCategory(lunit) == 1 and not lunit:getPlayerName()) or Object.getCategory(lunit) ~= 1) then -- only run logic on non clients
-					local newEvent = {}
+					--env.info('c1')
+                    local newEvent = {}
 									
 					local lgroup
                     if lunit:getCategory() == 3 or lunit:getCategory() == 6 then
@@ -912,7 +905,7 @@ do
                     else
                         lgroup  = lunit:getGroup()
                     end
-                     
+                    -- env.info('c2')
 					--local newUnit = {}
 					
 					local lCoa = tonumber(lunit:getCoalition())
@@ -924,7 +917,7 @@ do
 					else
 						newEvent.coalition  = 'neutral'
 					end
-									
+					--env.info('c3')		
 					
 					newEvent.name  = lunit:getName()
 					newEvent.unitId  = (lunit:getID())
@@ -934,7 +927,7 @@ do
                     else
                         newEvent.mpname = lunit:getName()
                     end
-
+                    --env.info('c4')
 					 --at least, for now.
 					newEvent.objtype = lunit:getTypeName()
 					newEvent.group = lgroup:getName()
@@ -942,7 +935,7 @@ do
 					newEvent.skill = "Random" -- cant find this out, so just say its random
 					newEvent.countryName = string.lower(country.name[tonumber(lunit:getCountry())])
 					newEvent.countryId= (lunit:getCountry())
-					
+					--env.info('c5')
 					if tonumber(lunit:getCategory()) == 3 or tonumber(lunit:getCategory()) == 6 then
 						newEvent.category  = 'static'
 					else
@@ -966,7 +959,7 @@ do
 					newEvent.t = timer.getAbsTime()
 					newEvent.numtimes = 1
 					newEvent.initiator = lunit:getName()
-					
+					--env.info('insert into rawEvents')
 					table.insert(slmod.rawEvents, newEvent)
 					--env.info(slmod.tableshow(newEvent))
 					--slmod.allMissionUnitsByName[newUnit.name] = newUnit

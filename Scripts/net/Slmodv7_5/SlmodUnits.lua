@@ -122,7 +122,7 @@ function slmod.makeMissionUnitData()
 		
 		slmod.activeUnitsBase = {}  -- the base table used for creating slmod.activeUnits.
 		slmod.allMissionUnitsByName = {}  -- just a listing of all missionUnitData by name.
-		
+		slmod.allMissionUnitsById = {}
 		local lUnitsBase = slmod.activeUnitsBase -- just a local reference, easier to write.
 		
 
@@ -157,6 +157,7 @@ function slmod.makeMissionUnitData()
 									newUnit['countryId'] = country.country_id_num
 									
 									slmod.allMissionUnitsByName[newUnit.name] = newUnit
+                                    slmod.allMissionUnitsById[newUnit.unitId] = newUnit
 									if unitType ~= 'static' then
 										lUnitsBase[#lUnitsBase + 1] = newUnit -- create new entry in the activeUnits base
 									end
@@ -170,13 +171,18 @@ function slmod.makeMissionUnitData()
 		
 		--slmod.info(slmod.tableshow(slmod.activeUnitsBase))
 		--slmod.info(slmod.tableshow(slmod.allMissionUnitsByName))
-		
+		local s = table.concat({'slmod = slmod or {}\n', 'slmod.allMissionUnitsById = ', slmod.oneLineSerialize(slmod.allMissionUnitsById)})
+        
+        local str, err = net.dostring_in('server', s)
+        if not err then
+            slmod.error('failed to create table slmod.allMissionUnitsById in server environment, reason: ' .. str)
+        end
 		slmod.info('successfully completed slmod.getMissionUnitData()')
 		-- local miz_units_file = io.open(lfs.writedir() .. [[Logs\]] .. 'v6_mission_units.txt', 'w')
 		-- miz_units_file:write(slmod.serialize('slmod.missionUnitData', slmod.missionUnitData))
 		-- miz_units_file:close()
 		--net.log(mission_units[50].name)
-		
+
 		
 	else
 		slmod.error('error in slmod.getMissionUnitData(): ' .. tostring(mission_units_str))

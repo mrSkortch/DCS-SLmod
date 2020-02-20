@@ -160,11 +160,11 @@ do
 end
 	
 	local prevExecTime = 0  -- for once-every-second code.
-	
+	local prevSTest = 0
 	local runF = false
 	
 	local function getNetview()
-		if DCS.isMultiplayer() == true and DCS.isServer() == true then
+        if DCS.isMultiplayer() == true and DCS.isServer() == true then
 			if runF == false then
 				slmodCall.on_net_start()
 				runF = true
@@ -359,7 +359,7 @@ end
 				--slmod_pause_forced is enabled if override is off and the server is paused with the admin pause command
 				--slmod_pause_forced turned off when override is toggled
 			
-			
+
 
 
 			
@@ -451,8 +451,6 @@ function slmodCall.onPlayerTrySendChat(id, msg, all)  --new definition
 	
 	if suppress then
 		return '' -- don't go any further- suppress any further on_chat.
-	else
-		return realString  -- do the original on_chat
 	end
 end
 
@@ -493,11 +491,17 @@ function slmodCall.onPlayerTryConnect(addr, name, ucid)
 	end
 	
 	local allow, score = slmod.autoAdminOnConnect(ucid)
+
     if allow == false  then
 		if slmod.config.autoAdmin.showPenaltyKickBanActions then
-            return false, 'You are autobanned from this server with: ' .. string.format("%.2f", tostring(score)) .. ' penalty points' 
+            if slmod.config.autoAdmin.reallowLevel then 
+                return false, 'You are autobanned from this server with: ' .. string.format("%.2f", tostring(score)) .. ' penalty points. Unautoban occurs below ' .. slmod.config.autoAdmin.reallowLevel .. ' points.' 
+            else
+                return false, 'You are autobanned from this server with: ' .. string.format("%.2f", tostring(score)) .. ' penalty points.' 
+            end
+        else
+            return false, 'You are autobanned from this server'
         end
-        return false, 'You are autobanned from this server'
 	end
 
 

@@ -110,33 +110,29 @@ do
         if slmod.config.write_mission_stats_files then
             slmod.stats.changeMetaStatsValue(metaStats.missionStatsFile, 'currentMissionFile', mName)
         end
-
         if not metaStats.missionStats[mizName] then
             slmod.createMetaStatsMission(mizName)
         else
             slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'timesPlayed', metaStats.missionStats[mizName].timesPlayed + 1)
             slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'mostRecentPlayed', os.date('%b %d, %Y at %H %M %S'))
         end
-        
         if not metaStats.mapStats[theatreName] then
             slmod.createMetaStatsMap(theatreName)
         else
             slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'timesPlayed', metaStats.mapStats[theatreName].timesPlayed + 1)
             slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'mostRecentPlayed', os.date('%b %d, %Y at %H %M %S'))
         end
-
         if not metaStats.mapStats[theatreName].missions[mizName] then
             slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName].missions, mizName, os.date('%b %d, %Y at %H %M %S'))
         end
-        
         if not metaStats.missionStats[mizName].voteEnabled then
             slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'voteEnabled', true)
         end
-        
+
         if not metaStats.missionStats[mizName].totalVoteLoaded then
             slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'totalVoteLoaded', 0)
         end
- 
+
         return
     end
     

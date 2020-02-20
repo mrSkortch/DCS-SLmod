@@ -53,10 +53,12 @@ do
 					slmod.exemptAll = slmod.exemptAll or {}
                     slmod.exemptPing = slmod.exemptPing or {}
 					slmod.exemptAutoAdmin = slmod.exemptAutoAdmin or {}
+                    slmod.exemptMOTD = slmod.exemptMOTD or {}
 				else
 					slmod.exemptAll = safe_env['slmod_exempt_all'] or {}
                     slmod.exemptPing = safe_env['slmod_exempt_ping'] or {}
 					slmod.exemptAutoAdmin = safe_env['slmod_exempt_autoAdmin'] or {}
+                    slmod.exemptMOTD = safe_env['slmod_exempt_MOTD'] or {}
 					slmod.info('using exempt ucids as defined in ' .. config_dir .. 'ExemptClients.lua')
 				end
 			else
@@ -68,7 +70,7 @@ do
 			slmod.exemptAll = slmod.exemptAll or {}
             slmod.exemptPing = slmod.exemptPing or {}
 			slmod.exemptAutoAdmin = slmod.exemptAutoAdmin or {}
-			
+			slmod.exemptMOTD = slmod.exemptMOTD or {}
 			slmod.update_exempt_clients() -- creates the file.
 		end
 	end
@@ -108,8 +110,8 @@ do
         slmod.exemptAll = slmod.exemptAll or {}
         slmod.exemptPing = slmod.exemptPing or {}
         slmod.exemptAutoAdmin = slmod.exemptAutoAdmin or {}
-        
-        local file_s = slmod.serialize('slmod_exempt_all', slmod.exemptAll) .. '\n\n' .. slmod.serialize('slmod_exempt_ping', slmod.exemptPing) .. '\n\n' .. slmod.serialize('slmod_exempt_autoAdmin', slmod.exemptAutoAdmin)
+        slmod.exemptMOTD = slmod.exemptMOTD or {}
+        local file_s = slmod.serialize('slmod_exempt_all', slmod.exemptAll) .. '\n\n' .. slmod.serialize('slmod_exempt_ping', slmod.exemptPing) .. '\n\n' .. slmod.serialize('slmod_exempt_autoAdmin', slmod.exemptAutoAdmin).. slmod.serialize('slmod_exempt_MOTD', slmod.exemptMOTD)
 
 		local exempt_f = io.open(config_dir .. 'ExemptClients.lua', 'w')
 		if exempt_f then
@@ -121,7 +123,29 @@ do
 		end
     end
 	----------------------------------------------------------------------------------------
-	local function load_admins()
+    local function update_admins(client_info)
+		-- client_info: {ucid = string, name = string}
+        --slmod.info(slmod.oneLineSerialize(client_info))
+		Admins = Admins or {}
+		
+		if client_info then
+			Admins[client_info.ucid] = client_info.name
+		end
+		
+		local file_s = slmod.serialize('Admins', Admins)
+
+		local Admins_f = io.open(config_dir .. 'ServerAdmins.lua', 'w')
+		if Admins_f then
+			Admins_f:write(file_s)
+			Admins_f:close()
+			Admins_f = nil
+		else
+			slmod.error('unable to file of allowed server admins.')
+		end
+		
+	end
+    
+    local function load_admins()
 		local Admins_f = io.open(config_dir .. 'ServerAdmins.lua', 'r')
 		if Admins_f then
 			local Admins_s = Admins_f:read('*all')
@@ -145,32 +169,14 @@ do
 			
 		else
 			Admins = Admins or {}
-            slmod.update_admins()
+            update_admins()
 		end
+        Admins_f:close()
 	end
 	----------------------------------------------------------------------------------------
 	
 	----------------------------------------------------------------------------------------
-	function slmod.update_admins(client_info)
-		-- client_info: {ucid = string, name = string}
-		Admins = Admins or {}
-		
-		if client_info then
-			Admins[client_info.ucid] = client_info.name
-		end
-		
-		local file_s = slmod.serialize('Admins', Admins)
 
-		local Admins_f = io.open(config_dir .. 'ServerAdmins.lua', 'w')
-		if Admins_f then
-			Admins_f:write(file_s)
-			Admins_f:close()
-			Admins_f = nil
-		else
-			slmod.error('unable to file of allowed server admins.')
-		end
-		
-	end
 	----------------------------------------------------------------------------------------
 	local mapStrings = slmod.config.mapStrings or {
         ['Caucasus'] = 'BS',
@@ -408,7 +414,7 @@ do
 								},
 								[3] = { 
 									type = 'word',
-									text = 'kic',
+									text = 'kick',
 									required = true
 								},
 								[4] = { 
@@ -457,7 +463,7 @@ do
 			privacy = {access = true, show = true}},
 			items = {},
 			--Additional function: update items.  Also called in update_scope
-			updateKickItems = function(self)  -- self is menu.
+			updateKickSpecItems = function(self)  -- self is menu.
 				self.items = {}  -- reset items.
 				for id, client in pairs(slmod.clients) do
 					if id ~= 1 and client.name then
@@ -538,6 +544,8 @@ do
 				idKickMenu:updateKickItems()
 				idBanMenu:setScope(newscope)
 				idBanMenu:updateBanItems()
+                idKickSpecMenu:setScope(newscope)
+                idKickSpecMenu:updateKickSpecItems()
 			end
 			slmod.scheduleFunctionByRt(update_scope, {},  DCS.getRealTime() + 0.5)
 		end
@@ -724,6 +732,58 @@ do
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminBanVars)  -- add the item into the items table.
+		
+		
+		-----------------------------------------------------------------------------------------------
+        		-- extra item, banning via ucid.
+		local AdminBanUCIDVars = {}
+		AdminBanUCIDVars.menu = SlmodAdminMenu
+		AdminBanUCIDVars.description = 'Say in chat "-admin ucidBan <ucid>" to ban a player from the server.'
+		AdminBanUCIDVars.active = true
+		AdminBanUCIDVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		AdminBanUCIDVars.selCmds = {
+				[1] = {
+					[1] = { 
+						type = 'word', 
+						text = '-admin',
+						required = true
+					}, 
+					[2] = { 
+						type = 'word',
+						text = 'ucidBan',
+						required = true
+						},
+					[3] = {
+						type = 'text',  -- new match type- ALL remaining text from chat message!  Can only be the last variable.
+						varname = 'ucid',
+						required = true,
+					}
+				}
+			} 
+		AdminBanUCIDVars.onSelect = function(self, vars, client_id)
+			--net.log('in onSelect')
+			local ucid = vars.ucid or ''
+			for id, client in pairs(slmod.clients) do -- skips host
+				if client.ucid and type(client.ucid) == 'string' and client.ucid == ucid and client.id and client.id ~= 1 then
+					
+					local admin
+					if client_id and slmod.clients[client_id] then
+						admin = slmod.clients[client_id] 
+					else 
+						admin = {name = '!UNKNOWN ADMIN!'} -- should NEVER get to this.
+					end
+
+					net.kick(id, 'You were banned from the server.')
+					slmod.update_banned_clients({ucid = slmod.clients[id].ucid, name = client.name, ip = slmod.clients[id].addr or slmod.clients[id].ip}, {name = admin.name, ucid = admin.ucid})
+					
+					slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. admin.name .. '" banned player "' .. client.name .. '" from the server.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+					return
+				end
+			end
+			slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Slmod: unable to find player ucid "' .. ucid .. '".', 1, 'chat', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+		end
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminBanUCIDVars)  -- add the item into the items table.
 		
 		
 		-----------------------------------------------------------------------------------------------
@@ -1344,6 +1404,7 @@ do
 		AdminGetPenaltyScoreAll.onSelect = function(self, vars, client_id)
 			--net.log('in onSelect')
 			local msg = {}
+            local s = slmod.stats.getStats()
             if slmod.config.autoAdmin.autoSpecLevel then
                 msg[#msg+1] = 'Auto Spec Level: '
                 msg[#msg+1] = slmod.config.autoAdmin.autoSpecLevel
@@ -1355,14 +1416,15 @@ do
             if slmod.config.autoAdmin.autoBanLevel then
                 msg[#msg+1] = '    Auto Spec Level: '
                 msg[#msg+1] = slmod.config.autoAdmin.autoBanLevel
-            end            
+            end
+            msg[#msg+1] = 'StatId  | Name | Score \n' 
 			for key, val in pairs(slmod.clients) do -- skips host
 				if val.id and val.id ~= 1 then
                     local score = slmod.getUserScore(val.ucid)
                     --slmod.scheduleFunctionByRt(slmod.basicChat, {'Slmod: server admin "' .. AdminName .. '" kicked player "' .. val.name .. '" to spectators.'}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
                     if score > 0 then
                         msg[#msg+1] = '\n'
-                        msg[#msg+1] = val.id
+                        msg[#msg+1] = s[val.ucid].id
                         msg[#msg+1] = ' | '
                         msg[#msg+1] = val.name
                         msg[#msg+1] = ' | Current Penalty Score: '
@@ -1371,7 +1433,7 @@ do
 					
 				end
 			end
-			slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+			slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, display_mode, {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 		end
 		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminGetPenaltyScoreAll)  -- add the item into the items table.
@@ -1411,14 +1473,13 @@ do
 				}
 			} 
 		AdminGetUserPenaltyScore.onSelect = function(self, vars, client_id)
-			slmod.info('select admin user penalty score')
             if vars and vars.id then
-                local stats = slmod.stats.getStats()
+                local stats = slmod.stats.getPenStats()
                 for ucid, pStats in pairs(stats) do -- this is inefficient- maybe I need to make a stats by id table.
-					if type(pStats) == 'table' and pStats.id and pStats.id == vars.id then  -- found the id#.
+                    if type(pStats) == 'table' and pStats.id and pStats.id == vars.id then  -- found the id#.
                         local score, d = slmod.getUserScore(ucid, true)
-                        local msg = slmod.playerPenaltyScoreDisplay(d, score, {id = vars.id, name = pStats.names[#pStats.names]})
-                        slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg, 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+                        local msg = slmod.playerPenaltyScoreDisplay(d, score, {id = pStats.id, name = pStats.names[#pStats.names]})
+                        slmod.scheduleFunctionByRt(slmod.scopeMsg, {msg, 20, display_mode , {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
                         break
                     end
                 end
@@ -1426,8 +1487,160 @@ do
              
 			--slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
 		end
-		
 		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminGetUserPenaltyScore)  -- add the item into the items table.
+        ------- Admin Forgive code
+        local AdminForgiveUserPenalty = {}
+		AdminForgiveUserPenalty.menu = SlmodAdminMenu
+		AdminForgiveUserPenalty.description = 'Say in chat "-admin forgive <id> <type> <index>" to forgive. Valid type commands are: th, tk, ch, ck'
+		AdminForgiveUserPenalty.active = true
+		AdminForgiveUserPenalty.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		AdminForgiveUserPenalty.selCmds = {
+				[1] = {
+					[1] = { 
+						type = 'word', 
+						text = '-admin',
+						required = true,
+					}, 
+                    [2] = { 
+                        type = 'word',
+                        text = 'forgive',
+                        required = true,
+					},
+                    [3] = { 
+                        type = 'number',
+                        varname = 'id',
+                        required = true,
+                    },
+                    [4] = { 
+                        type = 'var',
+                        varname = 't',
+                        required = true,
+                    },
+                    [5] = { 
+                        type = 'number',
+                        varname = 'index',
+                        required = true,
+                    }
+				}
+			} 
+		AdminForgiveUserPenalty.onSelect = function(self, vars, client_id)
+            if vars and vars.id then
+                local penStats = slmod.stats.getPenStats()
+                for ucid, pStats in pairs(penStats) do -- this is inefficient- maybe I need to make a stats by id table.
+                    if type(pStats) == 'table' and pStats.id and pStats.id == vars.id then  -- found the id#.
+                        local check = ''
+                        if string.lower(vars.t) == 'th' then
+                            check = 'friendlyHits'
+                        elseif string.lower(vars.t) == 'tk' then
+                            check = 'friendlyKills'
+                        elseif string.lower(vars.t) == 'ch' then
+                            check = 'friendlyCollisionHits'
+                        elseif string.lower(vars.t) == 'ck' then
+                            check = 'friendlyCollisionKills'
+                        end
+                        if check ~= '' then
+                            if penStats[ucid] and penStats[ucid][check] and penStats[ucid][check][vars.index] then
+                                slmod.stats.changePenStatsValue(penStats[ucid][check][vars.index], 'forgiven', true)
+                                slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Admin Forgiven Applied', 20, display_mode , {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+                            end
+                        end
+                        break
+                    end
+                end
+            end
+             
+			--slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+		end
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminForgiveUserPenalty)  -- add the item into the items table.
+
+        local statCleanupTbls = {'friendlyHits', 'friendlyKills', 'friendlyCollisionHits', 'friendlyCollisionKills'}
+        local AdminCleanupPen = {}
+		AdminCleanupPen.menu = SlmodAdminMenu
+		AdminCleanupPen.description = 'Say in chat "-admin cleanup <time>" to initiate a stats cleanup. Time is not required. If Time is specified it will erase any penalties that are older than X days.'
+		AdminCleanupPen.active = true
+		AdminCleanupPen.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
+		AdminCleanupPen.selCmds = {
+				[1] = {
+					[1] = { 
+						type = 'word', 
+						text = '-admin',
+						required = true
+					}, 
+                    [2] = { 
+                        type = 'word',
+                        text = 'cleanup',
+                        required = true
+					},
+                    [3] = { 
+						type = 'number',
+						varname = 'days',
+						required = false
+                    }
+				}
+			} 
+		AdminCleanupPen.onSelect = function(self, vars, client_id)
+            slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Admin Stats Cleanup Started', 20, display_mode , {clients = {client_id}}}, DCS.getRealTime() + 0.1)
+            local stats = slmod.stats.getStats()
+            local penStats = slmod.stats.getPenStats()
+            local days = tonumber(vars.days) or 0
+            if days > 0 then 
+                days = math.abs(days*(24*3600))
+            end
+            local curTime = os.time()
+            for ucid, lStats in pairs(stats) do -- this is inefficient- maybe I need to make a stats by id table.
+                if lStats.friendlyKills then -- stats in old format, add player to new penStats and delete old entries from stats
+                    slmod.stats.createPlayerPenaltyStats(ucid)
+                end
+                for acName, acData in pairs(lStats.times) do
+                    if not acData.total then
+                        slmod.stats.changeStatsValue(stats[ucid].times, acName, nil)
+                    else
+                        if acData.weapons then
+                            for wepName, wepData in pairs(acData.weapons) do
+                                if wepData.shot and wepData.shot == 0 then
+                                    slmod.stats.changeStatsValue(stats[ucid].times[acName].weapons, wepName, nil)
+                                end
+                            end
+                        end
+                    end
+                end
+                local uPenStats = penStats[ucid]
+                --- insert days cleanup here. Iterate through each type, compare date. If older then throw it out.
+                -- Write indexes for each type
+                if uPenStats then -- might not exist. Nothing to clenaup then. 
+                    for _, cleanup in pairs(statCleanupTbls) do
+                        if days > 0 and #uPenStats[cleanup] > 0 then
+                            local keep = {}
+                            local size = 0
+                            local anyErase = false
+                            for i = 1, #uPenStats[cleanup] do  
+                                size = size + 1
+                                if curTime > uPenStats[cleanup][i].time + days then -- event is older than specified days, erase it
+                                    anyErase = true
+                                    slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, nil)
+                                else
+                                    keep[#keep+1] = i
+                                end
+                            end
+                            if anyErase == true then
+                                for i = 1, #keep do -- overwrits values
+                                    local key = keep[i]
+                                    slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, penStats[ucid][cleanup][key])
+                                end
+                                for i = size, #keep + 1, -1 do -- erases old values
+                                    slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, nil)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            slmod.scheduleFunctionByRt(slmod.scopeMsg, {'Admin Stats Cleanup End', 20, display_mode , {clients = {client_id}}}, DCS.getRealTime() + 0.1)
+             
+			--slmod.scheduleFunctionByRt(slmod.scopeMsg, {table.concat(msg), 20, 'text', {clients = {client_id}}}, DCS.getRealTime() + 0.1)  -- scheduled so that reply from Slmod appears after your chat message.
+		end
+		
+		AdminItems[#AdminItems + 1] = SlmodMenuItem.create(AdminCleanupPen)  -- add the item into the items table.
 
 		-----------------------------------------------------------------------------------------------
         
