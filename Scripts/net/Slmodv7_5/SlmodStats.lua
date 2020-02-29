@@ -965,7 +965,17 @@ end]]
 		return total
 	end
 	
-	
+	local acft = {} -- Aircraft List. Built by attributes DB, writes list of aicraft by name and display name. 
+    
+    local function buildACFT()
+        for uName, unitData in pairs(slmod.unitAttributes) do
+            if unitData.attributes and unitData.attributes['Air'] then
+                acft[unitData.displayName] = true
+                acft[unitData.name] = true
+            end
+        end
+	end
+    
 	function slmod.stats.reset()
 		eventInd = 1
 		clusterHits = {}
@@ -993,7 +1003,7 @@ end]]
 				end
 			end
 		end
-		
+		buildACFT()
 	end
 	
 	local function unsuppressDeath(unitName)  -- allows death counting to occur again for this unit.
@@ -1005,7 +1015,6 @@ end]]
 	
 	local function PvPRules(killer, victim)  -- expects unitNames, returns a boolean true if it was a fair match, false otherwise, nil in case of fuck up
 		local attack = {'a%-10', 'su%-25'}
-		--slmod.info('pvp rules')
 		local killerUnit = slmod.allMissionUnitsByName[killer]
 		local victimUnit = slmod.allMissionUnitsByName[victim]
 		if killerUnit and victimUnit then
@@ -1051,13 +1060,13 @@ end]]
 	end
 	
 	
-	local acft = {} -- exceptions list. For some reason mig-29A is not matching with below code because it is displayed as Mig-29.
-	-- Temp fix
-	acft['mig-29'] = true
-	
+
 	local function isAircraft(weaponName)  -- determines if the weapon was a aircraft.
-        --slmod.info('isAC')
 		if weaponName and weaponName:len() > 1 then
+            if acft[weaponName] then
+				return true
+			end
+            -- Fallback, but shouldn't happen. 
             for planeCat, planes in pairs(slmod.unitCategories.Planes) do
 				for plane, trashVal in pairs(planes) do
 					if weaponName:sub(1, weaponName:len() - 1):lower():gsub('[^%d%a]', '') == plane:sub(1, plane:len() - 1):lower():gsub('[^%d%a]', '') then  -- take out the last character, convert to lower case, remove anything not a letter or a number... do comparison this way.
@@ -1071,10 +1080,6 @@ end]]
 						return true
 					end
 				end
-			end
-			
-            if acft[weaponName] then
-				return true
 			end
 		end
 		return false
@@ -1276,26 +1281,27 @@ end]]
                             slmod.stats.advChangeStatsValue(dStat)
                         
                         
-                        end
+                        
                         
                         --- DO PVP STUFF
                         
-                        if lastHitEvent.inAirHit or lastHitEvent.inAirHit == nil then
-                            --slmod.info('lastHitEvent.inAirHit: '  .. tostring(lastHitEvent.inAirHit))
-                            local countPvP, killerObj, victimObj = PvPRules(lastHitEvent.unitName, deadName)
-                            if countPvP then  -- count in PvP!
-                                saveStat.nest = {'times', 'typeName', 'pvp', 'kills'}
-                                saveStat.addValue = 1
-                                saveStat.default = 0
-                                slmod.stats.advChangeStatsValue(saveStat)
-                                
-                                dStat.nest = {'times', 'typeName', 'pvp', 'losses'}
-                                dStat.addValue = 1
-                                dStat.default = 0
-                                
-                                slmod.stats.advChangeStatsValue(dStat)
-                                onPvPKill(hitObj, deadClient, weapon, killerObj, victimObj)
-                           end
+                            if lastHitEvent.inAirHit or lastHitEvent.inAirHit == nil then
+                                --slmod.info('lastHitEvent.inAirHit: '  .. tostring(lastHitEvent.inAirHit))
+                                local countPvP, killerObj, victimObj = PvPRules(lastHitEvent.unitName, deadName)
+                                if countPvP then  -- count in PvP!
+                                    saveStat.nest = {'times', 'typeName', 'pvp', 'kills'}
+                                    saveStat.addValue = 1
+                                    saveStat.default = 0
+                                    slmod.stats.advChangeStatsValue(saveStat)
+                                    
+                                    dStat.nest = {'times', 'typeName', 'pvp', 'losses'}
+                                    dStat.addValue = 1
+                                    dStat.default = 0
+                                    
+                                    slmod.stats.advChangeStatsValue(dStat)
+                                    onPvPKill(hitObj, deadClient, weapon, killerObj, victimObj)
+                               end
+                            end
                         end
                     else -- teamkilled 
                         saveStat.penalty = true 
@@ -1751,6 +1757,7 @@ end]]
                                 else
                                     saveStat.penalty = true 
                                     if weapon == 'kamikaze' then
+                                       --slmod.info('set as collision')
                                        saveStat.nest = 'friendlyCollisionHits'
                                     else
                                        saveStat.nest = 'friendlyHits'
