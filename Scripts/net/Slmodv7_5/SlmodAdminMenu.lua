@@ -738,7 +738,7 @@ do
         		-- extra item, banning via ucid.
 		local AdminBanUCIDVars = {}
 		AdminBanUCIDVars.menu = SlmodAdminMenu
-		AdminBanUCIDVars.description = 'Say in chat "-admin ucidBan <ucid>" to ban a player from the server.'
+		AdminBanUCIDVars.description = 'Say in chat "-admin ucidban <ucid>" to ban a player from the server.'
 		AdminBanUCIDVars.active = true
 		AdminBanUCIDVars.options = {display_mode = 'chat', display_time = 5, privacy = {access = true, show = true}}
 		AdminBanUCIDVars.selCmds = {
@@ -750,7 +750,7 @@ do
 					}, 
 					[2] = { 
 						type = 'word',
-						text = 'ucidBan',
+						text = 'ucidban',
 						required = true
 						},
 					[3] = {
