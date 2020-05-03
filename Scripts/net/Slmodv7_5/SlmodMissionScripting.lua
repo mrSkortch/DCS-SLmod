@@ -796,7 +796,7 @@ do
 		addUDPData(tbl)
 	end
 
-	function slmod.chat_cmd(text, flag, stopflag, coa)
+	function slmod.chat_cmd(text, flag, stopflag, coa, requireAdmin)
 		local tbl = {}
 		tbl[1] = 'slmod.chat_cmd_net'
 		if type(text) == 'table' then
@@ -806,12 +806,14 @@ do
 			tbl[4] = -1
 			tbl[5] = vars['stopflag']
 			tbl[6] = vars['coa'] or vars['coalition']
+			tbl[7] = vars['requireAdmin']
 		else
 			tbl[2] = text
 			tbl[3] = flag
 			tbl[4] = -1
 			tbl[5] = stopflag
 			tbl[6] = coa
+			tbl[7] = requireAdmin
 		end
 		addUDPData(tbl)
 	end
