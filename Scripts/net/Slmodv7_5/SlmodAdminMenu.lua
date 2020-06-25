@@ -761,18 +761,19 @@ do
 				}
 			} 
 		AdminBanUCIDVars.onSelect = function(self, vars, client_id)
-			--net.log('in onSelect')
+			--slmod.info('in onSelect')
 			local ucid = vars.ucid or ''
 			for id, client in pairs(slmod.clients) do -- skips host
-				if client.ucid and type(client.ucid) == 'string' and client.ucid == ucid and client.id and client.id ~= 1 then
-					
+				--slmod.info(id)
+                if client.ucid and type(client.ucid) == 'string' and client.ucid == ucid and client.id and client.id ~= 1 then
+					--slmod.info('found')
 					local admin
 					if client_id and slmod.clients[client_id] then
 						admin = slmod.clients[client_id] 
 					else 
 						admin = {name = '!UNKNOWN ADMIN!'} -- should NEVER get to this.
 					end
-
+                    --slmod.info('do kick')
 					net.kick(id, 'You were banned from the server.')
 					slmod.update_banned_clients({ucid = slmod.clients[id].ucid, name = client.name, ip = slmod.clients[id].addr or slmod.clients[id].ip}, {name = admin.name, ucid = admin.ucid})
 					

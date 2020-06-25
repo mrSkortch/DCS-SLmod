@@ -829,12 +829,12 @@ do
         --slmod.info(slmod.oneLineSerialize(cmd))
 		local vars = {}
 		if not cmd[1] then --just protecting against empty cmd
-			--slmod.info('here1')
+			--slmod.info('return empty')
 			return -1
 		end
 		-- need to first make sure that s can actually be a cmd
 		if not s:find('[^ ]') then -- if no non-spaces found
-			--slmod.info('here2')
+			--slmod.info('no non-spaces')
 			return -1
 		end
 		
@@ -893,7 +893,8 @@ do
 		 -- returns either true or a index number within the table of words text values of cmd_word for a word match, or false for no match
 		 -- second variable: returns true if an exact match, false if not an exact match.
 		local function word_match(s_word, cmd_word) 
-			if cmd_word then -- gotta have this check for next_word_match and the way I use it.
+			--slmod.info(s_word .. ' : ' .. cmd_word.text)
+            if cmd_word then -- gotta have this check for next_word_match and the way I use it.
 				--slmod.info(cmd_word.text)
                 
                 if type(cmd_word.text) == 'string' then
@@ -923,13 +924,14 @@ do
 				end
 			end
 			--reached the end of s_words.  No match with next_cmd.
-			return -1
+			--slmod.info('No matches with next_cmd')
+            return -1
 		end
 		
 		
 		do  -- do some simple checks first.  Maybe remove this logic later.
 			if #s_words < 1 then  -- just a dumb check. one can never be too safe
-				--slmod.info('here3')
+				--slmod.info('No Words')
 				return -1
 			end
 			
@@ -949,7 +951,7 @@ do
 				-- first element of cmd must be a word word (or text as above), and required, so we can save a some computation time here
 				local cmd_word_ind, exactmatch = word_match(s_words[1], cmd[1])
 				if not cmd_word_ind then
-					--slmod.info('here5')
+					--slmod.info('no cmd_word_ind')
 					return -1
 				elseif #s_words == 1 and #cmd == 1 then  --match with a single word
 					if cmd[1].varname then -- it had a varname, so need to add it to rawvars table
@@ -1005,7 +1007,7 @@ do
                 if not cmd_word_ind then -- cmd is a word and it doesn't match
                     --slmod.info('no match')
                     if cmd[cmd_ind].required then --no match on required word
-                       --slmod.info('here12')
+                       --slmod.info('required, not matched')
                         return -1
                     else  --not required, it could be the next cmd
                         cmd_ind = cmd_ind + 1 --move on to the next cmd.
@@ -1302,7 +1304,8 @@ do
 							--slmod.info(item.description)
                             for ind, cmd in pairs(item.selCmds) do
                                 local matchtype, vars = cmdMatch(cmd, chat_msg)
-								if matchtype == 1 then  -- exact match, do immediately
+								--slmod.info('matchType: ' .. matchtype)
+                                if matchtype == 1 then  -- exact match, do immediately
 									--slmod.info('exact')
                                     if vars then
 										item:onSelect(vars, client_id)
