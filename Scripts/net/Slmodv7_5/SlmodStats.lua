@@ -284,7 +284,7 @@ do
                         slmod.stats.changeStatsValue(lStats, lEntry, default or {})
 
                     else
-                        ----slmod.info(lEntry .. ' exists')
+                        --slmod.info(lEntry .. ' exists')
                     end
                     
                     if slmod.config.enable_mission_stats then
@@ -303,6 +303,8 @@ do
                                 if lStats[lEntry][index] then
                                     --slmod.info('val is ' .. lStats[lEntry][index])
                                     slmod.stats.changeStatsValue(lStats[lEntry], index, lStats[lEntry][index] + value)
+                                elseif default[index] then
+                                    slmod.stats.changeStatsValue(lStats[lEntry], index, default[index] + value)
                                 end
                                 if slmod.config.enable_mission_stats then
                                     if mStats[mEntry][index] then 
@@ -1301,15 +1303,16 @@ end]]
 		if runDeathLogicChecker[deadName] then
             slmod.warning('runDeathLogic Failed on: ' .. slmod.oneLineSerialize(hitHumans[deadName]))
             hitHumans[deadName] = nil
+            hitAIs[deadName] = nil
             runDeathLogicChecker[deadName] = nil
             
         else
             runDeathLogicChecker[deadName] = true
         end
-        slmod.info('Running Death Logic')
+        --slmod.info('Running Death Logic')
         if slmod.allMissionUnitsByName[deadName] then -- the dying unit should always be identified properly by name (not necessarily...could be Building).
-            slmod.info(deadName)
-            slmod.info('allMissionUnitsByName; exists')
+            --slmod.info(deadName)
+            --slmod.info('allMissionUnitsByName; exists')
             local deadCategory = slmod.allMissionUnitsByName[deadName].category 
 			local deadClient = slmod.clientsByName[deadName] or slmod.oldClientsByName[deadName]
 			-- Find the object in SlmodStats categories
@@ -1338,16 +1341,16 @@ end]]
 					return
 				end
 			end
-            slmod.info(deadObjType)
-            slmod.info(deadStatsCat)
-            slmod.info(deadStatsType)
-			slmod.info('here4')
+            --slmod.info(deadObjType)
+            --slmod.info(deadStatsCat)
+            --slmod.info(deadStatsType)
+			--slmod.info('here4')
 			-- see if a human was involved.
 			local lastHitEvent = getHitData(deadName)
 			if lastHitEvent then  -- either a human died or an AI that was hit by a human died.
 				--local lastHitEvent = hitData[#hitData] --- at least FOR NOW, just using last hit!
-				slmod.info('lastHitEvent')
-                slmod.info(slmod.oneLineSerialize(lastHitEvent))
+				--slmod.info('lastHitEvent')
+                --slmod.info(slmod.oneLineSerialize(lastHitEvent))
                 
 				local hitObj = lastHitEvent.initiator
                 local hitObjType = 'unknown'
@@ -1357,7 +1360,7 @@ end]]
 				local weapon = lastHitEvent.weapon
                 local saveStat = {}
                 local ucid, typeName = {}, {}
-                slmod.info('getInitiator Data')
+                --slmod.info('getInitiator Data')
                 if type(lastHitEvent.initiator) == 'table' then 
                     for seat, data in pairs(lastHitEvent.initiator) do
                         ucid[seat] = data.ucid
@@ -1372,8 +1375,9 @@ end]]
                 local deadObjData = {}
                 local dStat = {}
                 local ducid, dtypeName = {}, {}
-                slmod.info('get deadClient')
+                --slmod.info('check deadClient')
                 if deadClient then 
+                    --slmod.info('deadClient')
                     for seatId, dData in pairs (deadClient) do
                         ducid[seatId] = dData.ucid
                         deadObjData[seatId] = {ucid = dData.ucid, name = dData.name, id = dData.id}
@@ -1387,14 +1391,14 @@ end]]
                 else
                     deadObjData[1] = {name = deadName}
                 end
-                --slmod.info(slmod.oneLineSerialize(deadClient))
+                --slmod.info(slmod.oneLineSerialize(dStat))
                 --case 1 - deadAI, hit by human.
 				
                 if type(hitObj) == 'table' then -- it SHOULD be
-                    slmod.info(slmod.oneLineSerialize(hitObj))
-                    slmod.info('hitObj is table')
+                    --slmod.info(slmod.oneLineSerialize(hitObj))
+                    --slmod.info('hitObj is table')
                     if not lastHitEvent.friendlyHit then -- good kill
-                        slmod.info('not a TK')
+                        --slmod.info('not a TK')
                         saveStat.nest = {'times', 'typeName', 'kills', deadStatsCat, deadStatsType}
                         saveStat.addValue = 1
                         saveStat.default =  0
@@ -1404,7 +1408,7 @@ end]]
                         saveStat.nest = {'times', 'typeName', 'kills', deadStatsCat, 'total'}
                         slmod.stats.advChangeStatsValue(saveStat)
                         
-                        slmod.info('add Weapon')
+                        --slmod.info('add Weapon')
                         if weapon then
                             saveStat.nest = {'times', 'typeName', 'weapons', weapon}
                             saveStat.addValue = {kills = 1}
@@ -1412,9 +1416,9 @@ end]]
                             slmod.stats.advChangeStatsValue(saveStat)
                         end    
                         --slmod.stats.changeStatsValue(stats[deadClientUCID[i]].losses, 'crash', stats[deadClientUCID[i]].losses.crash + 1)
-                        slmod.info('check if target was player')
+                        --slmod.info('check if target was player')
                         if deadClient then
-                            slmod.info('Target was a player')
+                            --slmod.info('Target was a player')
                             dStat.nest = {'times', 'typeName', 'actions', 'losses'}
                             dStat.addValue = {crash = 1}
                             dStat.default = {crash = 0, eject = 0, pilotDeath = 0}
@@ -1426,8 +1430,8 @@ end]]
                         --- DO PVP STUFF
                         
                             if lastHitEvent.inAirHit or lastHitEvent.inAirHit == nil then
-                                slmod.info('Do PvP Rules')
-                                slmod.info('lastHitEvent.inAirHit: '  .. tostring(lastHitEvent.inAirHit))
+                                --slmod.info('Do PvP Rules')
+                                --slmod.info('lastHitEvent.inAirHit: '  .. tostring(lastHitEvent.inAirHit))
                                 local countPvP, killerObj, victimObj = PvPRules(lastHitEvent.unitName, deadName)
                                 if countPvP then  -- count in PvP!
                                     --slmod.info('count PvP')
@@ -1441,13 +1445,13 @@ end]]
                                     dStat.default = 0
                                     
                                     slmod.stats.advChangeStatsValue(dStat)
-                                    slmod.scheduleFunction(onPvPKill, {hitObj, deadClient, weapon, killerObj, victimObj, true}, DCS.getModelTime() + 0.2)
+                                    slmod.scheduleFunction(onPvPKill, {hitObj, deadClient, weapon, killerObj, victimObj, true}, DCS.getModelTime() + 0.5)
                                     --onPvPKill(hitObj, deadClient, weapon, killerObj, victimObj, true)
                                end
                             end
                         end
                     else -- teamkilled 
-                        slmod.info('was a TK')
+                        --slmod.info('was a TK')
                         saveStat.penalty = true 
                         if weapon == 'kamikaze' then
                             saveStat.nest = 'friendlyCollisionKills'
@@ -1465,7 +1469,7 @@ end]]
                         --onFriendlyKill(hitObj, deadObjData, weapon)
                     end
                 elseif type(hitObj) == 'string' then  -- AI hit them
-                    slmod.info('player hit by AI')
+                    --slmod.info('player hit by AI')
                     dStat.nest = {'times', 'typeName', 'actions', 'losses'}
                     dStat.default = {crash = 0, eject = 0, pilotDeath = 0}
                     dStat.addValue = {crash = 1}
@@ -1580,8 +1584,8 @@ end]]
 			--Now do slmod.events-based stats.
 			while #slmod.events >= eventInd do
 				local event = slmod.events[eventInd]
-				slmod.info('checking ' .. eventInd)
-                slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
+				--slmod.info('checking ' .. eventInd)
+                --slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
 				eventInd = eventInd + 1  -- increment NOW so if there is a Lua error, I'm not stuck forever on this event.
                 
                 
@@ -1732,7 +1736,7 @@ end]]
 					--------------------------------------------
 					-- Gather target information.
 					if slmod.clientsByName[tgtName] or slmod.oldClientsByName[tgtName] then
-						----slmod.info('get target info')
+						--slmod.info('get target info')
 						if slmod.clientsByName[tgtName] then
 							tgtClient = slmod.deepcopy(slmod.clientsByName[event.target])
 						else
@@ -1845,7 +1849,7 @@ end]]
                         
                         
                         if (not isCluster) or (isCluster and filterClusterHits(weapon, initName, tgtName, time)) then  -- count this hit, it's not a cluster hit or is a new cluster hit.
-                            ----slmod.info('saveHit')
+                            --slmod.info('saveHit')
                             if not stats[saveStat.ucid[1]].times[saveStat.typeName[1]].weapons then
                                 saveStat.default = {}
                                 saveStat.nest = {'times', 'typeName', 'weapons'}
@@ -1866,12 +1870,14 @@ end]]
                                 end
                                 
                                 if tgtClient then 
+                                    --slmod.info('tgt Client')
                                     if tgtClient[1].ucid and inAirClients[tgtClient[1].ucid] ~= nil then
                                         saveToHit.inAirHit = inAirClients[tgtClient[1].ucid]
                                     end
                                     saveToHit.target = slmod.deepcopy(parseOutExtraClientData(tgtClient))
                                     hitHumans[tgtName] = hitHumans[tgtName] or {}
                                     hitHumans[tgtName][#hitHumans[tgtName] + 1] = saveToHit
+                                    --slmod.info('hitHumans added to')
                                     tgtInfoForFHit = slmod.deepcopy(tgtClient)
                                 else
                                     hitAIs[tgtName] = hitAIs[tgtName] or {}
@@ -1879,11 +1885,12 @@ end]]
                                 end
                                 
                                 if tgtSide ~= initSide then  -- hits on enemy units in here
+                                    --slmod.info('Hit Enemy')
                                     saveStat.default = {shot = 0, hit = 0, numHits = 0, kills = 0}
                                     saveStat.nest = {'times', 'typeName', 'weapons', weapon}
                                     saveStat.addValue = {}
                                     saveStat.addValue.numHits = event.numtimes or 1
-                                    
+                                    --slmod.info('add Hits')
                                     if (event.weaponID and trackedWeapons[event.weaponID]) or isGun == true then  -- this is the first time this weapon hit something.
                                         if isGun == false then
                                             
@@ -1896,6 +1903,7 @@ end]]
                                     
 
                                 else
+                                    --slmod.info('teamHit')
                                     saveStat.penalty = true 
                                     if weapon == 'kamikaze' then
                                        ----slmod.info('set as collision')
@@ -1915,7 +1923,8 @@ end]]
                                         saveStat.addValue.human = hitClient
                                     end
                                     slmod.stats.advChangeStatsValue(saveStat)
-                                    onFriendlyHit(initClient, tgtInfoForFHit, weapon)
+                                    slmod.scheduleFunction(onFriendlyHit, {initClient, tgtInfoForFHit, weapon}, DCS.getModelTime() + 0.2)
+                                    --onFriendlyHit(initClient, tgtInfoForFHit, weapon)
                                         
                                 end
                             else
@@ -2342,17 +2351,17 @@ end]]
                        platforms[#platforms + 1] = platformName
                     end
 				end
-                ----slmod.info('sort plat') 
+                --slmod.info('sort plat') 
 				table.sort(platforms)    
                 local tTime = 0
                 local aTime = 0
                 local killList = slmod.deepcopy(commonStatTbl)
                 local pvp = {kills = 0, losses = 0}
 				local losses = {crash = 0, eject = 0, pilotDeath = 0}
-                ----slmod.info('do plat') 
+                --slmod.info('do plat') 
 				for i = 1, #platforms do
-					----slmod.info(i)
-                    ----slmod.info(platforms[i])
+					--slmod.info(i)
+                    --slmod.info(platforms[i])
                     local line = '                                                                                                                             \n'
 					line = stringInsert(line, platforms[i], 5)  -- insert platform name.
                     aTime =  pStats.times[platforms[i]].inAir + aTime
@@ -2362,7 +2371,7 @@ end]]
 					line = stringInsert(line, inAirTime, 27)  -- insert inAirTime
 					line = stringInsert(line, totalTime, 49)  -- insert totalTime
 					p1Tbl[#p1Tbl + 1] = line
-                    ----slmod.info('plat kills')
+                    --slmod.info('plat kills')
                     if pStats.times[platforms[i]].kills then
                         for cat, catData in pairs(pStats.times[platforms[i]].kills) do
                             if killList[cat] and type(catData) == 'table' then
@@ -2374,25 +2383,26 @@ end]]
                             end
                         end                    
                     end
-                    ----slmod.info('actions')
+                    --slmod.info('actions')
                     if pStats.times[platforms[i]].actions then 
-                        ----slmod.info('losses')
+                        --slmod.info('losses')
                         if pStats.times[platforms[i]].actions.losses then
-                            losses.eject = pStats.times[platforms[i]].actions.losses.eject + losses.eject
-                            losses.crash = pStats.times[platforms[i]].actions.losses.crash + losses.crash
-                            losses.pilotDeath = pStats.times[platforms[i]].actions.losses.pilotDeath + losses.pilotDeath
+                            for statType, statData in pairs(pStats.times[platforms[i]].actions.losses) do
+                                losses[statType] =  losses[statType] + statData
+                            end
                         end
-                        ----slmod.info('pvp')
+                        --slmod.info('pvp')
                         if pStats.times[platforms[i]].actions.pvp then
-                            pvp.kills = pStats.times[platforms[i]].actions.pvp.kills + pvp.kills
-                            pvp.losses = pStats.times[platforms[i]].actions.pvp.losses + pvp.losses
+                            for statType, statData in pairs(pStats.times[platforms[i]].actions.losses) do
+                                pvp[statType] =  pvp[statType] + statData
+                            end                           
                         end
                     end
                     
                         
                     
 				end
-                ----slmod.info('do kills') 
+                --slmod.info('do kills') 
                 table.insert(p1Tbl, ins, ' Total Flight: ' .. string.format('%.2f', aTime/3600) .. '  Overall: ' .. string.format('%.2f', tTime/3600))
 				p1Tbl[#p1Tbl + 1] = '\nKILLS:\n     GROUND                PLANES                HELOS                 SHIPS             BUILDINGS\n'
                 if pStats.kills and not ac then -- new tables for this won't exist, add it to old list if applicable
@@ -2412,11 +2422,11 @@ end]]
 				local shipKillsStrings = makeKillsColumn(killList.Ships)
 				local buildingKillsStrings = makeKillsColumn(killList.Buildings)
 				
-				----slmod.info(slmod.tableshow(vehicleKillsStrings))
-				----slmod.info(slmod.tableshow(planeKillsStrings))
-				----slmod.info(slmod.tableshow(heloKillsStrings))
-				----slmod.info(slmod.tableshow(shipKillsStrings))
-				----slmod.info(slmod.tableshow(buildingKillsStrings))
+				--slmod.info(slmod.tableshow(vehicleKillsStrings))
+				--slmod.info(slmod.tableshow(planeKillsStrings))
+				--slmod.info(slmod.tableshow(heloKillsStrings))
+				--slmod.info(slmod.tableshow(shipKillsStrings))
+				--slmod.info(slmod.tableshow(buildingKillsStrings))
 				-- probably could simplify this to just base columns off of #vehicleKillsStrings
 				local maxSize = 0
 				if #vehicleKillsStrings > maxSize then
@@ -2526,13 +2536,13 @@ end]]
 				p1Tbl[#p1Tbl + 1] = ';\n\n'
 				-- END OF FIRST PAGE
 				---------------------------------------
-				----slmod.info('page 2') 
+				--slmod.info('page 2') 
 				local p2Tbl = {}
 				p2Tbl[#p2Tbl + 1] = 'WEAPONS DATA (Note- due to a bug in DCS, some weapon\'s hits cannot be properly counted for multiplayer clients.)\n'
 				-- sort weapons in alphabetical order
 				local weaponNames = {}
                 local weaponDat = {}
-                ----slmod.info('common weaps') 
+                --slmod.info('common weaps') 
 				for acName, acTbl in pairs(pStats.times) do
                      if (ac and ac == acName) or not ac then 
                         if acTbl.weapons then 
@@ -2551,7 +2561,7 @@ end]]
                         end
                     end
                 end
-                ----slmod.info('do weaps') 
+                --slmod.info('do weaps') 
                 if pStats.weapons and not ac then -- fix weapon stats if information is available
                     for weaponName, weaponData in pairs(pStats.weapons) do
                         if not weaponDat[weaponName] then
@@ -2567,7 +2577,7 @@ end]]
                         end
                     end
                 end
-                ----slmod.info('sort weaps') 
+                --slmod.info('sort weaps') 
 				table.sort(weaponNames)  -- put in alphabetical order
 				for i = 1, #weaponNames do
 					local line = '                                                                                                                     \n'
@@ -2913,7 +2923,7 @@ end]]
 
 				for ucid, pStats in pairs(statsToUse) do -- this is inefficient- maybe I need to make a stats by id table.
 					if type(pStats) == 'table' and pStats.id and pStats.id == pId then  -- found the id#.
-						----slmod.info('stats found create')
+						--slmod.info('stats found create')
                         local msg = createSimpleStats(pStats)
 						if msg then
 							slmod.scopeMsg(msg, self.options.display_time, self.options.display_mode, {clients = {clientId}})
@@ -3031,20 +3041,20 @@ end]]
 		fullStatsForIdVars.onSelect = function(self, vars, clientId)
 			if vars and vars.id then
 				local pId = vars.id
-				----slmod.info('full stats id') 
+				--slmod.info('full stats id') 
 				local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
 	
 				local statsToUse = stats
 				if requesterMode and requesterMode == 'mission' and slmod.config.enable_mission_stats then
 					statsToUse = misStats
 				end
-                ----slmod.info(pId) 
+                --slmod.info(pId) 
 				for ucid, pStats in pairs(statsToUse) do -- this is inefficient- maybe I need to make a stats by id table.
 					if type(pStats) == 'table' and pStats.id and pStats.id == pId then  -- found the id#.
-						----slmod.info('found, create fullstats') 
+						--slmod.info('found, create fullstats') 
                         local page1, page2 = createDetailedStats(pStats)
 						if page1 and page2 then
-							----slmod.info(msg)
+							--slmod.info(msg)
 							slmod.scopeMsg(page1, self.options.display_time/2, self.options.display_mode, {clients = {clientId}})
 							slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, DCS.getModelTime() + self.options.display_time/2)
 						end
@@ -3114,7 +3124,7 @@ end]]
 						if client.ucid and statsToUse[client.ucid] then
 							local page1, page2 = createDetailedStats(statsToUse[client.ucid])
 							if page1 and page2 then
-								----slmod.info(msg)
+								--slmod.info(msg)
 								slmod.scopeMsg(page1, self.options.display_time/2, self.options.display_mode, {clients = {clientId}})
 								slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, DCS.getModelTime() + self.options.display_time/2)
 							end
@@ -3174,7 +3184,6 @@ end]]
                     end
                     local page1, page2 = createDetailedStats(statsToUse[slmod.clients[clientId].ucid], requesterMode, ac)
                     if page1 and page2 then
-								----slmod.info(msg)
                         slmod.scopeMsg(page1, self.options.display_time/2, self.options.display_mode, {clients = {clientId}})
                         slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, DCS.getModelTime() + self.options.display_time/2)
                     end
