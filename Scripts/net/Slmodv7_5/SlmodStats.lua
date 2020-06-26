@@ -1315,10 +1315,10 @@ end]]
             --slmod.info('allMissionUnitsByName; exists')
             local deadCategory = slmod.allMissionUnitsByName[deadName].category 
 			local deadClient = slmod.clientsByName[deadName] or slmod.oldClientsByName[deadName]
-			-- Find the object in SlmodStats categories
+			--[[Find the object in SlmodStats categories
             if deadClient and deadClient[1] and deadClient[1].unitName == 'getShotDownEvent' then
-                deadClient = buildTestMultCrew(deadClient)
-            end
+               -- deadClient = buildTestMultCrew(deadClient)
+            end]]
 			local deadObjType = slmod.allMissionUnitsByName[deadName].objtype
 			local deadStatsCat
 			local deadStatsType
@@ -1333,11 +1333,12 @@ end]]
 					deadStatsCat = types[1]
 					deadStatsType = types[2]
 					if not (deadStatsCat and deadStatsType) then
-						return
 						slmod.error('SlmodStats deadStatsCat or deadStatsType not recognized; deadStatsCat: ' .. tostring(deadStatsCat) .. '; deadStatsType: ' .. tostring(deadStatsType))
+                        return
 					end
 				else
 					slmod.error('SlmodStats - unit type ' .. tostring(deadObjType) .. ' for unit ' .. tostring(deadName) .. ' not in database!')
+                    --slmod.error(slmod.oneLineSerialize(slmod.catsByUnitType))
 					return
 				end
 			end
@@ -1597,7 +1598,7 @@ end]]
 				if (slmod.clientsByRtId and (slmod.clientsByName[event.initiator] or slmod.oldClientsByName[event.initiator])) or event.initiator == 'FakeShotDown' then
                     --slmod.info(event.initiator)
                     initClient = slmod.clientsByRtId[event.initiatorID] or slmod.oldClientsByName[event.initiator]
-                    --slmod.info(slmod.oneLineSerialize(initClient))
+                    --[[slmod.info(slmod.oneLineSerialize(initClient))
                     if event.initiator == 'getShotDownEvent' then --- Fake event to bug test this
                         initClient = buildTestMultCrew(initClient)
                      
@@ -1605,7 +1606,7 @@ end]]
                         initClient = buildTestAIAsClient()
                         event.initiatorPilotName = 'AnnoyingBug'
                   
-                    end
+                    end]]
                     for seat, data in pairs(initClient) do
                         ucid[seat] = data.ucid
                         if seat > 1 then
