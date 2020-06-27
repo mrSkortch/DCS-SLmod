@@ -346,7 +346,7 @@ do
                                     score = score + pen
                                     hu = true
                                     if pen > 0 and tUCID then
-                                        for x = 1, #kill.human do
+                                        for x = 1, #colKill.human do
                                             if colKill.human[x] == tUCID then
                                                 table.insert(specTK, {time = colKill.time, type = 'teamCollKill', pointsAdded = pen, expireTime = autoAdmin.teamCollisionKill.decayFunction[#autoAdmin.teamCollisionKill.decayFunction].time  - timeSince, weapon = colKill.weapon, index = colKillInd})
                                             end

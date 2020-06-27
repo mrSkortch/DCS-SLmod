@@ -822,7 +822,7 @@ end]]
     end
 	-------------------------------------------------------------------
     local hitSpamFilter = {}
-	local function onFriendlyHit(clients, target, weapon)
+	local function onFriendlyHit(clients, target, weapon, player)
         local penType = 'teamHit'
         if weapon and weapon == 'kamikaze' then
             penType = 'teamCollisionHit'
@@ -857,6 +857,7 @@ end]]
             for ind, dat in pairs(clients) do
                 table.insert(msg, table.concat({ind, ' = {name  = ', slmod.basicSerialize(tostring(dat.name)), ', ucid = ', slmod.basicSerialize(tostring(dat.ucid)), ', ip = ',  slmod.basicSerialize(tostring(dat.addr)), ', id = ', tostring(dat.id), '}'}))
             end
+			slmod.info(slmod.oneLineSerialize(target))
             for ind, tDat in pairs(target) do
                 table.insert(msg, table.concat({ind, ' = {name = ', tDat.name}))
             end
@@ -870,7 +871,7 @@ end]]
 
 	end
 
-	local function onFriendlyKill(clients, target, weapon)
+	local function onFriendlyKill(clients, target, weapon, player)
         --slmod.info('On Friendly Kill')
         --slmod.info(slmod.oneLineSerialize(clients))
         --slmod.info(slmod.oneLineSerialize(target))
@@ -903,6 +904,7 @@ end]]
                 
                 table.insert(msg, table.concat({ind, ' = {name  = ', slmod.basicSerialize(tostring(dat.name)), ', ucid = ', slmod.basicSerialize(tostring(dat.ucid)), ', ip = ',  slmod.basicSerialize(tostring(dat.addr)), ', id = ', tostring(dat.id), '}'}))
             end
+			
             for ind, tDat in pairs(target) do
                 table.insert(msg, table.concat({ind, ' = {name = ', tDat.name}))
             end
@@ -1317,7 +1319,7 @@ end]]
 			local deadClient = slmod.clientsByName[deadName] or slmod.oldClientsByName[deadName]
 			--[[Find the object in SlmodStats categories
             if deadClient and deadClient[1] and deadClient[1].unitName == 'getShotDownEvent' then
-               -- deadClient = buildTestMultCrew(deadClient)
+                deadClient = buildTestMultCrew(deadClient)
             end]]
 			local deadObjType = slmod.allMissionUnitsByName[deadName].objtype
 			local deadStatsCat
@@ -1461,12 +1463,13 @@ end]]
                            saveStat.nest = 'friendlyKills'
                         end
                         saveStat.addValue = { time = os.time(), objCat = deadCategory, objTypeName = deadObjType, weapon = weapon, shotFrom = hitObjType}
-                        if deadClient then
+                        local isPlayer = false
+						if deadClient then
                             saveStat.addValue.human = ducid
-                            hitObj.player = true
+							isPlayer = true
                         end
                         slmod.stats.advChangeStatsValue(saveStat)
-                        slmod.scheduleFunction(onFriendlyKill, {hitObj, deadObjData, weapon}, DCS.getModelTime() + 0.5)
+                        slmod.scheduleFunction(onFriendlyKill, {hitObj, deadObjData, weapon, isPlayer}, DCS.getModelTime() + 0.5)
                         --onFriendlyKill(hitObj, deadObjData, weapon)
                     end
                 elseif type(hitObj) == 'string' then  -- AI hit them
@@ -1913,9 +1916,10 @@ end]]
                                        saveStat.nest = 'friendlyHits'
                                     end
                                     saveStat.addValue = { time = os.time(), objCat = tgtCategory, objTypeName = tgtTypeName, weapon = weapon, shotFrom = initType}
-                                    if tgtClient then
+                                    local isPlayer = false
+									if tgtClient then
                                         local hitClient = {}
-                                        tgtInfoForFHit.player = true
+                                        isPlayer = true
                                         for i = 1, #tgtClient do 
                                             if tgtClient[i].ucid then 
                                                 table.insert(hitClient, tgtClient[i].ucid)
@@ -1924,7 +1928,8 @@ end]]
                                         saveStat.addValue.human = hitClient
                                     end
                                     slmod.stats.advChangeStatsValue(saveStat)
-                                    slmod.scheduleFunction(onFriendlyHit, {initClient, tgtInfoForFHit, weapon}, DCS.getModelTime() + 0.2)
+                                    --slmod.info('schedule onFriendlyHit')
+                                    slmod.scheduleFunction(onFriendlyHit, {initClient, tgtInfoForFHit, weapon, isPlayer}, DCS.getModelTime() + 0.2)
                                     --onFriendlyHit(initClient, tgtInfoForFHit, weapon)
                                         
                                 end

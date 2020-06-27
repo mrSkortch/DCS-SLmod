@@ -976,6 +976,7 @@ function slmod.makeUnitCategories()
 	slmod.catsByUnitType = {}
 	for unitTypeName, unitData in pairs(slmod.unitAttributes) do
         -- Ground Units
+        --slmod.info(unitTypeName)
 		if slmod.unitHasAttribute(unitTypeName, "Ground Units") or slmod.unitHasAttribute(unitTypeName, "Air Defence") then  -- only do ground units!
 			if slmod.unitHasAttribute(unitTypeName, "SAM") or slmod.unitHasAttribute(unitTypeName, "SAM LL") or slmod.unitHasAttribute(unitTypeName, "SR SAM") or slmod.unitHasAttribute(unitTypeName, "MR SAM") or slmod.unitHasAttribute(unitTypeName, "LR SAM") or slmod.unitHasAttribute(unitTypeName, "SAM CC") then
 				slmod.unitCategories['Ground Units']['SAM'][unitTypeName] = true
@@ -1097,6 +1098,12 @@ function slmod.makeUnitCategories()
 		end
 		
 	end
+    -- Hard-code attributes in that may be missed due to Dedicated Server Bug. 
+    if not slmod.catsByUnitType['TF-51D'] then
+        slmod.unitCategories['Planes']['Fighters']['TF-51D'] = true
+        slmod.catsByUnitType['TF-51D'] = {'Planes', 'Fighters'}
+    end
+    
 end
 
 slmod.info('SlmodUnits.lua loaded.')
