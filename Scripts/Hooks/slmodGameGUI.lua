@@ -1,6 +1,6 @@
 		
 	--slmod
-	local loadVersion = '7_5'
+	local loadVersion = '7_6'
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodConfig.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodUtils.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodEvents.lua')
