@@ -664,20 +664,28 @@ end
 
 
 --replacement for command_check_start_loop
-function slmod.chat_cmd_net(cmd_text, flag, chat_ind, stopflag, coa)
+function slmod.chat_cmd_net(cmd_text, flag, chat_ind, stopflag, coa, requireAdmin)
+	--slmod.info(string.format("chat_cmd_net cmd_text=[%s], flag=[%d], requireAdmin=[%s]", cmd_text, flag, tostring(requireAdmin or false)))
+
 	if stopflag == '' then
 		stopflag = nil
 	end
-	if (not slmod.typeCheck({'string', 'number', 'number', {'number', 'nil'}, {'string', 'nil'}}, { cmd_text, flag, chat_ind, stopflag, coa })) then
+
+	if (not slmod.typeCheck({'string', 'number', 'number', {'number', 'nil'}, {'string', 'nil'}, {'boolean', 'nil'}}, { cmd_text, flag, chat_ind, stopflag, coa, requireAdmin })) then
 		slmod.error('invalid variable type in slmod.chat_cmd_net', true)
 		return
 	end
+
 	stopflag = stopflag or -1
 
 	if ((coa ~= 'red') and (coa ~= 'blue')) then
 		coa = 'all'
 	end
-	
+
+	if requireAdmin == nil then
+		requireAdmin = false
+	end
+
 	if chat_ind == -1 then
 		chat_ind = #slmod.chat_table + 1  -- start searching at next chat
 	end
@@ -694,20 +702,49 @@ function slmod.chat_cmd_net(cmd_text, flag, chat_ind, stopflag, coa)
 		
 		while chat_ind <= #slmod.chat_table do
 			if cmd_text == slmod.chat_table[chat_ind].msg then  --ok, a message match found
-				if coa == 'all' then
-					net.dostring_in('server', 'trigger.action.setUserFlag(' .. tostring(flag) .. ', true)') 
-				else  --need to check sides
-					-- now if the side checks out:
-					local side = net.get_player_info(slmod.chat_table[chat_ind].id, 'side')
-					if side == coa_int then
-						net.dostring_in('server', 'trigger.action.setUserFlag(' .. tostring(flag) .. ', true)')
-					end	
+				local client_id = slmod.chat_table[chat_ind].id
+				--slmod.info(string.format("message [%s] found at index %d in chat by client %d", cmd_text, chat_ind, client_id))
+
+				local authorized = true
+				if requireAdmin then
+					authorized = false
+					if client_id == 1 then
+						--slmod.info(string.format("client %d is authorized", client_id))
+						authorized = true
+					elseif slmod.clients[client_id] and slmod.clients[client_id].ucid and slmod.isAdmin(slmod.clients[client_id].ucid) then
+						--slmod.info(string.format("client %d [%s] is authorized", client_id, tostring(slmod.clients[client_id].ucid)))
+						authorized = true
+					else
+						slmod.error(string.format("client %d is NOT authorized for command [%s]", client_id, cmd_text))
+						authorized = false
+					end
+				end
+			
+				if authorized then
+					local doit = false
+					if coa == 'all' then
+						doit = true
+					else
+						local side = net.get_player_info(slmod.chat_table[chat_ind].id, 'side')
+						doit = (side == coa_int)
+					end
+					if doit then
+						if slmod.flagIsTrue(flag) then
+							--slmod.info('flag is TRUE: '..tostring(flag))
+						else
+							--slmod.info('flag is FALSE: '..tostring(flag))
+						end
+						--slmod.info('setting flag TRUE: '..tostring(flag))
+						net.dostring_in('server', 'trigger.action.setUserFlag(' .. tostring(flag) .. ', true)') 
+					end
 				end
 			end
 			chat_ind = chat_ind + 1
 		end
-
-		slmod.scheduleFunction(slmod.chat_cmd_net, {cmd_text, flag, chat_ind, stopflag, coa}, DCS.getModelTime() + 1)		
+		--slmod.info(string.format("rescheduling chat_cmd_net cmd_text=[%s]", cmd_text))
+		slmod.scheduleFunction(slmod.chat_cmd_net, {cmd_text, flag, chat_ind, stopflag, coa, requireAdmin}, DCS.getModelTime() + 1)		
+	else
+		--slmod.info(string.format("STOP rescheduling chat_cmd_net cmd_text=[%s], stopflag=[%d]", cmd_text, stopflag))
 	end
 end
 --End of basic chat IO
@@ -2728,7 +2765,6 @@ function slmod.reset()
     local curList = net.get_player_list()
 	for id, dat in pairs(net.get_player_list()) do
 		curClients = curClients + 1
-        
         if (slmod.clients[id] and slmod.clients[id].ucid ~= net.get_player_info(id, 'ucid')) or not slmod.clients[id] then
             slmod.clients[id] = {id = id, addr = net.get_player_info(id, 'ipaddr'), name = net.get_player_info(id, 'name'), ucid = net.get_player_info(id, 'ucid'), ip = net.get_player_info(id, 'ipaddr')}
         end

@@ -155,7 +155,6 @@ function slmod.makeMissionUnitData()
 									newUnit['skill'] = unit.skill
 									newUnit['countryName'] = countryName
 									newUnit['countryId'] = country.country_id_num
-									
 									slmod.allMissionUnitsByName[newUnit.name] = newUnit
                                     slmod.allMissionUnitsById[newUnit.unitId] = newUnit
 									if unitType ~= 'static' then
@@ -851,7 +850,8 @@ function slmod.getUnitAttributes()
 			obj['name'] = name  -- used in ME display. Could be useful.
 			obj['shapeName'] = object.ShapeName  -- 3D model shape name, I think.
 			obj['displayName'] = object.DisplayName -- display name in ME?  Or where?
-			obj['attributes'] = {}
+			obj['origin'] = object._origin
+            obj['attributes'] = {}
 			if object.attribute then
 				for ind, attribute in pairs(object.attribute) do
 					if type(attribute) == 'string' then -- throw out wsTypes.
@@ -975,7 +975,8 @@ function slmod.makeUnitCategories()
 	}
 	slmod.catsByUnitType = {}
 	for unitTypeName, unitData in pairs(slmod.unitAttributes) do
-		-- Ground Units
+        -- Ground Units
+        --slmod.info(unitTypeName)
 		if slmod.unitHasAttribute(unitTypeName, "Ground Units") or slmod.unitHasAttribute(unitTypeName, "Air Defence") then  -- only do ground units!
 			if slmod.unitHasAttribute(unitTypeName, "SAM") or slmod.unitHasAttribute(unitTypeName, "SAM LL") or slmod.unitHasAttribute(unitTypeName, "SR SAM") or slmod.unitHasAttribute(unitTypeName, "MR SAM") or slmod.unitHasAttribute(unitTypeName, "LR SAM") or slmod.unitHasAttribute(unitTypeName, "SAM CC") then
 				slmod.unitCategories['Ground Units']['SAM'][unitTypeName] = true
@@ -1027,7 +1028,7 @@ function slmod.makeUnitCategories()
 				slmod.unitCategories['Ships']['Warships'][unitTypeName] = true
 				slmod.catsByUnitType[unitTypeName] = {'Ships', 'Warships'}
 				
-			elseif unitTypeName == "SOM" or unitTypeName == "KILO" then
+			elseif slmod.unitHasAttribute(unitTypeName, "Submarines") then
 				slmod.unitCategories['Ships']['Subs'][unitTypeName] = true
 				slmod.catsByUnitType[unitTypeName] = {'Ships', 'Subs'}
 			
@@ -1041,7 +1042,7 @@ function slmod.makeUnitCategories()
 			end
 			
 		elseif slmod.unitHasAttribute(unitTypeName, "Planes") then  
-			if slmod.unitHasAttribute(unitTypeName, "Multirole fighters")  or slmod.unitHasAttribute(unitTypeName, "Fighters") or slmod.unitHasAttribute(unitTypeName, "Interceptors") or unitTypeName == "P-51D" then
+            if slmod.unitHasAttribute(unitTypeName, "Multirole fighters")  or slmod.unitHasAttribute(unitTypeName, "Fighters") or slmod.unitHasAttribute(unitTypeName, "Interceptors") or unitTypeName == "I-16" or (slmod.unitHasAttribute(unitTypeName, "Battleplanes") and unitData.origin and (string.find(unitData.origin, 'World War II') or string.find(unitData.origin, 'WWII'))) then
 				slmod.unitCategories['Planes']['Fighters'][unitTypeName] = true
 				slmod.catsByUnitType[unitTypeName] = {'Planes', 'Fighters'}
 				
@@ -1097,6 +1098,12 @@ function slmod.makeUnitCategories()
 		end
 		
 	end
+    -- Hard-code attributes in that may be missed due to Dedicated Server Bug. 
+    if not slmod.catsByUnitType['TF-51D'] then
+        slmod.unitCategories['Planes']['Fighters']['TF-51D'] = true
+        slmod.catsByUnitType['TF-51D'] = {'Planes', 'Fighters'}
+    end
+    
 end
 
 slmod.info('SlmodUnits.lua loaded.')
