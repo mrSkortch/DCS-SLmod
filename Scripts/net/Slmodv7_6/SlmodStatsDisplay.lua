@@ -1173,4 +1173,4 @@ do
 end
 
 
-slmod.info('SlmodStats.lua loaded.')
+slmod.info('SlmodStatsDisplay.lua loaded.')

@@ -1481,8 +1481,8 @@ function slmod.getSlotFromMultCrew(multId)
     end
 end
 
-function slmod.getClientRtId(client_id)
-	--slmod.info('getClientRtId')
+function slmod.getClientRtId(slot_id)
+	slmod.info('getClientRtId')
 	if slot_id and slot_id ~= ''  then
         if type(slot_id) == 'string' and (slot_id == '' or string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then
 			--net.log('client is on spectators or CA slot')

@@ -2,7 +2,7 @@ function slmod.create_getNextSlmodEvents()
 
 	local GetNextSlmodEvents_string = [=[-- debriefing module events hook
 do
-	env.info('slmod GetNextSlmodEvents_string')
+	--env.info('slmod GetNextSlmodEvents_string')
     local slmod_events_ind = 1
 	slmod = slmod or {}
 	slmod.rawEvents = nil
@@ -28,6 +28,8 @@ do
             end
         end
     end
+    
+    local addToRaw = {['start shooting'] = true, ['end shooting'] = true}
 	
 	function slmod.getNextSlmodEvents()
 		--env.info('in getNextSlmodEvents')
@@ -60,19 +62,22 @@ do
 		if not slmod.rawEvents then
 			--env.info('no raw events')
 			slmod.rawEvents = {}
-            if not debriefing.addEvent_old then
-				--env.info('not addEventOld')
-				debriefing.addEvent_old = debriefing.addEvent
-				function debriefing.addEvent(event)
-					env.info('debriefing event:')
-					env.info(slmod.oneLineSerialize(event))
+        end
+        if not debriefing.addEvent_old then
+            --env.info('not addEventOld')
+            debriefing.addEvent_old = debriefing.addEvent
+            function debriefing.addEvent(event)
+                --if event and event.type and addToRaw[event.type] then 
+                    --env.info('debriefing event:')
+                    --env.info(slmod.oneLineSerialize(event))
                     table.insert(slmod.debriefEvents, event)
-					env.info(#slmod.debriefEvents)
-                    env.info('return')
-					return debriefing.addEvent_old(event)
-				end
-			end
-		end
+                    --env.info(#slmod.debriefEvents)
+                    --env.info('return')
+                    return debriefing.addEvent_old(event)
+                --end
+            end
+        end
+		
 		local new_events = {}
 		local t_insert = table.insert --declare locally for faster run times
 		if #slmod.rawEvents >= slmod_events_ind then
@@ -195,8 +200,8 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 			local temp_event
 			for i = 1, #slmod_next_events do
 				temp_event = slmod.deepcopy(slmod_next_events[i])
-				slmod.info('original event')
-				slmod.info(slmod.tableshow(temp_event))
+				--slmod.info('original event')
+				--slmod.info(slmod.tableshow(temp_event))
 				------------------------------------------
 				--Add to list of killers, new for v6_0
 				slmod.deadUnits = slmod.deadUnits or {} --create the global dead units list
@@ -255,11 +260,11 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 						temp_event['initiatorMissionID'] = tonumber(temp_event['initiatorMissionID'])
 					end
 					-- initiator info
-				--	slmod.info('check iniator')
+					--slmod.info('check iniator')
 					if ((type(temp_event['initiatorMissionID']) == 'number') and (type(temp_event['initiator']) == 'string')) then
 						--slmod.info('valid mission Id')
 						local ret_unit =  slmod.getUnitByName(temp_event['initiator'])	
-						--slmod.info(slmod.tableshow(ret_unit))
+						slmod.info(slmod.tableshow(ret_unit))
 						if ((type(ret_unit) ==  'table') and (temp_event['initiator'] == ret_unit.name)) then -- just need to make sure that name == initiator
 							--slmod.info('valid unitName')
 							
@@ -308,6 +313,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
                         if not err then
                             slmod.error('failed to Append slmod.allMissionUnitsById, reason: ' .. str)
                         end
+                        --slmod.info('birth added')
 					end
 				--slmod.activeUnitsBase[#slmod.activeUnitsBase + 1] = newUnit
 				end
@@ -716,10 +722,111 @@ do
             lowerEventNames[eventId] = 'end shooting'
         end
     end
+    
+    if not slmod.rawEvents then
+        --env.info('no raw events')
+        slmod.rawEvents = {}
+    end
+    
+    local function addToDB(lunit, addedAtLoad)
+    
+        local lgroup
+        local newObj = {}
+        if lunit:getCategory() == 3 or lunit:getCategory() == 6 then
+            lgroup = StaticObject.getByName(lunit:getName())
+        else
+            lgroup  = lunit:getGroup()
+        end
+        -- env.info('c2')
+        --local newUnit = {}
+        
+        local initName = lunit:getName()
+        newObj.initiator = initName
+        newObj.initiatorID = lunit.id_
+        newObj.initiatorMissionID = tonumber(lunit:getID())
+        
+        local lCoa = tonumber(lunit:getCoalition())
+        
+        if lCoa == 1 then
+            newObj.coalition = 'red'
+        elseif lCoa == 2 then
+            newObj.coalition = 'blue'
+        else
+            newObj.coalition  = 'neutral'
+        end
+        --env.info('c3')		
+        
+        newObj.name  = initName
+        newObj.unitId  = tonumber(lunit:getID())
+        
+        if Object.getCategory(lunit) == 1 and lunit:getPlayerName() then
+            newObj.mpname = lunit:getPlayerName()
+        else
+            newObj.mpname = lunit:getName()
+        end
+        --env.info('c4')
+         --at least, for now.
+        newObj.objtype = lunit:getTypeName()
+        newObj.group = lgroup:getName()
+        newObj.groupId = tonumber(lgroup:getID())
+        newObj.skill = "Random" -- cant find this out, so just say its random
+        newObj.countryName = string.lower(country.name[tonumber(lunit:getCountry())])
+        newObj.countryId= (lunit:getCountry())
+        --env.info('c5')
+        if tonumber(lunit:getCategory()) == 3 or tonumber(lunit:getCategory()) == 6 then
+            newObj.category  = 'static'
+        else
+            local lCat = tonumber(lgroup:getCategory())
+            if lCat == 0 then
+                lCat = 'plane'
+            elseif lCat == 1 then
+                lCat = 'helicopter'
+            elseif lCat == 2 then
+                lCat = 'vehicle'
+            elseif lCat == 3 then
+                lCat = 'vehicle'
+            end
+            newObj.category = lCat
+        end
+        --env.info(slmod.tableshow(newUnit))
+
+        newObj.type = 'birth'
+        newObj.t = timer.getAbsTime()
+        newObj.numtimes = 1
+        newObj.initiator = lunit:getName()
+        
+        if addedAtLoad then
+            table.insert(slmod.rawEvents, newObj)
+        end
+        
+        return newObj
+        
+    end
+    
+    ------------------ verify all known units just in case something spawned in before event handler was activated. (stuff spawned on mission start trigger)
+    --env.info('verify')
+    for coaName, coaId in pairs(coalition.side) do
+        --env.info(coaName)
+        local gps = coalition.getGroups(coaId)
+        for i = 1, #gps do
+            if gps[i] and Group.getSize(gps[i]) > 0 then
+                local gUnits = Group.getUnits(gps[i])
+                for j = 1, #gUnits do
+                    if gUnits[j] and Unit.getID(gUnits[j]) then
+                        if not slmod.allMissionUnitsById[Unit.getID(gUnits[j])] then
+                            --env.info(Unit.getID(gUnits[j]) .. ' Not found in DB yet')
+                            addToDB(gUnits[j], true)
+                        end
+                    end
+                end
+            end
+        end
+    
+    end
 	
 	world.onEvent = function(event) 
-		env.info('world event:')
-		env.info(slmod.oneLineSerialize(event))
+		--env.info('world event:')
+		--env.info(slmod.oneLineSerialize(event))
         --env.info(slmod.oneLineSerialize(slmod.clientsMission))
 		
 		-- store latest event for preventing server crash when using DCS.getUnitProperty in active units database building code.
@@ -739,7 +846,9 @@ do
         
         if event.target then
             newEvent.target = event.target:getName()
-            newEvent.targetMissionID = event.target:getID()
+            if event.target:getCategory() and event.target:getCategory() ~= 5  then
+                newEvent.targetMissionID = tonumber(event.target:getID())
+            end
         end
         
         if (('takeoff' == event.type) or ('land' == event.type) or ('base captured' == event.type)) and ( (event.place ~= nil) and (event.place ~= '') ) then
@@ -750,7 +859,7 @@ do
             initName = lunit:getName()
             newEvent.initiator = initName
             newEvent.initiatorID = event.initiator.id_
-            newEvent.initiatorMissionID = lunit:getID()
+            newEvent.initiatorMissionID = tonumber(lunit:getID())
             if slmod.clientsMission[initName] then
                 newEvent.initiatorPilotName = slmod.clientsMission[initName].name
             end
@@ -761,7 +870,7 @@ do
         end
         
        --------------------------------------------------------------------------------------         
-        
+
         
 
 
@@ -801,11 +910,11 @@ do
                     end
                 end
                 newEvent.numShells = lShells
-                env.info('check for debrief')
+                --env.info('check for debrief')
                 if slmod.debriefEvents then
-                    env.info('debrief events')
+                   -- env.info('debrief events')
                     local dEvent = slmod.debriefEvents[#slmod.debriefEvents]
-                    env.info(slmod.oneLineSerialize(dEvent))
+                    --env.info(slmod.oneLineSerialize(dEvent))
                     if dEvent.t == newEvent.t and dEvent.type == newEvent.type then
                         newEvent.weapon = dEvent.weapon
                     end
@@ -862,72 +971,10 @@ do
 			--env.info('check birth event')
             if event.id == world.event.S_EVENT_BIRTH then -- Event births occuring after mission start
 				--env.info('birth event')
-                
-				
+		
                 if ((Object.getCategory(lunit) == 1 and not lunit:getPlayerName()) or Object.getCategory(lunit) ~= 1) then -- only run logic on non clients
 					--env.info('c1')
-									
-					local lgroup
-                    if lunit:getCategory() == 3 or lunit:getCategory() == 6 then
-                        lgroup = StaticObject.getByName(lunit:getName())
-                    else
-                        lgroup  = lunit:getGroup()
-                    end
-                    -- env.info('c2')
-					--local newUnit = {}
-					
-					local lCoa = tonumber(lunit:getCoalition())
-					
-					if lCoa == 1 then
-						newEvent.coalition = 'red'
-					elseif lCoa == 2 then
-						newEvent.coalition = 'blue'
-					else
-						newEvent.coalition  = 'neutral'
-					end
-					--env.info('c3')		
-					
-					newEvent.name  = initName
-					newEvent.unitId  = (lunit:getID())
-					
-					if Object.getCategory(lunit) == 1 and lunit:getPlayerName() then
-                        newEvent.mpname = lunit:getPlayerName()
-                    else
-                        newEvent.mpname = lunit:getName()
-                    end
-                    --env.info('c4')
-					 --at least, for now.
-					newEvent.objtype = lunit:getTypeName()
-					newEvent.group = lgroup:getName()
-					newEvent.groupId = tonumber(lgroup:getID())
-					newEvent.skill = "Random" -- cant find this out, so just say its random
-					newEvent.countryName = string.lower(country.name[tonumber(lunit:getCountry())])
-					newEvent.countryId= (lunit:getCountry())
-					--env.info('c5')
-					if tonumber(lunit:getCategory()) == 3 or tonumber(lunit:getCategory()) == 6 then
-						newEvent.category  = 'static'
-					else
-						local lCat = tonumber(lgroup:getCategory())
-						if lCat == 0 then
-							lCat = 'plane'
-						elseif lCat == 1 then
-							lCat = 'helicopter'
-						elseif lCat == 2 then
-							lCat = 'vehicle'
-						elseif lCat == 3 then
-							lCat = 'vehicle'
-						end
-						newEvent.category = lCat
-					end
-					--env.info(slmod.tableshow(newUnit))
-					
-					
-					
-					newEvent.type = 'birth'
-					newEvent.t = timer.getAbsTime()
-					newEvent.numtimes = 1
-					newEvent.initiator = lunit:getName()
-
+					newEvent = addToDB(event.initiator)				
 				end
 			end
 		end

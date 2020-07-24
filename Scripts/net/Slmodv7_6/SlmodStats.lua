@@ -1588,8 +1588,8 @@ end]]
 			--Now do slmod.events-based stats.
 			while #slmod.events >= eventInd do
 				local event = slmod.events[eventInd]
-				--slmod.info('checking ' .. eventInd)
-                --slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
+				slmod.info('checking ' .. eventInd)
+                slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
 				eventInd = eventInd + 1  -- increment NOW so if there is a Lua error, I'm not stuck forever on this event.
                 
                 
@@ -2174,7 +2174,88 @@ end]]
             return stats[ucid]
         end
     end
-	-- ***BEGINNING OF STATS USER INTERFACE***
+	
+    function slmod.custom_stats_net(saveStat)
+         -- Formatted in advanced save tbl.
+        if saveStat then
+            slmod.info('tbl passed')
+            
+            if saveStat.unit then
+                local client
+                local objType
+                local typeName = {}
+                local ucid = {}
+                 slmod.info('find unit')
+                local unitId
+                if type(saveStat.unit) == 'string' then -- can be unit id or unitName overload it?
+                -- try to figure out the unit to apply the stat to
+                     slmod.info('given string')
+                    if slmod.allMissionUnitsByName[saveStat.unit] then
+                         slmod.info('getting unit Data')
+                        unitId = slmod.allMissionUnitsByName[saveStat.unit].unitId
+                    end
+                elseif type(saveStat.unit) == 'number' then
+                     slmod.info('given id')
+                     unitId = saveStat.unit
+                end
+                
+                if unitId then
+                    objType = slmod.allMissionUnitsById[unitId].objtype
+                    local rt = slmod.getClientRtId(unitId)
+                    slmod.info(slmod.oneLineSerialize(rt))
+                    client = slmod.clientsByRtId[tonumber(rt)]
+                end
+                slmod.info(slmod.oneLineSerialize(slmod.clientsByRtId))
+                 slmod.info('get seats and type')
+                if client then 
+                slmod.info('client exists')
+                    for seat, data in pairs(client) do
+                        ucid[seat] = data.ucid
+                        if seat > 1 then
+                            typeName[seat] = multiCrewNameCheck(objType, seat)
+                        else
+                            typeName[seat] = objType
+                        end
+                    end
+                else
+                    slmod.info('client failed to return')
+                end
+                saveStat.ucid = ucid
+                saveStat.typeName = typeName
+            end
+
+            if saveStat.nest then -- Force stat to only have access to custom nest. 
+                 slmod.info('nest')
+                local tempNest = {}
+                if type(saveStat.nest) == 'string' then
+                    tempNest = {'custom', saveStat.nest}
+                elseif type(saveStat.nest) == 'table' then
+                    if saveStat.nest[1] then
+                        if type(saveStat.nest[1]) == 'string' and string.lower(saveStat.nest[1]) ~= 'custom' then
+                            table.insert(tempNest, 'custom')
+                        end
+                        for i = 1, #saveStat.nest do
+                            if type(saveStat.nest[i]) == 'string' then
+                                 table.insert(tempNest, saveStat.nest[i])
+                            end
+                        end
+                    end
+
+                end
+                saveStat.nest = tempNest -- rewrite the nest no matter what
+            end
+             slmod.info('check if valid')
+             slmod.info(slmod.oneLineSerialize(saveStat))
+            if #saveStat.ucid > 0 and saveStat.nest and (saveStat.insert or saveStat.addValue or saveStat.setValue) then
+                saveStat.unit = nil
+                 slmod.info('valid')
+                slmod.stats.advChangeStatsValue(saveStat, true)
+            end
+        
+        end       
+        
+    
+    end
 
 
 	

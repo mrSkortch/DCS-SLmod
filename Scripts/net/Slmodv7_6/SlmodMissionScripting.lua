@@ -22,7 +22,7 @@ do
 	env.info('Loading SLMOD MissionScripting.lua')
     slmod = {}
 	local config = {}  -- don't want hte slmod config settings adjustable from MissionScripting, so local
-	slmod.version = '7_5'
+	slmod.version = '7_6'
 	---------------------------------------------------------------------------------------------------
 	-- Loading the config settings
 	local configPath = lfs.writedir() .. [[Slmod\config.lua]]
@@ -66,7 +66,7 @@ do
 	--------------------------------------------------------------------------------------
 	-- Serialization functions
 	
-	local basicSerialize = function(s)
+	local function basicSerialize(s)
 		if s == nil then
 			return "\"\""
 		else
@@ -79,7 +79,7 @@ do
 		end	
 	end
 	
-	local oneLineSerialize = function(tbl)  -- serialization of a table all on a single line, no comments, made to replace old get_table_string function
+	local function oneLineSerialize(tbl)  -- serialization of a table all on a single line, no comments, made to replace old get_table_string function
 		if type(tbl) == 'table' then --function only works for tables!
 
 			local tbl_str = {}
@@ -116,7 +116,9 @@ do
 			return table.concat(tbl_str)
 		end
 	end
-	
+	if oneLineSerialize then
+        env.info('one line exists')
+    end
 	-- global function to create string for viewing the contents of a table -NOT for serialization
 	function slmod.tableshow(tbl, loc, indent, tableshow_tbls) --based on slmod.serialize, this is a _G serialization
 		tableshow_tbls = tableshow_tbls or {} --create table of tables
@@ -216,7 +218,10 @@ do
 		local fcnString = tbl[1] .. '('
 		for i = 2, tblLen do
 			if type(tbl[i]) == 'table' then
-				fcnString = fcnString .. oneLineSerialize(tbl[i])
+					if oneLineSerialize then
+        env.info('one line exists')
+    end
+                fcnString = fcnString .. oneLineSerialize(tbl[i])
 			else
 				fcnString = fcnString .. basicSerialize(tbl[i])
 			end
@@ -1274,6 +1279,15 @@ do
 		tbl[3] = slmod.MissionScripting_G
 		addUDPData(tbl)
 	end
+
+
+    function slmod.customStat(custom)
+        local tbl = {}
+        tbl[1] = 'slmod.custom_stats_net'
+        tbl[2] = custom
+        
+        addUDPData(tbl)
+    end
 	
 	Slmod = slmod -- if someone accidentally uses Slmod, it works.
 	
