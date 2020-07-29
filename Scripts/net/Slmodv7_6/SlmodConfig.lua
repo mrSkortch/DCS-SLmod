@@ -161,21 +161,15 @@ do
 	-- end of Slmod.log code
 	------------------------------------------------------------------------------
 	--[[
-        So the general thought process on this... Maybe do some reeasearch to figure out the difference. Possibly check git for ideas. 
+        Ok, so this is working fairly ok so far, but there is a problem!
+        
+        Nil and false value is thrown out when loaded from config.lua. 
+            If a value was default to true and set to false, then the original false value is not recognized and the entry is being rewritten.
+            
+            Solution: Check the new default value. If it is a boolean and set to true, assume it was already there and set to false?
         
         
-        Load Default File. Everything is in a table in order that they show up in the config as a table itself with help values. 
-        Save backup of config.
-        Load config. 
-        Iterate defaultTable, check existence of setting from current config. 
-          If it exists and setting is different or just if it exists, then change the known setting to the users
-          If it doesn't exist, do nothing. 
-        
-        Iterate again and save as new config line by line if it has changed?
-        Close Config file.
-        Open again as read-only.
-        Load env?
-        
+        REMINDER: Add saving the config version number with #def.s
     
     ]]
 	--------------------------------------------------------------------------------
@@ -241,8 +235,48 @@ do
             
             end
             
-            local function writeNewTbl(data, tabs)
+            local function basicSerialize(val)
+                 net.log('base serialize')
+                if type(val) == 'string' and val ~= 'nil' then
+                    return string.format('%q', val)
+                else
+                    return tostring(val)
+                end
+            end
             
+            local function getSpaces(tab)
+                local spaces = ''
+                for i = 1, 4 * (tab) do
+                    spaces = spaces .. ' '
+                end
+                return tostring(spaces)
+            end
+            
+            local function writeTbl(data, tb)
+
+                if type(data) == 'table' then
+                    if data[1] then
+                        local str = '{\n'
+                        for i = 1, #data do
+                            str = str .. getSpaces(1) .. '[' .. i .. '] = '
+                            if type(data[i]) == 'table' then
+                                str = str .. '{'
+                                for vName, vEntry in pairs(data[i]) do
+                                    str = str .. vName .. ' = ' .. basicSerialize(vEntry) .. ', '
+                                end
+                                str = str .. '},\n'
+                            else
+                               str = str .. baseSerialize()
+                            end
+                        
+                        end
+                        str = str .. '\n}'
+                        return str
+                    else
+                      return  '{}'
+                    end
+                end
+               
             end
             
      
@@ -263,32 +297,39 @@ do
                     net.log('check val')
                     for valName, valData in pairs(entry.val) do
                         net.log(valName)
+                        net.log('New Type: ' .. type(valData))
+                        if oldSet[valName] then
+                            net.log(type(oldSet[valName]))
+                        end
+                        
                         if oldSet and oldSet[valName] and type(valData) == type(oldSet[valName]) then
-                            useSetting[valName] = (oldSet[ValName])
+                            useSetting[valName] = (oldSet[valName])
                             net.log('Old setting')
                         else
                             useSetting[valName] = valData
                             net.log('Use New Setting')
                         end
+                        local uSet = useSetting[valName]
                         local writeValue = ''
                         if entry.tab then
-                            local spaces = ''
-                            for i = 1, 4 * entry.tab do
-                                spaces = spaces .. ' '
-                            end
-                            writeValue = writeValue .. (tostring(spaces))
+                             net.log('get tab')
+                              writeValue = writeValue .. getSpaces(entry.tab)
                         end
                         if entry.nest then
+                         net.log('get nest')
                             writeValue = writeValue .. entry.nest
                         end
-                        if type(valData) == 'table' then
-                            
-                        elseif type(valData) == 'string' then
-                            writeValue = writeValue .. valName .. ' = ' .. string.format('%q', valData) .. '\n\n'
+                        net.log('check type')
+                        if type(uSet) == 'table' then
+                             net.log('tbl')
+                            writeValue = writeValue .. valName .. ' = ' .. writeTbl(uSet, entry.tab)
                         else
-                            writeValue = writeValue .. valName .. ' = ' .. tostring(valData) .. '\n\n'
+                             net.log('else')
+                            writeValue = writeValue .. valName .. ' = ' .. basicSerialize(uSet) .. '\n\n'
                         end
+                        net.log('now write')
                         newF:write(writeValue)
+                        
                     end
                 
                 end
