@@ -93,7 +93,7 @@ slmod.config = slmod.config or {}
 slmod.version = '7_6'  -- file directory
 
 slmod.mainVersion = '7_6'  -- so far, these are only used in MOTD and some load scripts.
-slmod.buildVersion = '130'  
+slmod.buildVersion = '132'  
 
 slmod.configVersion = '28'  -- as new options as are added to SlmodConfig, this will change.
 
@@ -160,14 +160,67 @@ do
 	
 	-- end of Slmod.log code
 	------------------------------------------------------------------------------
-	
+	--[[
+        So the general thought process on this... Maybe do some reeasearch to figure out the difference. Possibly check git for ideas. 
+        
+        
+        Load Default File. Everything is in a table in order that they show up in the config as a table itself with help values. 
+        Save backup of config.
+        Load config. 
+        Iterate defaultTable, check existence of setting from current config. 
+          If it exists and setting is different or just if it exists, then change the known setting to the users
+          If it doesn't exist, do nothing. 
+        
+        Iterate again and save as new config line by line if it has changed?
+        Close Config file.
+        Open again as read-only.
+        Load env?
+        
+    
+    ]]
 	--------------------------------------------------------------------------------
 	-- Config code
-	local function default_settings()
-		--lfs.mkdir(config_dir) -- try creating the dir, just to be sure
+    net.log('Load default file')
+    local defF = io.open(lfs.writedir() .. 'Scripts/net/Slmodv' .. slmod.version .. '/SlmodDefault.cfg', 'r')
+    local defSettings
+    local def = {}
+    local oldSet = {}
+    local makeFile = true
+    if defF then
+        net.log('Read File')
+        defSettings = defF:read('*all')
+        defF:close()
+        defF = nil
+        if defSettings then
+            net.log('def settings')
+        	local defaultConfigFunc, err1 = loadstring(defSettings)
+            if defaultConfigFunc then
+                net.log('load string settings')
+                setfenv(defaultConfigFunc, def)
+                local bool, err2 = pcall(defaultConfigFunc)
+                if not bool then
+                    net.log(tostring(err2))
+                end
+                net.log('sen fenv')
+                defaultConfigFunc()
+                net.log('done')
+            else
+                 net.log(tostring(err1))
+            end
+        end
+    end
+	local function loadConfig(verify)
+		net.log('Load Config')
+        --lfs.mkdir(config_dir) -- try creating the dir, just to be sure
 		local oldf = io.open(config_dir .. 'config.lua', 'r')
-		if oldf then
-			local old_settings = oldf:read('*all')
+        local curSettings
+		-- Make copy of old file. For now always do it. 
+        if oldf then
+			net.log('old file')
+            local old_settings = oldf:read('*all')
+            local oldSConfig = loadstring(old_settings)
+            setfenv(oldSConfig, oldSet)
+            oldSConfig()
 			oldf:close()
 			oldf = nil
 			local new_oldf = io.open(config_dir .. 'configOLD.lua', 'w')
@@ -175,27 +228,87 @@ do
 			new_oldf:close()
 			new_oldf = nil
 		end
-		--net.log('here1')
-		local newf = io.open(config_dir .. 'config.lua', 'w')
-		--net.log('here2')
-		local defaultf = io.open(lfs.writedir() .. 'Scripts/net/Slmodv' .. slmod.version .. '/SlmodDefault.cfg', 'r')
-		if defaultf and newf then
-			local default_settings = defaultf:read('*all')
-			defaultf:close()
-			defaultf = nil
-			newf:write(default_settings)
-			newf:close()
-			newf = nil
+		net.log('here1')
+		local newF = io.open(config_dir .. 'config.lua', 'w')
+		net.log('here2')
+		if def and newF then
+
+            local useSetting = {}
+            if def then
+                for x, y in pairs(def) do
+                    net.log(x)
+                end
+            
+            end
+            
+            local function writeNewTbl(data, tabs)
+            
+            end
+            
+     
+            for i = 1, #def.s do
+                net.log(i)
+                local entry = def.s[i]
+
+                
+                if entry.help then 
+                    net.log('write help')
+
+                    newF:write(tostring('--[['))
+                    net.log(entry.help)
+                    newF:write(tostring(entry.help))
+                    newF:write(tostring(']]\n'))
+                end 
+                if entry.val then
+                    net.log('check val')
+                    for valName, valData in pairs(entry.val) do
+                        net.log(valName)
+                        if oldSet and oldSet[valName] and type(valData) == type(oldSet[valName]) then
+                            useSetting[valName] = (oldSet[ValName])
+                            net.log('Old setting')
+                        else
+                            useSetting[valName] = valData
+                            net.log('Use New Setting')
+                        end
+                        local writeValue = ''
+                        if entry.tab then
+                            local spaces = ''
+                            for i = 1, 4 * entry.tab do
+                                spaces = spaces .. ' '
+                            end
+                            writeValue = writeValue .. (tostring(spaces))
+                        end
+                        if entry.nest then
+                            writeValue = writeValue .. entry.nest
+                        end
+                        if type(valData) == 'table' then
+                            
+                        elseif type(valData) == 'string' then
+                            writeValue = writeValue .. valName .. ' = ' .. string.format('%q', valData) .. '\n\n'
+                        else
+                            writeValue = writeValue .. valName .. ' = ' .. tostring(valData) .. '\n\n'
+                        end
+                        newF:write(writeValue)
+                    end
+                
+                end
+                
+            end
+
+			--newf:write(default_settings)
+			newF:close()
+			newF = nil
 			
 			--now load default settings
-			local defaultConfigFunc = loadstring(default_settings)
-			setfenv(defaultConfigFunc, slmod.config)
-			defaultConfigFunc()
+            net.log('fenv config')
+			setfenv(useSetting, slmod.config)
+            
+            
 			slmod.info('using default config settings.')
 			return true
 		else
-			if newf then
-				newf:close()
+			if newF then
+				newF:close()
 			end
 			if defaultf then
 				defaultf:close()
@@ -204,9 +317,11 @@ do
 			return false
 		end
 	end
-	
+	net.log('open config')
 	local f = io.open(config_dir .. 'config.lua', 'r')
-	if f then -- config already exists
+	local check = true
+    local verify
+    if f then -- config already exists
 		local config_settings = f:read('*all')
 		f:close()
 		f = nil
@@ -216,23 +331,25 @@ do
 			local bool, err2 = pcall(config_func)
 			if not bool then
 				slmod.error('unable to load config settings, reason: ' .. tostring(err2))
-				default_settings()
 			else
 				slmod.info('using settings defined in ' .. config_dir .. 'config.lua')
+                check = false
 			end
-			if slmod.config.configVersion ~= slmod.configVersion then  -- old settings
+			if slmod.config.configVersion ~= def.configVersion then  -- old settings
 				slmod.warning('config version is old.  Loading new config version.')
-				default_settings()
+                check = true
+                verify = true
 			end
 			
 		else
 			slmod.error('unable to load config settings, reason: ' .. tostring(err1))
-			default_settings()
 		end
 	else
 		slmod.warning('no config file detected.')
-		default_settings()
 	end
+    if check == true then
+        loadConfig(verify)
+    end
 	---------------------------------------------------------------------------------------------------
 	
 	--Create chat log
