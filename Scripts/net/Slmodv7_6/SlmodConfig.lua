@@ -161,15 +161,12 @@ do
 	-- end of Slmod.log code
 	------------------------------------------------------------------------------
 	--[[
-        Ok, so this is working fairly ok so far, but there is a problem!
+        Ok, so this is working fairly ok so far, but there is a new problem!
         
-        Nil and false value is thrown out when loaded from config.lua. 
-            If a value was default to true and set to false, then the original false value is not recognized and the entry is being rewritten.
-            
-            Solution: Check the new default value. If it is a boolean and set to true, assume it was already there and set to false?
+        It is not setting the correct reference for nested tables in the useSettings table. That whole bit of code from [[for valName, valData]] to the writeValue needs some changes. 
         
-        
-        REMINDER: Add saving the config version number with #def.s
+        REMINDER 1: Add saving the config version number with #def.s
+        REMINDER 2: Test in pairs iteration. mapStrings is saved as a string key. So I might need to edit writeTbl to support it.
     
     ]]
 	--------------------------------------------------------------------------------
@@ -298,18 +295,35 @@ do
                     for valName, valData in pairs(entry.val) do
                         net.log(valName)
                         net.log('New Type: ' .. type(valData))
-                        if oldSet[valName] then
+                        local oldRef
+                        local uSet
+                        if entry.nest then
+                            if #entry.nest == 2 then
+                                oldRef = oldSet[entry.nest[1]][entry.nest[2]]
+                        
+                            else
+                                oldRef = oldSet[entry.nest[1]]
+                        
+                            end
+                        else
+                            oldRef = oldSet
+                        end
+                        if oldRef then
                             net.log(type(oldSet[valName]))
                         end
                         
-                        if oldSet and oldSet[valName] and type(valData) == type(oldSet[valName]) then
-                            useSetting[valName] = (oldSet[valName])
+                        if oldRef and oldRef[valName] and type(valData) == type(oldRef[valName]) then
+                            uSet = (oldRef[valName])
                             net.log('Old setting')
                         else
-                            useSetting[valName] = valData
+                            if type(valData) == 'boolean' and valData == true then -- Entries set to false are not loaded and referenced, so it doesn't exist. Assume it was set to false. 
+                                uSet = false
+                            else
+                                uSet = valData
+                            end
                             net.log('Use New Setting')
                         end
-                        local uSet = useSetting[valName]
+                        useSetting[valName] = uSet
                         local writeValue = ''
                         if entry.tab then
                              net.log('get tab')
@@ -317,7 +331,12 @@ do
                         end
                         if entry.nest then
                          net.log('get nest')
-                            writeValue = writeValue .. entry.nest
+                            local index = {}
+                            for i = 1, #entry.nest do
+                                writeValue = writeValue .. entry.nest[i] .. '.'
+                            end
+                        else
+                            useSetting[valName] = uSet
                         end
                         net.log('check type')
                         if type(uSet) == 'table' then
