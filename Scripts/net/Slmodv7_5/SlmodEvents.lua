@@ -303,6 +303,8 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 						newUnit.category = temp_event.category
 						
 						local lUnitsBase = slmod.activeUnitsBase
+                        --slmod.info('adding to base')
+                        --slmod.info(slmod.oneLineSerialize(temp_event))
 						lUnitsBase[#lUnitsBase + 1] = slmod.deepcopy(newUnit)
                         if not newUnit.name then
                             slmod.info('temp_event has no unitName')
@@ -318,7 +320,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
                         if not err then
                             slmod.error('failed to Append slmod.allMissionUnitsById, reason: ' .. str)
                         end
-                        --slmod.info('birth added')
+                       -- slmod.info('birth added')
 					end
 				--slmod.activeUnitsBase[#slmod.activeUnitsBase + 1] = newUnit
 				end
@@ -826,6 +828,16 @@ do
                 end
             end
         end
+        local st = coalition.getStaticObjects(coaId)
+        for i = 1, #st do
+            local s = st[i]
+            if StaticObject.isExist(s) then
+                if not slmod.allMissionUnitsById[StaticObject.getID(s)] then
+                    env.info(StaticObject.getID(s) .. ' Not found in DB yet')
+                    addToDB(s, true)
+                end
+            end
+        end
     
     end
 	
@@ -851,8 +863,11 @@ do
         
         if event.target then
             newEvent.target = event.target:getName()
-            if event.target:getCategory() and event.target:getCategory() ~= 5  then
-                newEvent.targetMissionID = tonumber(event.target:getID())
+            if event.target:getCategory() then
+                newEvent.targetCategory = event.target:getCategory()
+                if newEvent.targetCategory ~= 5 and newEvent.targetCategory ~= 2 then -- world objects and weapon do not have getID
+                    newEvent.targetMissionID = tonumber(event.target:getID())
+                end
             end
         end
         
