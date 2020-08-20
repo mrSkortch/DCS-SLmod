@@ -1846,7 +1846,7 @@ end]]
                         if initName and humanShots[initName] then
                             if not weapon then
                                 weapon = humanShots[initName]
-                            elseif weapon and weapon == 'kamikaze' and unitIsAlive(initName) == true then
+                            elseif weapon and weapon == 'kamikaze' and unitIsAlive(initName) == true and event.targetCategory and (event.targetCategory == 3 or event.targetCategory == 6) then
                                 weapon = humanShots[initName]
                             end
                         elseif not weapon then
