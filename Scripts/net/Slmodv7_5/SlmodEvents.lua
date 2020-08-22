@@ -730,6 +730,8 @@ do
         end
     end
     
+    local wepNames = {}
+    
     if not slmod.rawEvents then
         --env.info('no raw events')
         slmod.rawEvents = {}
@@ -833,7 +835,7 @@ do
             local s = st[i]
             if StaticObject.isExist(s) then
                 if not slmod.allMissionUnitsById[StaticObject.getID(s)] then
-                    env.info(StaticObject.getID(s) .. ' Not found in DB yet')
+                    --env.info(StaticObject.getID(s) .. ' Not found in DB yet')
                     addToDB(s, true)
                 end
             end
@@ -887,6 +889,35 @@ do
         
         if event.weapon then
             newEvent.weapon = event.weapon:getDesc().displayName
+            if not wepNames[newEvent.weapon] then -- add to wepNames as fallback
+                local tName = event.weapon:getDesc().typeName
+                wepNames[newEvent.weapon] = newEvent.weapon
+                wepNames[tName] = newEvent.weapon
+                if string.find(tName, '%.') then -- it has periods in the name. Might be weapon.<whatever>.typeName
+                    local t1, t2, t3 = string.match(tName, "(%w+)%.(%w+)%.(.+)")
+                    if t3 then
+                        wepNames[t3] = newEvent.weapon
+                    end
+                end
+                
+            end
+        elseif event.weapon_name then -- there is a weapon name but no weapon object. Well try to figure this out
+            if slmod.debriefEvents then  -- first try to grab it from the debriefEvents 
+               -- env.info('debrief events')
+                local dEvent = slmod.debriefEvents[#slmod.debriefEvents]
+                --env.info(slmod.oneLineSerialize(dEvent))
+                if dEvent.t == newEvent.t and dEvent.type == newEvent.type and dEvent.weapon and dEvent.weapon ~= '' then
+                   -- env.info('Weapon grabbed from debrief event')
+                    newEvent.weapon = dEvent.weapon
+                end
+            end
+            if not newEvent.weapon then -- still not found, ugh
+                --env.info('WEAPON STILL NOT FOUND: ' .. event.weapon_name)
+                if wepNames and wepNames[event.weapon_name] then
+                    -- env.info('found in wepNames')
+                     newEvent.weapon = wepNames[event.weapon_name]
+                end
+            end
         end
         
        --------------------------------------------------------------------------------------         
@@ -900,7 +931,7 @@ do
             --env.info('shot event')
 			if event.weapon then
 				slmod.humanWeapons[event.weapon.id_] = nil  --erase this entry if it existed before.
-			end
+            end
 			-------------------------------------------------------------------
 			-- code for use in SlmodStats system and slmod.events
 			if event.weapon then

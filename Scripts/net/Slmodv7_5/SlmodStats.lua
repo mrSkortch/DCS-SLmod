@@ -857,7 +857,6 @@ end]]
             for ind, dat in pairs(clients) do
                 table.insert(msg, table.concat({ind, ' = {name  = ', slmod.basicSerialize(tostring(dat.name)), ', ucid = ', slmod.basicSerialize(tostring(dat.ucid)), ', ip = ',  slmod.basicSerialize(tostring(dat.addr)), ', id = ', tostring(dat.id), '}'}))
             end
-			slmod.info(slmod.oneLineSerialize(target))
             for ind, tDat in pairs(target) do
                 table.insert(msg, table.concat({ind, ' = {name = ', tDat.name}))
             end
@@ -1883,7 +1882,7 @@ end]]
                                 if tgtSide == initSide then
                                     saveToHit.friendlyHit = true
                                 end
-                                
+                                --slmod.info(slmod.oneLineSerialize(saveToHit))
                                 if tgtClient then 
                                     --slmod.info('tgt Client')
                                     if tgtClient[1].ucid and inAirClients[tgtClient[1].ucid] ~= nil then
