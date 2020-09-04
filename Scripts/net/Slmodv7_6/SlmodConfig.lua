@@ -163,7 +163,7 @@ do
 	--[[
         Ok, so this is working fairly ok so far, but there is a new problem!
         
-        It is not setting the correct reference for nested tables in the useSettings table. That whole bit of code from [[for valName, valData]] to the writeValue needs some changes. 
+        It is not setting the correct reference for nested tables in the useSettings table. That whole bit of code from for valName, valData to the writeValue needs some changes. 
         
         REMINDER 1: Add saving the config version number with #def.s
         REMINDER 2: Test in pairs iteration. mapStrings is saved as a string key. So I might need to edit writeTbl to support it.
@@ -177,11 +177,13 @@ do
     local def = {}
     local oldSet = {}
     local makeFile = true
+    local oldPresent = false
     if defF then
         net.log('Read File')
         defSettings = defF:read('*all')
         defF:close()
         defF = nil
+
         if defSettings then
             net.log('def settings')
         	local defaultConfigFunc, err1 = loadstring(defSettings)
@@ -209,6 +211,8 @@ do
         if oldf then
 			net.log('old file')
             local old_settings = oldf:read('*all')
+            old_settings = string.gsub(old_settings, "= false", "= 'false'")
+            old_settings = string.gsub(old_settings, "= nil", "= 'nil'")
             local oldSConfig = loadstring(old_settings)
             setfenv(oldSConfig, oldSet)
             oldSConfig()
@@ -218,6 +222,7 @@ do
 			new_oldf:write(old_settings)
 			new_oldf:close()
 			new_oldf = nil
+            oldPresent = true
 		end
 		net.log('here1')
 		local newF = io.open(config_dir .. 'config.lua', 'w')
@@ -225,15 +230,9 @@ do
 		if def and newF then
 
             local useSetting = {}
-            if def then
-                for x, y in pairs(def) do
-                    net.log(x)
-                end
-            
-            end
             
             local function basicSerialize(val)
-                 net.log('base serialize')
+                -- net.log('base serialize')
                 if type(val) == 'string' and val ~= 'nil' then
                     return string.format('%q', val)
                 else
@@ -249,7 +248,52 @@ do
                 return tostring(spaces)
             end
             
-            local function writeTbl(data, tb)
+            local function validateTbl(nTbl, dTbl, valTypes)
+                if type(nTbl) == 'table' then
+                    local literallyAnything = false
+                    if valTypes then
+                        for ind, dat in pairs(nTbl) do
+                            literallyAnything = true 
+                            if type(dat) == 'table' then 
+                                for entry, value in pairs(dat) do
+                                    local valid = true
+                                    for vName, vType in pairs(valTypes) do
+                                        if type(vType) == 'table' then
+                                            for i = 1, #vType do
+                                                if (vType[i]) ~= type(value) then
+                                                    valid = false
+                                                end
+                                            end
+                                        elseif (vType) ~= type(value) then
+                                            valid = false
+                                        end
+                                    end
+                                    if valid == false then
+                                        if dTbl[ind] and dTbl[ind][entry] then
+                                            nTbl[ind][entry] = dTbl[ind][entry]
+                                        else
+                                            if dTbl[ind] then
+                                                nTbl[ind] = dTbl[ind]
+                                            else
+                                                nTbl[ind] = nil
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if literallyAnything == true then 
+                        return nTbl
+                    else
+                        return dTbl
+                    end
+                else
+                    return nTbl
+                end
+            end
+            
+            local function writeTbl(data, tb, prs)
 
                 if type(data) == 'table' then
                     if data[1] then
@@ -263,14 +307,25 @@ do
                                 end
                                 str = str .. '},\n'
                             else
-                               str = str .. baseSerialize()
+                               str = str .. basicSerialize(data[i])
                             end
                         
                         end
                         str = str .. '\n}'
                         return str
                     else
-                      return  '{}'
+                        if prs then
+                            local str = '{\n'
+                            for name, val in pairs(data) do
+                                str = str .. getSpaces(1) .. '[' .. basicSerialize(name) .. '] = '
+                                str = str .. basicSerialize(val) .. ',\n'
+                            end
+                            str = str .. '\n}\n'
+                            return str
+                        else                        
+                            return  '{}\n'                     
+                        end
+                      
                     end
                 end
                
@@ -278,75 +333,95 @@ do
             
      
             for i = 1, #def.s do
-                net.log(i)
+                net.log('index: ' .. i)
                 local entry = def.s[i]
 
                 
                 if entry.help then 
-                    net.log('write help')
+                    --net.log('write help')
 
                     newF:write(tostring('--[['))
-                    net.log(entry.help)
+                    --net.log(entry.help)
                     newF:write(tostring(entry.help))
                     newF:write(tostring(']]\n'))
                 end 
                 if entry.val then
-                    net.log('check val')
+                    --net.log('check val')
                     for valName, valData in pairs(entry.val) do
-                        net.log(valName)
-                        net.log('New Type: ' .. type(valData))
-                        local oldRef
-                        local uSet
+                        net.log('valName: ' .. valName)
+                        --net.log('New Type: ' .. type(valData))
+                        local oldRef = oldSet
+                        local uSet -- 
+                        local lSet -- old/default setting value
+                        --[[
+                            oldRef is a local instance of oldSet, so it is problematic that I am re-writing that value. 
+                            Make lRef only the reference to it then and modify that?
+                        
+                        ]]
                         if entry.nest then
-                            if #entry.nest == 2 then
-                                oldRef = oldSet[entry.nest[1]][entry.nest[2]]
-                        
-                            else
-                                oldRef = oldSet[entry.nest[1]]
-                        
+                            for i = 1, #entry.nest do
+                                --net.log(entry.nest[i])
+                                if oldRef[entry.nest[i]] then
+                                    oldRef = oldRef[entry.nest[i]]
+                                end
                             end
+                            --lRef = entry.nest[#entry.nest]
+
+                            lSet = oldRef[valName]
+                            
                         else
-                            oldRef = oldSet
-                        end
-                        if oldRef then
-                            net.log(type(oldSet[valName]))
+                            lSet = oldSet[valName]
                         end
                         
-                        if oldRef and oldRef[valName] and type(valData) == type(oldRef[valName]) then
-                            uSet = (oldRef[valName])
-                            net.log('Old setting')
-                        else
-                            if type(valData) == 'boolean' and valData == true then -- Entries set to false are not loaded and referenced, so it doesn't exist. Assume it was set to false. 
-                                uSet = false
+                        if lSet then
+                            --net.log('check old setting')
+                            if type(lSet) == 'string' and (lSet == 'false' or lSet == 'nil') then -- exception created for false/nil due to loadstring deleting the entries on compile
+                                net.log('set value to nil')
+                                uSet = nil
+ 
                             else
-                                uSet = valData
+                                if type(valData) == type(lSet) and not entry.root then
+                                    uSet = validateTbl(lSet, valData, entry.ver)
+                                else
+                                    uSet = valData
+                                end
                             end
-                            net.log('Use New Setting')
+
+                           -- net.log('Old setting')
+                        else
+                            --net.log('Use New Setting')
+                            uSet = valData
+                            
+                           -- net.log('assigned')
                         end
-                        useSetting[valName] = uSet
                         local writeValue = ''
                         if entry.tab then
-                             net.log('get tab')
+                          --   net.log('get tab')
                               writeValue = writeValue .. getSpaces(entry.tab)
                         end
                         if entry.nest then
-                         net.log('get nest')
+                          --  net.log('get nest')
                             local index = {}
+                            local sRef = useSetting
                             for i = 1, #entry.nest do
                                 writeValue = writeValue .. entry.nest[i] .. '.'
+                                if sRef[entry.nest[i]] then
+                                    sRef = sRef[entry.nest[i]]
+                                end
+                               
                             end
+                            sRef[valName] = uSet
                         else
                             useSetting[valName] = uSet
                         end
-                        net.log('check type')
+                        --net.log('check type')
                         if type(uSet) == 'table' then
-                             net.log('tbl')
-                            writeValue = writeValue .. valName .. ' = ' .. writeTbl(uSet, entry.tab)
+                             --net.log('tbl')
+                            writeValue = writeValue .. valName .. ' = ' .. writeTbl(uSet, entry.tab, entry.prs)
                         else
-                             net.log('else')
+                             --net.log('else')
                             writeValue = writeValue .. valName .. ' = ' .. basicSerialize(uSet) .. '\n\n'
                         end
-                        net.log('now write')
                         newF:write(writeValue)
                         
                     end
@@ -354,15 +429,39 @@ do
                 end
                 
             end
+            newF:write([[------------------------------------------------------------------------------------------------------------------------
+-- Config version, only change this to force the config to be rechecked/rewritten!]])
+            newF:write('\nconfigVersion = ' .. #def.s)
 
 			--newf:write(default_settings)
 			newF:close()
 			newF = nil
 			
 			--now load default settings
+            net.log('check values')
+            for vName, v in pairs(useSetting) do
+                net.log(vName)
+                if type(v) == 'table' then
+                    net.log(vName .. ' is a table')
+                    for tVal, tEntry in pairs(v) do
+                        net.log(tVal)
+                        if type(tEntry) ~= 'table' then
+                            net.log(tVal .. ' : ' .. tostring(tEntry))
+                        end
+                    end
+                else
+                     net.log(v)
+                end
+            end
             net.log('fenv config')
-			setfenv(useSetting, slmod.config)
-            
+			if not slmod.config then
+                net.log('no slmod.config, setfenv')
+                setfenv(useSetting, slmod.config)
+            else
+                net.log('slmod.config exists')
+                slmod.config = useSetting
+            end
+            net.log('double check')
             
 			slmod.info('using default config settings.')
 			return true
@@ -385,6 +484,7 @@ do
 		local config_settings = f:read('*all')
 		f:close()
 		f = nil
+
 		local config_func, err1 = loadstring(config_settings)
 		if config_func then
 			setfenv(config_func, slmod.config)
@@ -393,7 +493,7 @@ do
 				slmod.error('unable to load config settings, reason: ' .. tostring(err2))
 			else
 				slmod.info('using settings defined in ' .. config_dir .. 'config.lua')
-                check = false
+                --check = false
 			end
 			if slmod.config.configVersion ~= def.configVersion then  -- old settings
 				slmod.warning('config version is old.  Loading new config version.')
