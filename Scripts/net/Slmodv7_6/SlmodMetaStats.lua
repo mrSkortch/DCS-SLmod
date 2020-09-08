@@ -183,7 +183,19 @@ do
         return
     end
 
+    --[[Campaign Stats code
+    Function is only run via mission script command. 
+    This function will do the following: 
+        1. Check for existing campaign data, if does not exist then create one.
+        2. Stores active campaign in metaStats.campaigns table, by cName .. ' ' .. os.time() --- Start time of campaign.
+        3. Sends filename to slmod.stats.resetFile to open and load that file.
     
+    Note: Mission Reload/change needs to reset state of campaign file to nothing. 
+    
+    ]]
+    function slmod.stats.campaignInit(cName, reset)
+    
+    end
     
     
 end

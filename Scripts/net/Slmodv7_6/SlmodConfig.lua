@@ -105,6 +105,7 @@ do
 	lfs.mkdir(config_dir .. [[Missions\]])
 	lfs.mkdir(config_dir .. [[Chat Logs\]])
 	lfs.mkdir(config_dir .. [[Mission Stats\]])
+    lfs.mkdir(config_dir .. [[Campaign Stats\]])
 	
 	-------------------------------------------------------------------------------------
 	-- Create Slmod.log
