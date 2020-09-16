@@ -1288,6 +1288,15 @@ do
         
         addUDPData(tbl)
     end
+    
+    function slmod.setCampaign(name, new)
+        local tbl = {}
+        tbl[1] = 'slmod.set_campaign_net'
+        tbl[2] = name
+        tbl[2] = new
+        
+        addUDPData(tbl)
+    end
 	
 	Slmod = slmod -- if someone accidentally uses Slmod, it works.
 	

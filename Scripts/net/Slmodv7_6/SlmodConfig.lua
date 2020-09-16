@@ -234,7 +234,7 @@ do
             
             local function basicSerialize(val)
                 -- net.log('base serialize')
-                if type(val) == 'string' and val ~= 'nil' then
+                if type(val) == 'string' and val ~= 'nil'  and val ~= 'false' then
                     return string.format('%q', val)
                 else
                     return tostring(val)
@@ -334,7 +334,7 @@ do
             
      
             for i = 1, #def.s do
-                net.log('index: ' .. i)
+                --net.log('index: ' .. i)
                 local entry = def.s[i]
 
                 
@@ -349,7 +349,7 @@ do
                 if entry.val then
                     --net.log('check val')
                     for valName, valData in pairs(entry.val) do
-                        net.log('valName: ' .. valName)
+                        --net.log('valName: ' .. valName)
                         --net.log('New Type: ' .. type(valData))
                         local oldRef = oldSet
                         local uSet -- 
@@ -377,18 +377,26 @@ do
                         if lSet then
                             --net.log('check old setting')
                             if type(lSet) == 'string' and (lSet == 'false' or lSet == 'nil') then -- exception created for false/nil due to loadstring deleting the entries on compile
-                                net.log('set value to nil')
-                                uSet = nil
+                                --net.log('lSet is string: ' .. lSet)
+                                if lSet == 'nil' then
+                                    uSet = nil
+                                else
+                                    uSet = false
+                                end
+                                    
+                                
  
                             else
+                              --  net.log(tostring((lSet)))
                                 if type(valData) == type(lSet) and not entry.root then
+                                   -- net.log('check')
                                     uSet = validateTbl(lSet, valData, entry.ver)
                                 else
                                     uSet = valData
                                 end
                             end
 
-                           -- net.log('Old setting')
+                            --net.log('Old setting')
                         else
                             --net.log('Use New Setting')
                             uSet = valData
@@ -420,7 +428,8 @@ do
                              --net.log('tbl')
                             writeValue = writeValue .. valName .. ' = ' .. writeTbl(uSet, entry.tab, entry.prs)
                         else
-                             --net.log('else')
+                           -- net.log('else')
+                           -- net.log(uSet)
                             writeValue = writeValue .. valName .. ' = ' .. basicSerialize(uSet) .. '\n\n'
                         end
                         newF:write(writeValue)

@@ -26,6 +26,11 @@ do
     if missionStatsDir:sub(missionStatsDir:len(), missionStatsDir:len()) ~= '\\' and missionStatsDir:sub(missionStatsDir:len(), missionStatsDir:len()) ~= '/' then
         missionStatsDir = missionStatsDir .. '\\'
     end
+    
+    local campStatsDir = slmod.config.mission_stats_files_dir or lfs.writedir() .. [[Slmod\Campaign Stats\]]
+    if campStatsDir:sub(campStatsDir:len(), campStatsDir:len()) ~= '\\' and campStatsDir:sub(campStatsDir:len(), campStatsDir:len()) ~= '/' then
+        campStatsDir = campStatsDir .. '\\'
+    end
 	-- new, reloadStats method
 	----slmod.info('do reset')
 	--slmod.stats.resetStatsFile()  -- load stats from file.
@@ -60,7 +65,11 @@ do
             statData = penStats   
             fileF = penStatsF
         elseif l == 'camp' then
-        
+            lstatsDir = campStatsDir
+            envName = 'campStats'
+            statData = campStats
+            fileF = '\\' .. f
+            lName = f
         else
            -- --slmod.info('stats')
             fileF = statsF
@@ -266,6 +275,7 @@ do
                     local lEntry = slmod.deepcopy(nest)
                     local mEntry = slmod.deepcopy(nest)
                     local cEntry = slmod.deepcopy(nest)
+                    
                     local default = slmod.deepcopy(def)
                     if type(nest) == 'table' then -- nest can be a string for root level or table for nested levels
                         for i = 1, #nest - 1 do
@@ -365,6 +375,12 @@ do
 
         end
         ----slmod.info('end adv write')
+        if slmod.config.stats_coa and slmod.config.stats_coa > 0 then
+            -- change vars.ucid to correspond to player or AI value based on setting
+            -- Do I really want to have stats for that?
+            
+            --slmod.stats.advChangeStatsValue(vars, logg)
+        end
         return
     end
       
@@ -402,6 +418,19 @@ do
 			slmod.stats.changeMisStatsValue(misStats[ucid], 'times', {})
 		end
  	end
+    
+    local function createCampStatsPlayer(ucid)
+        local pStats = stats[ucid]
+		if not pStats then
+			slmod.error('Campaign Stats: player (ucid = ' .. tostring(ucid) .. ') does not exist in regular stats!')
+		else
+			slmod.stats.changeMisStatsValue(campStats, ucid, {})
+			slmod.stats.changeMisStatsValue(campStats[ucid], 'names', slmod.deepcopy(pStats.names))
+			slmod.stats.changeMisStatsValue(campStats[ucid], 'id', pStats.id)
+			slmod.stats.changeMisStatsValue(campStats[ucid], 'times', {})
+		end
+    
+    end
    	---------------------------------------------------------------------------------------------------
 	---------------------------------------------------------------------------------------------------
 	-- function called to add a new player to SlmodStats.
@@ -830,7 +859,6 @@ end]]
     end
     
     local function getNest(tbl)
-        slmod.info('inNest')
         local nest = {'times', 'typeName'}
         if slmod.config.stats_level then
             if slmod.config.stats_level == 0 then
@@ -840,7 +868,6 @@ end]]
             end    
         end
         for i = 1, #tbl do
-            slmod.info(tbl[i])
             table.insert(nest, tbl[i])
         end
         return nest
@@ -1407,8 +1434,9 @@ end]]
 			local allHits = getHitData(deadName)
             local validHits = {}
             if #allHits > 0 then -- assists are enabled and the object was hit more than once. 
+                slmod.info('number of hits: ' .. #allHits)
                 local scope = #allHits
-                if assists then
+                if slmod.config.assists_level and slmod.config.assists_level > 0 then
                     scope = 1
                 end
                 local hitsByType = {}
@@ -1419,11 +1447,15 @@ end]]
                             hitsByType[lHit.weapon] = {}
                         end
                         if lHit.initiator and type(lHit.initiator) == 'table' then -- then check for the pilot in the first seat
-                            if not hitsByType[lHit.weapon][lHit.initiator[1]] then
-                                hitsByType[lHit.weapon][lHit.initiator[1]] = {}
+                            local lId
+                            if lHit.initiator[1] and lHit.initiator[1].ucid then
+                                lId = lHit.initiator[1].ucid
                             end
-                            if not hitsByType[lHit.weapon][lHit.initiator[1]][lHit.shotFrom] then -- then check the object type. 
-                                hitsByType[lHit.weapon][lHit.initiator[1]][lHit.shotFrom] = true
+                            if not hitsByType[lHit.weapon][lId] then
+                                hitsByType[lHit.weapon][lId] = {}
+                            end
+                            if not hitsByType[lHit.weapon][lId][lHit.shotFrom] then -- then check the object type. 
+                                hitsByType[lHit.weapon][lId][lHit.shotFrom] = true
                                 validHits[#validHits+1] = lHit
                             end
                         end
@@ -1434,8 +1466,8 @@ end]]
             
 			if #validHits > 0 then  -- either a human died or an AI that was hit by a human died.
 				--local lastHitEvent = hitData[#hitData] --- at least FOR NOW, just using last hit!
-				--slmod.info('lastHitEvent')
-                --slmod.info(slmod.oneLineSerialize(lastHitEvent))
+				slmod.info('validHits')
+                slmod.info(slmod.oneLineSerialize(validHits))
                 local deadObjData = {}
                 local dStat = {}
                 local ducid, dtypeName = {}, {}
@@ -1458,6 +1490,7 @@ end]]
                 
                 -- Only do dead check stuff once, cause it only died once.
                 for i = 1, #validHits do
+                    slmod.info(i)
                     local lHit = validHits[i]
                     local killerObj = lHit.initiator
                     local killerObjType = 'unknown'
@@ -1467,7 +1500,7 @@ end]]
                     local weapon = lHit.weapon
                     local saveStat = {}
                     local ucid, typeName = {}, {}
-                    --slmod.info('getInitiator Data')
+                    slmod.info('getInitiator Data')
                     if type(lHit.initiator) == 'table' then 
                         for seat, data in pairs(lHit.initiator) do
                             ucid[seat] = data.ucid
@@ -1495,7 +1528,7 @@ end]]
                                     slmod.stats.advChangeStatsValue(saveStat)
                                     
                                     if slmod.config.kd_specifics == true then
-                                        saveStat.nest = getNest({'kills', deadStatsCat, deadObjType})
+                                        saveStat.nest = getNest({'kL', 'objects', deadObjType})
                                         slmod.stats.advChangeStatsValue(saveStat)
                                     end
                                     
@@ -1517,7 +1550,7 @@ end]]
                                         slmod.stats.advChangeStatsValue(saveStat)
                                         
                                         if slmod.config.kd_specifics == true then
-                                            saveStat.nest = getNest({'weapons', weapon, 'kL', deadStatsCat, deadObjType})
+                                            saveStat.nest = getNest({'weapons', weapon, 'spec', 'kills', deadObjType})
                                             slmod.stats.advChangeStatsValue(saveStat)
                                         end
                                     end
@@ -1525,7 +1558,7 @@ end]]
                                 --slmod.stats.changeStatsValue(stats[deadClientUCID[i]].losses, 'crash', stats[deadClientUCID[i]].losses.crash + 1)
                                 --slmod.info('check if target was player')
                                 if deadClient then
-                                    --slmod.info('Target was a player')
+                                    slmod.info('Target was a player')
                                     dStat.nest = getNest({'actions', 'losses'})
                                     dStat.addValue = {crash = 1}
                                     dStat.default = {crash = 0, eject = 0, pilotDeath = 0}
@@ -1535,7 +1568,7 @@ end]]
                                 
                                 
                                 --- DO PVP STUFF
-                                
+                                    slmod.info('pvp stuff')
                                     if lHit.inAirHit or lHit.inAirHit == nil then
                                         --slmod.info('Do PvP Rules')
                                         --slmod.info('lastHitEvent.inAirHit: '  .. tostring(lastHitEvent.inAirHit))
@@ -1558,7 +1591,7 @@ end]]
                                     end
                                 end
                             else -- teamkilled 
-                                --slmod.info('was a TK')
+                                slmod.info('was a TK')
                                 saveStat.penalty = true 
                                 if weapon == 'kamikaze' then
                                     saveStat.nest = 'friendlyCollisionKills'
@@ -1580,7 +1613,7 @@ end]]
                                 --onFriendlyKill(killerObj, deadObjData, weapon)
                             end
                         elseif type(killerObj) == 'string' then  -- AI hit them
-                            --slmod.info('player hit by AI')
+                            slmod.info('player hit by AI')
                             dStat.nest = getNest({'actions', 'losses'})
                             dStat.default = {crash = 0, eject = 0, pilotDeath = 0}
                             dStat.addValue = {crash = 1}
@@ -1592,31 +1625,41 @@ end]]
                                 slmod.warning('SlmodStats- hitter (' .. tostring(killerObj) .. ') is not an SlmodClient, and dead unit (unitName = ' .. tostring(deadName) .. ') is not an SlmodClient!')
                             end
                         end
-                        
-                        -- Add detailed loss to player here
-                        dStat.nest = getNest({'deaths', killerCat})
-                        dStat.addValue = 1
-                
-                        if slmod.config.kd_specifics == true then
-                            dStat.nest = getNest({'deaths', killerCat, killerObjType})
-                            dStat.addValue = {weapon = 1}
-                            slmod.stats.advChangeStatsValue(dStat)
+                        slmod.info('check for death stats')
+                        --Add detailed loss to player here
+                        if deadClient then 
+                            dStat.nest = getNest({'deaths', killerCat})
+                            dStat.addValue = 1
+                            dStat.default = 0
+                            if slmod.config.kd_specifics == true then
+                                dStat.nest = getNest({'deaths', killerCat, killerObjType})
+                                dStat.addValue = {weapon = 1}
+                                slmod.stats.advChangeStatsValue(dStat)
+                            end
                         end
-                        
-                        
+                        slmod.info('end of kill stats')
                     else -- add assist
+                        slmod.info('in assist')
                         if weapon then
+                            slmod.info('weapon')
                             saveStat.nest = getNest({'weapons', weapon})
                             saveStat.addValue = {assist = 1}
                             saveStat.default = {shot = 0, hit = 0, numHits = 0, kills = 0, assist = 0}
                             slmod.stats.advChangeStatsValue(saveStat)
                             
                             if slmod.config.assists_level == 2 then
-                                saveStat.nest = getNest({'weapons', weapon, 'aL', deadStatsCat, deadObjType})
-                                slmod.stats.advChangeStatsValue(saveStat)
+                                saveStat.nest = getNest({'weapons', weapon, 'aL', deadStatsCat, deadStatsType})
+                                saveStat.default = 0
+                                saveStat.addValue = 1
+                                slmod.stats.advChangeStatsValue(saveStat, true)
+                                if slmod.config.kd_specifics == true then
+                                    saveStat.nest = getNest({'weapons', weapon, 'spec', 'assists', deadObjType})
+                                    slmod.stats.advChangeStatsValue(saveStat, true)
+                                end
                             end
                             
-                        end    
+                        end 
+                        slmod.info('end of assist')
                     end
                 end
                 

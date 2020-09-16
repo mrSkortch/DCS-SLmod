@@ -304,7 +304,12 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 						
 						local lUnitsBase = slmod.activeUnitsBase
 						lUnitsBase[#lUnitsBase + 1] = slmod.deepcopy(newUnit)
-						slmod.allMissionUnitsByName[newUnit.name] = slmod.deepcopy(newUnit)
+                        if not newUnit.name then
+                            slmod.info('temp_event has no unitName')
+                            slmod.info(slmod.oneLineSerialize(temp_event))
+                        else
+                            slmod.allMissionUnitsByName[newUnit.name] = slmod.deepcopy(newUnit)
+                        end
 						slmod.allMissionUnitsById[newUnit.unitId] = slmod.deepcopy(newUnit)
                         
                         local s = table.concat({'slmod = slmod or {}\n', 'slmod.allMissionUnitsById[', slmod.oneLineSerialize(newUnit.unitId), '] = ', slmod.oneLineSerialize(newUnit)})
@@ -967,6 +972,7 @@ do
 		end
 		
 		------ birth logic
+        local checkAddEvent = true
 		if slmod.rawEvents then -- and #slmod.rawEvents > 2 then
 			--env.info('check birth event')
             if event.id == world.event.S_EVENT_BIRTH then -- Event births occuring after mission start
@@ -975,11 +981,15 @@ do
                 if ((Object.getCategory(lunit) == 1 and not lunit:getPlayerName()) or Object.getCategory(lunit) ~= 1) then -- only run logic on non clients
 					--env.info('c1')
 					newEvent = addToDB(event.initiator)				
-				end
+				else
+                    checkAddEvent = false
+                end
 			end
 		end
-		table.insert(slmod.rawEvents, newEvent)
+        if checkAddEvent == true then 
+            table.insert(slmod.rawEvents, newEvent)
 		--env.info('running old_onEvent')
+        end
 		return slmod.old_onEvent(event)
 	end
 	

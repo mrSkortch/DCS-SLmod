@@ -1,7 +1,4 @@
 do
-	--[[ todo:
-	"forgive player" menu
-	]]
 
 	local stats = slmod.stats.getStats()
     local penStats = slmod.stats.getPenStats()
@@ -11,6 +8,7 @@ do
     
     local penaltyCheckActive = false
     
+     
     local function getPlayerNamesString(clients)
         local names = {}
         for cIndex, cData in pairs(clients) do
@@ -101,7 +99,7 @@ do
 	local function autoAdminScore(ucid, det, tUCID)
 		--slmod.info('getAutoAdminScore')
         local function scorePilot(ucid, detailed, tUCID) -- this will contain all the logic.  autoAdminScore calls this function with pcall.
-			--slmod.info('scoring pilot: ' .. tostring(ucid))
+			slmod.info('scoring pilot: ' .. tostring(ucid))
 			local toDays = function(s)
 				return math.abs(s/(24*3600))
 			end
@@ -139,11 +137,18 @@ do
                     return (time - t1)*slope + w1
 				end
 			end
-			if stats[ucid] and stats[ucid].friendlyKills and not penStats[ucid] then
+			if stats and stats[ucid] and stats[ucid].friendlyKills and not penStats[ucid] then
                 slmod.stats.createPlayerPenaltyStats(ucid)
             end
 		
-			local pStats = penStats[ucid]
+			if penStats then
+                slmod.info('penStats exist')
+            end
+            if not penStats[ucid] then
+                return 0
+            end
+            
+            local pStats = penStats[ucid]
             local d = {penalties = {[1] = {time = math.huge, type = 'ERASEME'}}, misc = {}}
             --[[
             penalties = {[1] = {type = teamHit, player = {if applicable}, time, pointsAdded, expireTime}}
@@ -473,7 +478,7 @@ do
 		end
 		return true  -- allow connection
 	end
-	
+	slmod.info('func onOffense')
 	-- called on every potentially kickable/bannable offense. 
 	function slmod.autoAdminOnOffense(clients, scoreAdded)  -- client is a slmod.client.
 		--slmod.info('running slmod.autoAdminOnOffense; client = ' .. slmod.oneLineSerialize(clients))
