@@ -1293,7 +1293,7 @@ do
         local tbl = {}
         tbl[1] = 'slmod.set_campaign_net'
         tbl[2] = name
-        tbl[2] = new
+        tbl[3] = new
         
         addUDPData(tbl)
     end

@@ -203,17 +203,17 @@ do
                 maxClients
     
     ]]
-    local function startCampaign(cName)
-    
-    
-    end
     
     
     function slmod.set_campaign_net(cName, reset)
+        slmod.info('start campaign')
+        slmod.info(cName)
         if not metaStats.campaigns then
+            slmod.info('create campaigns')
             slmod.stats.changeMetaStatsValue(metaStats, 'campaigns', {})
         end
         if not metaStats.campaigns[cName] then
+            slmod.info('create: '.. cName)
             slmod.stats.changeMetaStatsValue(metaStats.campaigns, cName, {})
             slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName], 'stats', {})
             --slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].stats, 'clients', 0)
@@ -222,20 +222,19 @@ do
         
         if reset or not metaStats.campaigns[cName].activeFile then
             if reset and metaStats.campaigns[cName].activeFile then -- Reset an existing campaign
-                activeCampaign = cName .. os.date('%b %d, %Y at %H %M %S') .. '.lua'
+                activeCampaign = cName .. ' ' .. os.date('%b %d, %Y at %H %M %S') .. '.lua'
                 
             else   -- new campaign is created 
-                activeCampaign = cName .. os.date('%b %d, %Y at %H %M %S') .. '.lua'
+                activeCampaign = cName .. ' ' .. os.date('%b %d, %Y at %H %M %S') .. '.lua'
                 slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName], 'activeFile', activeCampaign)
-                slmod.stats.resetFile('camp', activeCampaign)
             end
         
         else   -- load previous campaign
             activeCampaign = metaStats.campaigns[cName].activeFile
-            slmod.stats.resetFile('camp', activeCampaign)
         end
-        
-        
+        if activeCampaign then 
+            slmod.stats.startCampaign(activeCampaign)
+        end
         
     end
     
