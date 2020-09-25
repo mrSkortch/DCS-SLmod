@@ -12,6 +12,7 @@ do
     --local metaStatsF = io.open(statsDir .. '\\SlmodMetaStats.lua', 'w')
     local mizName
     local theatreName
+    local campaignName
     
     local activeCampaign
     
@@ -34,6 +35,9 @@ do
 	-- call this function each time a value in stats needs to be changed...
 	-- t: the table in metaStats that this value belongs under
 	function slmod.stats.changeMetaStatsValue(t, key, newValue)
+        --slmod.info('write val')
+        --slmod.info(slmod.oneLineSerialize(key))
+        --slmod.info(slmod.oneLineSerialize(newValue))
         if not t then
 			slmod.error('Invalid metaStats table specified!')
 			return
@@ -179,6 +183,15 @@ do
             if count > metaStats.mapStats[theatreName].maxClients then
                 slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'maxClients', count)  
             end
+            
+            local numCamps = #metaStats.campaigns[campaignName].stats
+            slmod.info(numCamps)
+            if campaignName and  metaStats.campaigns[campaignName] and  metaStats.campaigns[campaignName].stats and  metaStats.campaigns[campaignName].stats and metaStats.campaigns[campaignName].stats[numCamps] then
+               if count > metaStats.campaigns[campaignName].stats[numCamps].maxClients then 
+                    slmod.stats.changeMetaStatsValue(metaStats.campaigns[campaignName].stats[numCamps], 'maxClients', count)  
+               end
+         
+            end
         end
 
 
@@ -203,6 +216,7 @@ do
                 maxClients
     
     ]]
+
     
     
     function slmod.set_campaign_net(cName, reset)
@@ -216,26 +230,41 @@ do
             slmod.info('create: '.. cName)
             slmod.stats.changeMetaStatsValue(metaStats.campaigns, cName, {})
             slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName], 'stats', {})
+            slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].stats, 1, {})
+            slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].stats[1], 'startDate', os.date('%b %d, %Y at %H %M %S'))
+            slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].stats[1], 'maxClients', 0)
+            
             --slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].stats, 'clients', 0)
             slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName], 'missionNames', {})
+            slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].missionNames, mizName, 1)
         end
         
         if reset or not metaStats.campaigns[cName].activeFile then
             if reset and metaStats.campaigns[cName].activeFile then -- Reset an existing campaign
+                slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].stats[#metaStats.campaigns[cName].stats], 'endDate', os.date('%b %d, %Y at %H %M %S'))
+                slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].stats[#metaStats.campaigns[cName].stats + 1], #metaStats.campaigns[cName].stats + 1, {})
+                slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].stats[#metaStats.campaigns[cName].stats], 'startDate', os.date('%b %d, %Y at %H %M %S'))
+                slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].stats[#metaStats.campaigns[cName].stats], 'maxClients', 0)
                 activeCampaign = cName .. ' ' .. os.date('%b %d, %Y at %H %M %S') .. '.lua'
-                
             else   -- new campaign is created 
                 activeCampaign = cName .. ' ' .. os.date('%b %d, %Y at %H %M %S') .. '.lua'
                 slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName], 'activeFile', activeCampaign)
             end
-        
+            slmod.info('create stats')
+            
         else   -- load previous campaign
+            if mizName then -- cant be to careful
+                if not metaStats.campaigns[cName].missionNames[mizName] then
+                    slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].missionNames, mizName, 0)
+                end
+                slmod.stats.changeMetaStatsValue(metaStats.campaigns[cName].missionNames, mizName, metaStats.campaigns[cName].missionNames[mizName] +  1)
+            end
             activeCampaign = metaStats.campaigns[cName].activeFile
         end
         if activeCampaign then 
             slmod.stats.startCampaign(activeCampaign)
         end
-        
+        campaignName = cName
     end
     
     

@@ -3,23 +3,30 @@ do
 
 
 -- Additional functions for interfacing with private stats data.
-	function slmod.stats.getStats()
-		return stats
-	end
-    function slmod.stats.getPenStats()
-        return penStats
-    end
-    function slmod.stats.getUserPenStats(ucid)
-        if penStats[ucid] then
-            return penStats[ucid]
-        end
-    end
-    function slmod.stats.getUserStats(ucid)
-        if stats[ucid] then
-            return stats[ucid]
-        end
-    end
 	-- ***BEGINNING OF STATS USER INTERFACE***
+    local stats
+    local penStats
+    local misStats
+    local campStats
+    
+    function slmod.stats.displayInit()
+        stats = slmod.stats.getStats()
+        penStats = slmod.stats.getPenStats()
+        misStats = slmod.stats.getMisStats()
+        campStats = slmod.stats.getCampaignStats()
+    end
+    
+    
+    local function checkStatsMode(requesterMode)
+        local rtnStats = stats
+        if requesterMode == 'mission' and misStats then
+            rtnStats = misStats
+        elseif requesterMode == 'campaign' and misStats then
+            rtnStats = campStats
+        end
+        return rtnStats
+    end
+    
     
     local commonStatTbl = {
     ['Ground Units'] =  {['SAM'] = 0,['AAA'] = 0,['EWR'] = 0, ['Arty/MLRS'] = 0, ['Infantry'] = 0, ['Tanks'] = 0, ['IFVs'] = 0,['APCs'] = 0, ['Unarmored'] = 0, ['Forts'] = 0, ['Other'] = 0, ['total'] =0, },
@@ -100,6 +107,18 @@ do
                                 killList[cat] = killList[cat] + catData.total
                             end
                         end                    
+                    end
+                    if times.weapons then
+                        for wepName, wepData in pairs(times.weapon) do
+                            if wepData.kL then
+                                for cat, catData in pairs(wepData.kL) do
+                                    if killList[cat] then
+                                        killList[cat] = killList[cat] + catData.total
+                                    end
+                                end 
+                            end
+                        end
+                    
                     end
                     if times.action then 
                         if times.actions.losses then
@@ -188,7 +207,11 @@ do
 			end
 			if pStats then
                 ----slmod.info('in pStats') 
-				local p1Tbl = {}  -- faster to use table.concat.
+				local acStats
+                if ac and pStats.times[ac] then
+                    acStats = pStats.times[ac]
+                end
+                local p1Tbl = {}  -- faster to use table.concat.
 				p1Tbl[#p1Tbl + 1] = 'Stats for player: "'
 				p1Tbl[#p1Tbl + 1] = pStats.names[#pStats.names]
 				p1Tbl[#p1Tbl + 1] = '", SlmodStats ID# '
@@ -266,6 +289,23 @@ do
                             end
                         end
                     end   
+                end
+                
+                if pStats.weapons then
+                    for wepName, wepData in pairs(pStats.weapons) do
+                        if wepData.kL then
+                            for cat, catData in pairs(wepData.kL) do
+                                if killList[cat] and type(catData) == 'table' then
+                                    for killType, killNum in pairs(catData) do
+                                        if killList[cat][killType] then
+                                           killList[cat][killType] = killList[cat][killType] + killNum -- add to the killType
+                                        end                                    
+                                    end
+                                end
+                            end    
+                        end
+                    end
+                
                 end
 				local vehicleKillsStrings = makeKillsColumn(killList['Ground Units'])
 				local planeKillsStrings = makeKillsColumn(killList.Planes)
@@ -385,6 +425,40 @@ do
 				p1Tbl[#p1Tbl + 1] = ';  Pilot Deaths: '
 				p1Tbl[#p1Tbl + 1] = tostring(losses.pilotDeath)
 				p1Tbl[#p1Tbl + 1] = ';\n\n'
+                
+                
+                if ac then
+                    if acStats.actions and acStats.actions.LSO then -- LSO display, only show if doing aircraft specific stats
+                        for i = 1, 5 do -- Forrestal has 5 wires...
+                            if acStats.actions.LSO[tostring(i)] then
+                                p1Tbl[#p1Tbl + 1] = 'WIRE: #'
+                                p1Tbl[#p1Tbl + 1] = i
+                                p1Tbl[#p1Tbl + 1] = '  x'
+                                p1Tbl[#p1Tbl + 1] = acStats.actions.LSO[tostring(i)]
+                                p1Tbl[#p1Tbl + 1] = '     \n'
+                            end
+                        
+                        end
+                        if acStats.actions.LSO.grades and #acStats.actions.LSO.grades > 0 then
+                            local count = 0
+                            p1Tbl[#p1Tbl + 1] = 'Up to 5 most recent landing scores\n'
+                            for i = #acStats.actions.LSO.grades, 1, -1 do
+                                count = count + 1
+                                if count <= 5 then 
+                                    p1Tbl[#p1Tbl + 1] = '\n'
+                                    p1Tbl[#p1Tbl + 1] = tostring(count)
+                                    p1Tbl[#p1Tbl + 1] = ':'
+                                    p1Tbl[#p1Tbl + 1] = acStats.actions.LSO.grades[i]
+                                else
+                                    break
+                                end
+                            end
+                        
+                        
+                        end
+                        
+                    end
+                end
 				-- END OF FIRST PAGE
 				---------------------------------------
 				--slmod.info('page 2') 
@@ -480,7 +554,7 @@ do
 			}, 
 			items = statsItems,
 			modesByUcid = {}, -- keeps track of 'mission' or 'server' stats modes for players.
-			statsModes = {'mission', 'server'},
+			statsModes = {'mission', 'server', 'campaign'},
 		}
 		
 		-- Not necessarily the best way to do this...
@@ -552,10 +626,8 @@ do
 			
 			-- get stats for all currently connected players.
 			local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
-			local statsToUse = stats
-			if requesterMode and requesterMode == 'mission' and slmod.config.enable_mission_stats then
-				statsToUse = misStats
-			end
+			local statsToUse = checkStatsMode(requesterMode)
+
 			
 			local playerStats = {}
 			for id, clientInfo in pairs(slmod.clients) do
@@ -703,8 +775,8 @@ do
 				if stats[requester.ucid] then  -- this check invalid if server stats ever optionally disabled.
 					
 					local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
-				
-					local page1, page2 = createDetailedStats(requester.ucid, requesterMode)
+                    local statsToUse = checkStatsMode(requesterMode)
+					local page1, page2 = createDetailedStats(statsToUse[requester.ucid], requesterMode)
 					if page1 and page2 then
 						slmod.scopeMsg(page1, self.options.display_time/2, self.options.display_mode, {clients = {clientId}})
 						slmod.scheduleFunction(slmod.scopeMsg, {page2, self.options.display_time/2, self.options.display_mode, {clients = {clientId}}}, DCS.getModelTime() + self.options.display_time/2)
@@ -767,10 +839,9 @@ do
 				local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
 				----slmod.info('stats byId select')
                 ----slmod.info(pId)
-				local statsToUse = stats
-				if requesterMode and requesterMode == 'mission' and slmod.config.enable_mission_stats then
-					statsToUse = misStats
-				end
+                local statsToUse = checkStatsMode(requesterMode)
+
+
 
 				for ucid, pStats in pairs(statsToUse) do -- this is inefficient- maybe I need to make a stats by id table.
 					if type(pStats) == 'table' and pStats.id and pStats.id == pId then  -- found the id#.
@@ -895,10 +966,8 @@ do
 				--slmod.info('full stats id') 
 				local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
 	
-				local statsToUse = stats
-				if requesterMode and requesterMode == 'mission' and slmod.config.enable_mission_stats then
-					statsToUse = misStats
-				end
+                local statsToUse = checkStatsMode(requesterMode)
+
                 --slmod.info(pId) 
 				for ucid, pStats in pairs(statsToUse) do -- this is inefficient- maybe I need to make a stats by id table.
 					if type(pStats) == 'table' and pStats.id and pStats.id == pId then  -- found the id#.
@@ -967,10 +1036,8 @@ do
 					if client.name and client.name == vars.playerName then
 						
 						local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
-						local statsToUse = stats
-						if requesterMode and requesterMode == 'mission' and slmod.config.enable_mission_stats then
-							statsToUse = misStats
-						end
+                        local statsToUse = checkStatsMode(requesterMode)
+
 					
 						if client.ucid and statsToUse[client.ucid] then
 							local page1, page2 = createDetailedStats(statsToUse[client.ucid])
@@ -1103,65 +1170,65 @@ do
 		
 		---------------------------------------------------------------------------------------------------------------------------------------
 		
-		if slmod.config.enable_mission_stats then
+		
 			---------------------------------------------------------------------------------------------------------------------------------------
-			-- Eighth item, -stats mode switch
-			local statsModeSwitchVars = {}
-			statsModeSwitchVars.menu = SlmodStatsMenu
-			statsModeSwitchVars.description = 'Say in chat "-stats mode" to cycle between different stats modes (such as "server" or "mission").'
-			statsModeSwitchVars.active = true
-			statsModeSwitchVars.options = {
-				display_mode = 'chat', 
-				display_time = 1, 
-				privacy = {
-					access = true, 
-					show = true
-				}
-			}
-			statsModeSwitchVars.selCmds = {
-				[1] = {
-					[1] = { 
-						type = 'word', 
-						text = '-stat',
-						required = true
-					}, 
-					[2] = { 
-						type = 'word', 
-						text = 'mod',
-						required = true
-					}, 
-					[3] = { 
-						type = 'word', 
-						text = 'swit',
-						required = false
-					}, 
-				}				
-			} 
-			
-			statsModeSwitchVars.onSelect = function(self, vars, clientId)
-				local clientModes = self:getMenu().modesByUcid
-				local statsModes = self:getMenu().statsModes
-				local clientUcid = slmod.clients[clientId].ucid
-				local curMode = clientModes[clientUcid] or 'server'
-				
-				-- find next mode.. this code cycles through them.
-				local modeNum = 1
-				for i = 1, #statsModes - 1 do
-					if statsModes[i] == curMode then
-						modeNum = i + 1
-						break
-					end
-				end
-				
-				local newMode = statsModes[modeNum]
-				clientModes[clientUcid] = newMode -- changes it in modesByUcid.
-				slmod.scopeMsg('Stats mode switched to ' .. newMode, self.options.display_time, self.options.display_mode, {clients = {clientId}})
-			end
-			
-			statsItems[#statsItems + 1] = SlmodMenuItem.create(statsModeSwitchVars)
+        -- Eighth item, -stats mode switch
+        local statsModeSwitchVars = {}
+        statsModeSwitchVars.menu = SlmodStatsMenu
+        statsModeSwitchVars.description = 'Say in chat "-stats mode" to cycle between different stats modes (such as "server" or "mission").'
+        statsModeSwitchVars.active = true
+        statsModeSwitchVars.options = {
+            display_mode = 'chat', 
+            display_time = 1, 
+            privacy = {
+                access = true, 
+                show = true
+            }
+        }
+        statsModeSwitchVars.selCmds = {
+            [1] = {
+                [1] = { 
+                    type = 'word', 
+                    text = '-stat',
+                    required = true
+                }, 
+                [2] = { 
+                    type = 'word', 
+                    text = 'mod',
+                    required = true
+                }, 
+                [3] = { 
+                    type = 'word', 
+                    text = 'swit',
+                    required = false
+                }, 
+            }				
+        } 
+        
+        statsModeSwitchVars.onSelect = function(self, vars, clientId)
+            local clientModes = self:getMenu().modesByUcid
+            local statsModes = self:getMenu().statsModes
+            local clientUcid = slmod.clients[clientId].ucid
+            local curMode = clientModes[clientUcid] or 'server'
+            
+            -- find next mode.. this code cycles through them.
+            local modeNum = 1
+            for i = 1, #statsModes - 1 do
+                if statsModes[i] == curMode then
+                    modeNum = i + 1
+                    break
+                end
+            end
+            
+            local newMode = statsModes[modeNum]
+            clientModes[clientUcid] = newMode -- changes it in modesByUcid.
+            slmod.scopeMsg('Stats mode switched to ' .. newMode, self.options.display_time, self.options.display_mode, {clients = {clientId}})
+        end
+        
+        statsItems[#statsItems + 1] = SlmodMenuItem.create(statsModeSwitchVars)
 			
 			---------------------------------------------------------------------------------------------------------------------------------------
-		end
+		
 		
 		
 	end

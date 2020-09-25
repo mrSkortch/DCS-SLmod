@@ -116,9 +116,7 @@ do
 			return table.concat(tbl_str)
 		end
 	end
-	if oneLineSerialize then
-        env.info('one line exists')
-    end
+
 	-- global function to create string for viewing the contents of a table -NOT for serialization
 	function slmod.tableshow(tbl, loc, indent, tableshow_tbls) --based on slmod.serialize, this is a _G serialization
 		tableshow_tbls = tableshow_tbls or {} --create table of tables

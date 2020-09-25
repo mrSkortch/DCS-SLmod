@@ -93,7 +93,7 @@ slmod.config = slmod.config or {}
 slmod.version = '7_6'  -- file directory
 
 slmod.mainVersion = '7_6'  -- so far, these are only used in MOTD and some load scripts.
-slmod.buildVersion = '132'  
+slmod.buildVersion = '133'  
 
 slmod.configVersion = '28'  -- as new options as are added to SlmodConfig, this will change.
 
@@ -186,20 +186,16 @@ do
         defF = nil
 
         if defSettings then
-            net.log('def settings')
         	local defaultConfigFunc, err1 = loadstring(defSettings)
             if defaultConfigFunc then
-                net.log('load string settings')
                 setfenv(defaultConfigFunc, def)
                 local bool, err2 = pcall(defaultConfigFunc)
                 if not bool then
                     net.log(tostring(err2))
                 end
-                net.log('sen fenv')
                 defaultConfigFunc()
-                net.log('done')
             else
-                 net.log(tostring(err1))
+                net.log(tostring(err1))
             end
         end
     end
@@ -503,9 +499,9 @@ do
 				slmod.error('unable to load config settings, reason: ' .. tostring(err2))
 			else
 				slmod.info('using settings defined in ' .. config_dir .. 'config.lua')
-                --check = false
+                check = false
 			end
-			if slmod.config.configVersion ~= def.configVersion then  -- old settings
+			if def and def.configVersion and slmod.config.configVersion ~= def.configVersion then  -- old settings
 				slmod.warning('config version is old.  Loading new config version.')
                 check = true
                 verify = true

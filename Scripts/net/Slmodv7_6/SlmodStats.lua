@@ -378,7 +378,10 @@ do
                     local lEntry = slmod.deepcopy(nest)
                     local mEntry = slmod.deepcopy(nest)
                     
-                    local cStats = campStats[useUcid[j]]
+                    local cStats 
+                    if campStats and campStats[useUcid[j]] then
+                        cStats = campStats[useUcid[j]]
+                    end
                     local cEntry = slmod.deepcopy(nest)
                     
                     local default = slmod.deepcopy(def)
@@ -1606,7 +1609,7 @@ end]]
                     if lHit.weapon then
                         --slmod.info('weapon: ' .. lHit.weapon)
                         if not hitsByType[lHit.weapon] then -- create list by weapon 
-                            slmod.info('create weapon')
+                            --slmod.info('create weapon')
                             hitsByType[lHit.weapon] = {}
                         end
                         if lHit.initiator then
@@ -1618,7 +1621,7 @@ end]]
                                 hitsByType[lHit.weapon][lId] = {}
                             end
                             if not hitsByType[lHit.weapon][lId][lHit.shotFrom] then -- then check the object type. 
-                                slmod.info('add valid hit')
+                                --slmod.info('add valid hit')
                                 hitsByType[lHit.weapon][lId][lHit.shotFrom] = true
                                 validHits[#validHits+1] = lHit
                             end
@@ -1733,29 +1736,29 @@ end]]
                                     
                                     if slmod.config.kd_specifics == true then
                                         saveStat.nest = getNest({'kL', 'objects', deadObjType})
-                                        slmod.stats.advChangeStatsValue(saveStat, true)
+                                        slmod.stats.advChangeStatsValue(saveStat)
                                     end
                                     
                                     -- Add to total Kills for a given category
                                     saveStat.nest = getNest({'kills', deadStatsCat, 'total'})
-                                    slmod.stats.advChangeStatsValue(saveStat, true)
+                                    slmod.stats.advChangeStatsValue(saveStat)
                                 end
                                 
                                 if weapon then
                                     saveStat.nest = getNest({'weapons', weapon})
                                     saveStat.addValue = {kills = 1}
                                     saveStat.default = {shot = 0, hit = 0, numHits = 0, kills = 0, assist = 0}
-                                    slmod.stats.advChangeStatsValue(saveStat, true)
+                                    slmod.stats.advChangeStatsValue(saveStat)
                                     
                                     if slmod.config.stats_level == 2 then
                                         saveStat.nest = getNest({'weapons', weapon, 'kL', deadStatsCat, deadStatsType})
                                         saveStat.addValue = 1
                                         saveStat.default =  0
-                                        slmod.stats.advChangeStatsValue(saveStat, true)
+                                        slmod.stats.advChangeStatsValue(saveStat)
                                         
                                         if slmod.config.kd_specifics == true then
                                             saveStat.nest = getNest({'weapons', weapon, 'spec', 'kills', deadObjType})
-                                            slmod.stats.advChangeStatsValue(saveStat, true)
+                                            slmod.stats.advChangeStatsValue(saveStat)
                                         end
                                     end
                                 end    
@@ -1875,10 +1878,10 @@ end]]
                                 saveStat.nest = getNest({'weapons', weapon, 'aL', deadStatsCat, deadStatsType})
                                 saveStat.default = 0
                                 saveStat.addValue = 1
-                                slmod.stats.advChangeStatsValue(saveStat, true)
+                                slmod.stats.advChangeStatsValue(saveStat)
                                 if slmod.config.kd_specifics == true then
                                     saveStat.nest = getNest({'weapons', weapon, 'spec', 'assists', deadObjType})
-                                    slmod.stats.advChangeStatsValue(saveStat, true)
+                                    slmod.stats.advChangeStatsValue(saveStat)
                                 end
                             end
                             
@@ -1960,7 +1963,7 @@ end]]
                                             if seatId > 0 then
                                                 typeName = multiCrewNameCheck(typeName, seatId)
                                             end
-                                            slmod.stats.advChangeStatsValue({ucid = client.ucid, nest = {'times', typeName}, addValue = {total = dt, inAir = dt}, default = {total = 0, inAir = 0}}, true)
+                                            slmod.stats.advChangeStatsValue({ucid = client.ucid, nest = {'times', typeName}, addValue = {total = dt, inAir = dt}, default = {total = 0, inAir = 0}})
 
                                             metaFlightTime = metaFlightTime + dt
                                             
@@ -2144,7 +2147,7 @@ end]]
                                 if isGun == true then
                                     saveStat.default.gun = true
                                 end
-                                slmod.stats.advChangeStatsValue(saveStat, true)
+                                slmod.stats.advChangeStatsValue(saveStat)
                                     
                                 if initClient then 
                                     humanShots[event.initiator] = weapon   -- for this initiator, store the name of the last weapon fired.
@@ -2689,6 +2692,18 @@ end]]
             return stats[ucid]
         end
     end
+    
+    function slmod.stats.getMisStats()
+        if misStats then
+            return misStats
+        end
+    end
+    
+    function slmod.stats.getCampaignStats()
+        if campStats then
+            return campStats
+        end
+    end
 	
     function slmod.custom_stats_net(saveStat)
          -- Formatted in advanced save tbl.
@@ -2751,7 +2766,7 @@ end]]
             end
             if #saveStat.ucid > 0 and saveStat.nest and (saveStat.insert or saveStat.addValue or saveStat.setValue) then
                 saveStat.unit = nil
-                slmod.stats.advChangeStatsValue(saveStat, true)
+                slmod.stats.advChangeStatsValue(saveStat)
             end
         
         end       
