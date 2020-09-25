@@ -257,6 +257,28 @@ do
                             end
                         end                    
                     end
+                    
+                    if pStats.times[platforms[i]].weapons then 
+                        for wepName, wepData in pairs(pStats.times[platforms[i]].weapons) do
+                            --slmod.info(wepName)
+                            if wepData.kL then
+                                --slmod.info('killList')
+                                for cat, catData in pairs(wepData.kL) do
+                                    --slmod.info(cat)
+                                    if killList[cat] and type(catData) == 'table' then
+                                        for killType, killNum in pairs(catData) do
+                                            --slmod.info(killType)
+                                            --slmod.info(killNum)
+                                            if killList[cat][killType] then
+                                               killList[cat][killType] = killList[cat][killType] + killNum -- add to the killType
+                                            end                                    
+                                        end
+                                    end
+                                end    
+                            end
+                        end
+                    end
+                    
                     --slmod.info('actions')
                     if pStats.times[platforms[i]].actions then 
                         --slmod.info('losses')
@@ -293,10 +315,15 @@ do
                 
                 if pStats.weapons then
                     for wepName, wepData in pairs(pStats.weapons) do
+                        slmod.info(wepName)
                         if wepData.kL then
+                            slmod.info('killList')
                             for cat, catData in pairs(wepData.kL) do
+                                slmod.info(cat)
                                 if killList[cat] and type(catData) == 'table' then
                                     for killType, killNum in pairs(catData) do
+                                        slmod.info(killType)
+                                        slmod.info(killNum)
                                         if killList[cat][killType] then
                                            killList[cat][killType] = killList[cat][killType] + killNum -- add to the killType
                                         end                                    
@@ -435,19 +462,19 @@ do
                                 p1Tbl[#p1Tbl + 1] = i
                                 p1Tbl[#p1Tbl + 1] = '  x'
                                 p1Tbl[#p1Tbl + 1] = acStats.actions.LSO[tostring(i)]
-                                p1Tbl[#p1Tbl + 1] = '     \n'
+                                p1Tbl[#p1Tbl + 1] = '     '
                             end
                         
                         end
                         if acStats.actions.LSO.grades and #acStats.actions.LSO.grades > 0 then
                             local count = 0
-                            p1Tbl[#p1Tbl + 1] = 'Up to 5 most recent landing scores\n'
+                            p1Tbl[#p1Tbl + 1] = '\nUp to 5 most recent landing scores\n'
                             for i = #acStats.actions.LSO.grades, 1, -1 do
                                 count = count + 1
                                 if count <= 5 then 
-                                    p1Tbl[#p1Tbl + 1] = '\n'
+                                    p1Tbl[#p1Tbl + 1] = '\n   '
                                     p1Tbl[#p1Tbl + 1] = tostring(count)
-                                    p1Tbl[#p1Tbl + 1] = ':'
+                                    p1Tbl[#p1Tbl + 1] = ': '
                                     p1Tbl[#p1Tbl + 1] = acStats.actions.LSO.grades[i]
                                 else
                                     break

@@ -99,7 +99,7 @@ do
 	local function autoAdminScore(ucid, det, tUCID)
 		--slmod.info('getAutoAdminScore')
         local function scorePilot(ucid, detailed, tUCID) -- this will contain all the logic.  autoAdminScore calls this function with pcall.
-			slmod.info('scoring pilot: ' .. tostring(ucid))
+			--slmod.info('scoring pilot: ' .. tostring(ucid))
 			local toDays = function(s)
 				return math.abs(s/(24*3600))
 			end
@@ -141,9 +141,6 @@ do
                 slmod.stats.createPlayerPenaltyStats(ucid)
             end
 		
-			if penStats then
-                slmod.info('penStats exist')
-            end
             if not penStats[ucid] then
                 return 0
             end

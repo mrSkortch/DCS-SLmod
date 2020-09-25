@@ -791,7 +791,12 @@ do
                 end
 			end
 		end
-
+        
+        
+        if campStatsActive == true then -- disables campaign stats, needs to be renabled by the mission that gets loaded
+            campStatsActive = false
+            campStats = nil
+        end
   	end
 	-- **END OF MISSION STATS**
 	-------------------------------------------------------------------------------------------------------------------
@@ -1290,6 +1295,25 @@ end]]
 						end
 					end
 				end
+                --[[
+                if pStats.times then
+                    for typeName, typeData in pairs(pStats.times) do
+                        if typeData.kills then -- fix kill totals
+                        
+                        end
+                        if typeData.weapons then
+                            for wepName, wepData in pairs(typeData.weapons) do
+                                if wepData.kL then -- fix kill list
+                                
+                                
+                                end
+                            end
+                        
+                        end
+                    end
+                
+                end
+                ]]
 			end
 		end
 		buildACFT()
@@ -1754,6 +1778,9 @@ end]]
                                         saveStat.nest = getNest({'weapons', weapon, 'kL', deadStatsCat, deadStatsType})
                                         saveStat.addValue = 1
                                         saveStat.default =  0
+                                        slmod.stats.advChangeStatsValue(saveStat)
+                                        
+                                        saveStat.nest = getNest({'weapons', weapon, 'kL', deadStatsCat, 'total'})
                                         slmod.stats.advChangeStatsValue(saveStat)
                                         
                                         if slmod.config.kd_specifics == true then
@@ -2458,6 +2485,24 @@ end]]
                         if hitHumans[event.initiator] then
                             landedUnits[event.initiator] = DCS.getModelTime()
                         end
+                        
+                        saveStat.nest = getNest({ 'actions', 'landing'})
+                        if event.place then
+                            if slmod.allMissionUnitsByName[event.place] then
+                                if slmod.allMissionUnitsByName[event.place].category == 3 then
+                                    table.insert(saveStat.nest, 'FARP')
+                                else
+                                    table.insert(saveStat.nest, slmod.allMissionUnitsByName[event.place].objtype)
+                                end
+                            else
+                                table.insert(saveStat.nest, 'airbase')
+                            end
+                        else
+                            table.insert(saveStat.nest, 'austere')
+                        end
+                        saveStat.default = 0
+                        saveStat.addValue = 1
+                        slmod.stats.advChangeStatsValue(saveStat)
                         --slmod.info('landing event at: ' .. event.place)
                         if event.place and slmod.allMissionUnitsByName[event.place] then
                             local objData = slmod.allMissionUnitsByName[event.place]
@@ -2465,7 +2510,6 @@ end]]
                                 --slmod.info('someoneLandedOnShip')
                                 if slmod.clientsByName[event.initiator] then
                                     --slmod.info('was a player')
-                                    
                             
                                     local modEvent = slmod.deepcopy(event)
                                     modEvent.ucid = saveStat.ucid
@@ -2536,7 +2580,7 @@ end]]
                         -- iterate back up to 10 seconds to see if the player bounced
                         for i = eventInd - 1, 4, -1 do
                             local cEvent = slmod.events[i]
-                            if event.t - 20 > cEvent[i].t then
+                            if event.t - 20 > cEvent[i].t then  --- bounce code?
                                 if cEvent.initiator and cEvent.initiator == event.initiator then
                                 
                                 end

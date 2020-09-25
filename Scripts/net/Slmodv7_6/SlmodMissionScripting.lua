@@ -27,17 +27,8 @@ do
 	-- Loading the config settings
 	local configPath = lfs.writedir() .. [[Slmod\config.lua]]
 	
-	local function defaultSettings()
-	
-		local defaultf = io.open(lfs.writedir() .. 'Scripts/net/Slmodv' .. slmod.version .. '/SlmodDefault.cfg', 'r')
-		if not defaultf then return end
-		local default_settings = defaultf:read('*all')
-		defaultf:close()
-		--now load default settings
-		local defaultConfigFunc = loadstring(default_settings)
-		setfenv(defaultConfigFunc, config)
-		defaultConfigFunc()
-		env.info('Slmod: using default config settings.')
+	local function defaultSettings() -- because this is the only setting it cares about
+        config.udp_port = 52146 
 	end	
 	
 	local configFile = io.open(configPath, 'r')
