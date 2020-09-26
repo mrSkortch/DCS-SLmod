@@ -264,7 +264,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 					if ((type(temp_event['initiatorMissionID']) == 'number') and (type(temp_event['initiator']) == 'string')) then
 						--slmod.info('valid mission Id')
 						local ret_unit =  slmod.getUnitByName(temp_event['initiator'])	
-						slmod.info(slmod.tableshow(ret_unit))
+						--slmod.info(slmod.tableshow(ret_unit))
 						if ((type(ret_unit) ==  'table') and (temp_event['initiator'] == ret_unit.name)) then -- just need to make sure that name == initiator
 							--slmod.info('valid unitName')
 							
@@ -285,6 +285,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 							end
 						end
 					end
+                    
 				elseif temp_event.type == 'birth' then
 					--slmod.info('event birth')
                     if slmod.allMissionUnitsByName and slmod.activeUnitsBase and temp_event.type == 'birth' then
@@ -851,8 +852,11 @@ do
         
         if event.target then
             newEvent.target = event.target:getName()
-            if event.target:getCategory() and event.target:getCategory() ~= 5  then
-                newEvent.targetMissionID = tonumber(event.target:getID())
+            if event.target:getCategory() then
+                newEvent.targetCategory = event.target:getCategory()
+                if newEvent.targetCategory ~= 5  then
+                    newEvent.targetMissionID = tonumber(event.target:getID())
+                end
             end
         end
         
@@ -861,12 +865,16 @@ do
         end
         
         if event.initiator then
-            initName = lunit:getName()
-            newEvent.initiator = initName
-            newEvent.initiatorID = event.initiator.id_
-            newEvent.initiatorMissionID = tonumber(lunit:getID())
-            if slmod.clientsMission[initName] then
-                newEvent.initiatorPilotName = slmod.clientsMission[initName].name
+            if Object.getCategory(event.initiator) ~= 5  then
+                initName = lunit:getName()
+                newEvent.initiator = initName
+                newEvent.initiatorID = event.initiator.id_
+                newEvent.initiatorMissionID = tonumber(lunit:getID())
+                if slmod.clientsMission[initName] then
+                    newEvent.initiatorPilotName = slmod.clientsMission[initName].name
+                end
+            else
+                newEvent.initatorScenery = true
             end
         end
         

@@ -138,6 +138,10 @@ do
         if not metaStats.missionStats[mizName].totalVoteLoaded then
             slmod.stats.changeMetaStatsValue(metaStats.missionStats[mizName], 'totalVoteLoaded', 0)
         end
+        
+        if campaignName then 
+            campaignName = nil
+        end
 
         return
     end
@@ -184,13 +188,13 @@ do
                 slmod.stats.changeMetaStatsValue(metaStats.mapStats[theatreName], 'maxClients', count)  
             end
             
-            local numCamps = #metaStats.campaigns[campaignName].stats
-            slmod.info(numCamps)
-            if campaignName and  metaStats.campaigns[campaignName] and  metaStats.campaigns[campaignName].stats and  metaStats.campaigns[campaignName].stats and metaStats.campaigns[campaignName].stats[numCamps] then
-               if count > metaStats.campaigns[campaignName].stats[numCamps].maxClients then 
-                    slmod.stats.changeMetaStatsValue(metaStats.campaigns[campaignName].stats[numCamps], 'maxClients', count)  
-               end
-         
+            if metaStats.campaigns and campaignName then 
+                local numCamps = #metaStats.campaigns[campaignName].stats
+                if campaignName and  metaStats.campaigns[campaignName] and  metaStats.campaigns[campaignName].stats and  metaStats.campaigns[campaignName].stats and metaStats.campaigns[campaignName].stats[numCamps] then
+                   if count > metaStats.campaigns[campaignName].stats[numCamps].maxClients then 
+                        slmod.stats.changeMetaStatsValue(metaStats.campaigns[campaignName].stats[numCamps], 'maxClients', count)  
+                   end
+                end
             end
         end
 

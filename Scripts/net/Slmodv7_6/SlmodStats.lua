@@ -2426,8 +2426,11 @@ end]]
                                     end    
                                 end
                             else
-                                slmod.error('SlmodStats error- either tgtSide or initSide does not exist for hit event! Event Line follows:')
-                                slmod.warning(slmod.oneLineSerialize(event))
+                                if event.targetCategory ~= 5 and (not event.initiatorScenery) then
+                                    
+                                    slmod.error('SlmodStats error- either tgtSide or initSide does not exist for hit event! Event Line follows:')
+                                    slmod.warning(slmod.oneLineSerialize(event))
+                                end
                             end
                             
                         end
