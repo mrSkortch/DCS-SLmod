@@ -321,8 +321,7 @@ do
         Scheduled to run at set interval of every few seconds. or a max size of number of writes. 
         Attempts to simplify the writing process when numerous similar events occur. Why write 30 times that a player has launched 30 rockets in a salvo when it can take 30 shot events and save the last value. 
         Edit
-       
-    
+
     
     ]]
     local function statsWriteBuffer(value)
@@ -723,9 +722,15 @@ do
         end
         
 	end
+    
+    
+    local multiCrewDefs = {}
+	multiCrewDefs['Mi-8MT'] = {[2] = 'Copilot', [3] = 'FO', [4] = 'Dakka'}
+    multiCrewDefs['UH-1H'] = {[2] = 'Copilot', [3] = 'Dakka', [4] = 'DakkaDakka'}
+    
 	-----------------------------------------------------------------------------------------------------
 	function slmod.stats.onMission()  -- for creating per-mission stats.
-         local err  -- misStatsF already local
+        local err  -- misStatsF already local
         local missionName = 'UNKNOWN MISSION'
         if slmod.current_mission then
             local strInd = slmod.current_mission:len()
@@ -753,10 +758,10 @@ do
             if slmod.config.stats_coa > 1 then 
                 AIstats = true
                 if not stats['redAI'] then
-                    createNewPlayer('redAI', 'globalRedPlayerStats', slmod.config.enable_mission_stats) 
+                    createNewPlayer('redAI', 'globalRedAIStats', slmod.config.enable_mission_stats) 
                 end
                 if not stats['blueAI'] then
-                    createNewPlayer('blueAI', 'globalRedPlayerStats', slmod.config.enable_mission_stats) 
+                    createNewPlayer('blueAI', 'globalBlueAIStats', slmod.config.enable_mission_stats) 
                 end
             end
         end
@@ -797,6 +802,29 @@ do
             campStatsActive = false
             campStats = nil
         end
+        -- On mission load, check for objects to get added to the multicrew defs
+        local coas = DCS.getAvailableCoalitions()
+        local checked = {}
+        local searchMC = {
+            ['f-14'] = {[2] = 'RIO'}, -- other F14 versions proof
+            ['f-15e'] = {[2] = 'WSO'}, -- future proof       
+            ['mi-24'] = {[2] = 'WSO'}, -- future proof
+        }
+        for coaId, coaData in pairs(coas) do
+            local slots = DCS.getAvailableSlots(coaId)
+            for slotVal, slotData in pairs(slots) do
+                if not checked[slotData.type] then
+                    checked[slotData.type] = true
+                    for sName, sData in pairs(searchMC) do
+                        if string.find(string.lower(slotData.type), sName) then
+                            multiCrewDefs[slotData.type] = searchMC[sName]
+                        end
+                    end
+                end
+            end
+        end
+        
+       
   	end
 	-- **END OF MISSION STATS**
 	-------------------------------------------------------------------------------------------------------------------
@@ -1006,11 +1034,7 @@ end]]
 	end
     
     ------------
-    local multiCrewDefs = {}
-	multiCrewDefs['F-14A'] = {[2] = 'RIO'}
-    multiCrewDefs['F-14B'] = {[2] = 'RIO'}
-	multiCrewDefs['Mi-8MT'] = {[2] = 'Copilot', [3] = 'FO', [4] = 'Dakka'}
-    multiCrewDefs['UH-1H'] = {[2] = 'Copilot', [3] = 'Dakka', [4] = 'DakkaDakka'}
+
     
     local function getPlayerNamesString(clients)
         local names = {}
@@ -1512,7 +1536,7 @@ end]]
 	local function multiCrewNameCheck(tName, seatId)
         --slmod.info(tName)
         --slmod.info(seatId)
-        if not multiCrewDefs[tName][seatId] then
+        if multiCrewDefs[tName] and not multiCrewDefs[tName][seatId] then
             tName = tName .. ' Co-Pilot'
         else
             tName = tName .. ' ' .. multiCrewDefs[tName][seatId]
@@ -2490,12 +2514,12 @@ end]]
                         end
                         
                         saveStat.nest = getNest({ 'actions', 'landing'})
-                        if event.place then
-                            if slmod.allMissionUnitsByName[event.place] then
-                                if slmod.allMissionUnitsByName[event.place].category == 3 then
+                        if event.target then
+                            if slmod.allMissionUnitsByName[event.target] then
+                                if slmod.allMissionUnitsByName[event.target].category == 3 then
                                     table.insert(saveStat.nest, 'FARP')
                                 else
-                                    table.insert(saveStat.nest, slmod.allMissionUnitsByName[event.place].objtype)
+                                    table.insert(saveStat.nest, slmod.allMissionUnitsByName[event.target].objtype)
                                 end
                             else
                                 table.insert(saveStat.nest, 'airbase')
@@ -2507,8 +2531,8 @@ end]]
                         saveStat.addValue = 1
                         slmod.stats.advChangeStatsValue(saveStat)
                         --slmod.info('landing event at: ' .. event.place)
-                        if event.place and slmod.allMissionUnitsByName[event.place] then
-                            local objData = slmod.allMissionUnitsByName[event.place]
+                        if event.target and slmod.allMissionUnitsByName[event.target] then
+                            local objData = slmod.allMissionUnitsByName[event.target]
                             if objData.category == 'ship' then
                                 --slmod.info('someoneLandedOnShip')
                                 if slmod.clientsByName[event.initiator] then
@@ -2576,14 +2600,14 @@ end]]
 				
 				----------------------------------------------------------------------------------------------------------
 				if event.type == 'takeoff' then  -- check if this is the valid name.
-					if saveStat then
+                    if saveStat then
                         if landedUnits[event.initiator] then
                             landedUnits[event.initiator] = nil
                         end
                         -- iterate back up to 10 seconds to see if the player bounced
                         for i = eventInd - 1, 4, -1 do
                             local cEvent = slmod.events[i]
-                            if event.t - 20 > cEvent[i].t then  --- bounce code?
+                            if event.t - 5 > cEvent.t then  --- bounce code?
                                 if cEvent.initiator and cEvent.initiator == event.initiator then
                                 
                                 end
@@ -2592,12 +2616,12 @@ end]]
                             end                            
                         end
                         saveStat.nest = getNest({ 'actions', 'takeoff'})
-                        if event.place then
-                            if slmod.allMissionUnitsByName[event.place] then
-                                if slmod.allMissionUnitsByName[event.place].category == 3 then
+                        if event.target then
+                            if slmod.allMissionUnitsByName[event.target] then
+                                if slmod.allMissionUnitsByName[event.target].category == 3 then
                                     table.insert(saveStat.nest, 'FARP')
                                 else
-                                    table.insert(saveStat.nest, slmod.allMissionUnitsByName[event.place].objtype)
+                                    table.insert(saveStat.nest, slmod.allMissionUnitsByName[event.target].objtype)
                                 end
                             else
                                 table.insert(saveStat.nest, 'airbase')

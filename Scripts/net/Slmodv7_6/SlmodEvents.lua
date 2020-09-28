@@ -851,12 +851,15 @@ do
         end
         
         if event.target then
-            newEvent.target = event.target:getName()
             if event.target:getCategory() then
                 newEvent.targetCategory = event.target:getCategory()
-                if newEvent.targetCategory ~= 5  then
-                    newEvent.targetMissionID = tonumber(event.target:getID())
-                end
+                if newEvent.targetCategory ~= 2 then -- cant be a weapon because getName fails on this
+                    newEvent.target = event.target:getName()
+                    if newEvent.targetCategory ~= 5  then
+                        newEvent.targetMissionID = tonumber(event.target:getID())
+                    end
+                end 
+
             end
         end
         
@@ -864,7 +867,7 @@ do
             newEvent.target = (event.place):getName()
         end
         
-        if event.initiator then
+        if event.initiator and event.id ~= 31 then  --- no pilot landing event, because object is not acessible
             if Object.getCategory(event.initiator) ~= 5  then
                 initName = lunit:getName()
                 newEvent.initiator = initName
@@ -917,9 +920,11 @@ do
             if event.id == world.event.S_EVENT_SHOOTING_START or event.id == world.event.S_EVENT_SHOOTING_END then -- scripting engine shell enum
                 --env.info('line92')
                 lShells = 0
-                for index, data in pairs(lunit:getAmmo()) do
-                    if data.desc.category == 0 then
-                        lShells = lShells + data.count
+                if lunit:getAmmo() then 
+                    for index, data in pairs(lunit:getAmmo()) do
+                        if data.desc.category == 0 then
+                            lShells = lShells + data.count
+                        end
                     end
                 end
                 newEvent.numShells = lShells
