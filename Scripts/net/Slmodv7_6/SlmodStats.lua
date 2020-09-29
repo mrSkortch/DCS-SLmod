@@ -514,7 +514,7 @@ do
             end
 
         end
-        if slmod.config.stats_coa and slmod.config.stats_coa > 0 and vars.coa and not vars.AI then
+        if slmod.config.stats_coa and slmod.config.stats_coa > 0 and vars.coa and not (vars.AI or vars.penalty) then
             -- change vars.ucid to correspond to player or AI value based on setting
             -- Do I really want to have stats for that?
             local u = {}
@@ -1819,7 +1819,7 @@ end]]
                                     
                                     dStat.nest = getNest({'actions', 'losses'})
                                     dStat.addValue = {crash = 1}
-                                    dStat.default = {crash = 0, eject = 0, pilotDeath = 0}
+                                    dStat.default = {crash = 0, eject = 0}
                                     slmod.stats.advChangeStatsValue(dStat)
                                 
                                 
@@ -1941,8 +1941,9 @@ end]]
                     end
                 end
                 
-			elseif deadClient then  -- client died without being hit.
+			elseif deadClient or slmod.config.stats_coa == 2 then  -- client died without being hit.
                 local saveStat = {}
+                if deadClient then 
                 local ucid, typeName = {}, {}
                     for seat, data in pairs(deadClient) do
                         ucid[seat] = data.ucid
@@ -1953,7 +1954,9 @@ end]]
                         end
                         saveStat = {ucid = ucid, typeName = typeName}
                     end
-                
+                else
+                    saveStat = {ucid = {deadUnit.coalition .. 'AI'}, typeName = {deadObjType}, AI = true}
+                end
                 saveStat.nest = getNest({ 'actions', 'losses'})
                 if landedUnits[deadObjType] and landedUnits[deadObjType] + 10 > DCS.getModelTime() then 
                     saveStat.default = {crashLanding = 0}
@@ -2604,12 +2607,16 @@ end]]
                         if landedUnits[event.initiator] then
                             landedUnits[event.initiator] = nil
                         end
+                        saveStat.default = 0
+                        saveStat.addValue = 1
                         -- iterate back up to 10 seconds to see if the player bounced
                         for i = eventInd - 1, 4, -1 do
                             local cEvent = slmod.events[i]
-                            if event.t - 5 > cEvent.t then  --- bounce code?
-                                if cEvent.initiator and cEvent.initiator == event.initiator then
-                                
+                            if event.t - 10 < cEvent.t then  --- bounce code
+                                if cEvent.initiator and cEvent.initiator == event.initiator and cEvent.type == 'land' then
+                                     saveStat.nest = getNest({ 'actions', 'bounced'})
+                                     slmod.stats.advChangeStatsValue(saveStat)
+                                     break -- +1 bounce for every landing. 
                                 end
                             else -- outside time range, exit loop
                                 break
@@ -2629,8 +2636,7 @@ end]]
                         else
                             table.insert(saveStat.nest, 'austere')
                         end
-                        saveStat.default = 0
-                        saveStat.addValue = 1
+
                         slmod.stats.advChangeStatsValue(saveStat)
 					end
 				end
