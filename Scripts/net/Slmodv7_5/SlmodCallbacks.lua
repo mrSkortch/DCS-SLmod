@@ -258,8 +258,7 @@ end
 			if slmod.mission_started == true then
 				slmod.reset()
 				slmod.mission_started = false
-				slmod.importMissionZones()
-				slmod.makeMissionUnitData()
+
 				if slmod.config.debugger then
 					slmod.runSlmodDebugger()
 				end

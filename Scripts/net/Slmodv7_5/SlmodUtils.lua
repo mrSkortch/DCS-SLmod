@@ -1481,7 +1481,7 @@ function slmod.getSlotFromMultCrew(multId)
     end
 end
 
-function slmod.getClientRtId(client_id)
+function slmod.getClientRtId(slot_id)
 	--slmod.info('getClientRtId')
 	if slot_id and slot_id ~= ''  then
         if type(slot_id) == 'string' and (slot_id == '' or string.find(slot_id, 'red') or string.find(slot_id, 'blue')) then
@@ -1586,8 +1586,8 @@ function slmod.getClientNameAndRtId(client_id) -- unit name and RTID. CA slots d
             seat = 1
         end
 		slot_id = tonumber(slot_id)
-       
-		if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
+        seat = tonumber(seat)
+        if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
             return DCS.getUnitProperty(slot_id, 3), DCS.getUnitProperty(slot_id, 1), seat
 		end
 	end

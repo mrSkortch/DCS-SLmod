@@ -857,7 +857,6 @@ end]]
             for ind, dat in pairs(clients) do
                 table.insert(msg, table.concat({ind, ' = {name  = ', slmod.basicSerialize(tostring(dat.name)), ', ucid = ', slmod.basicSerialize(tostring(dat.ucid)), ', ip = ',  slmod.basicSerialize(tostring(dat.addr)), ', id = ', tostring(dat.id), '}'}))
             end
-			slmod.info(slmod.oneLineSerialize(target))
             for ind, tDat in pairs(target) do
                 table.insert(msg, table.concat({ind, ' = {name = ', tDat.name}))
             end
@@ -1501,7 +1500,7 @@ end]]
                 end
                 
                 saveStat.nest = {'times', 'typeName', 'actions', 'losses'}
-                saveStat.default = {crash = 0}
+                saveStat.default = {crash = 0, eject = 0, pilotDeath = 0}
                 saveStat.addValue = {crash = 1}
                 slmod.stats.advChangeStatsValue(saveStat)
 			end
@@ -1588,8 +1587,11 @@ end]]
 			--Now do slmod.events-based stats.
 			while #slmod.events >= eventInd do
 				local event = slmod.events[eventInd]
-				--slmod.info('checking ' .. eventInd)
-                --slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
+				
+                if not slmod.oldClientsByName then -- Temp added because report this table not existing causing an error on some servers. Trying to find cause. 
+                    slmod.info('checking ' .. eventInd)
+                    slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
+                end
 				eventInd = eventInd + 1  -- increment NOW so if there is a Lua error, I'm not stuck forever on this event.
                 
                 
@@ -1760,7 +1762,9 @@ end]]
 							tgtTypeName = slmod.allMissionUnitsByName[tgtName].objtype
 							----slmod.info('here2')
 						else
-							slmod.error('error in stats, could not match target unit in hit event with a mission editor unit name.  Could it be a map object? Event Index: ' .. eventInd)
+							if event.targetCategory and (event.targetCategory ~= 2 and event.targetCategory ~= 5) or not event.targetCategory then -- it is a scenery object or a weapon
+                                slmod.error('error in stats, could not match target unit in hit event with a mission editor unit name.  Could it be a map object? Event Index: ' .. eventInd)
+                            end
 							----slmod.info(slmod.oneLineSerialize(event))
 						end
 						
@@ -1837,8 +1841,13 @@ end]]
                         end
                         -- first, handle the case of nil weapon.  Happens due to a bug in DCS, and is very difficult to solve this bug fully.
                         -- for now, just assume that the weapon is the last weapon the human fired.
-                        if (not weapon) and initName and humanShots[initName] then
-                            weapon = humanShots[initName]
+                        -- Static objects showing aircraft has the weapon when killed by client. So double check kamikaze to see if it is alive. 
+                        if initName and humanShots[initName] then
+                            if not weapon then
+                                weapon = humanShots[initName]
+                            elseif weapon and weapon == 'kamikaze' and unitIsAlive(initName) == true and event.targetCategory and (event.targetCategory == 3 or event.targetCategory == 6) then
+                                weapon = humanShots[initName]
+                            end
                         elseif not weapon then
                             weapon = 'unknown'
                             slmod.warning('SlmodStats - nil weapon in hit event, and no weapons fired by client!')
@@ -1850,7 +1859,8 @@ end]]
                             weapon = subToCluster[weapon]
                             isCluster = true
                         end
-                        
+                     
+                       
                         
                         if (not isCluster) or (isCluster and filterClusterHits(weapon, initName, tgtName, time)) then  -- count this hit, it's not a cluster hit or is a new cluster hit.
                             --slmod.info('saveHit')
@@ -1872,7 +1882,7 @@ end]]
                                 if tgtSide == initSide then
                                     saveToHit.friendlyHit = true
                                 end
-                                
+                                --slmod.info(slmod.oneLineSerialize(saveToHit))
                                 if tgtClient then 
                                     --slmod.info('tgt Client')
                                     if tgtClient[1].ucid and inAirClients[tgtClient[1].ucid] ~= nil then

@@ -2707,6 +2707,8 @@ function slmod.reset()
 	slmod.create_getUnitAttributes()
 	slmod.makeUnitAttributesTable()
 	slmod.makeUnitCategories()
+    slmod.makeMissionUnitData()
+    slmod.importMissionZones()
     slmod.resetConsent()
 	
 	--slmod.save_var('net', 'unitCategories.txt', slmod.unitCategories, 'slmod.unitCategories')
