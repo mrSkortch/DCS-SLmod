@@ -1179,13 +1179,12 @@ end]]
     end
 	
 	
-	local hitAIs = {}
-	local hitHumans = {}
-	
+	local hitObjs = {}
+
 	
 	
 	--[[
-	hitHumans = {
+	hitObjs = {
 		[<string hit human unitName>] = {
 			[1] = {  -- the first hit on this unit.
 				time = <number>,
@@ -1222,11 +1221,11 @@ end]]
 		...
 		},
 		
-	}  -- end of hitHumans
+	}  -- end of hitObjs
 	
 	
 	
-	hitAIs = {
+	hitObjs = {
 		[<string hit AI unitName>] = {
 			[1] = {
 				time = <number>,
@@ -1250,7 +1249,7 @@ end]]
 	}
 	
 	
-	-- need to quickly cycle through hitHumans and see if they no longer exist- perhaps dead without an event.
+	-- need to quickly cycle through hitObjs and see if they no longer exist- perhaps dead without an event.
 	
 	If they don't exist anymore, then treat them as if they died.
 	]]
@@ -1259,11 +1258,8 @@ end]]
 	
 	
 	local function getHitData(unitName)
-		 if hitHumans[unitName] then
-			return hitHumans[unitName] -- just return the last hit
-		end
-		if hitAIs[unitName] then
-			return hitAIs[unitName] -- just return the last hit
+        if hitObjs[unitName] then
+			return hitObjs[unitName] -- just return the last hit
 		end
 	end
 	
@@ -1272,6 +1268,7 @@ end]]
 	local humanShots = {}  -- in the case of an unidentified weapon in in a hit event, this is used to associate the event with the last weapon fired.
 	local gunTypes = {}
     local cvLandings = {}
+    local refuelings = {}
     
 	local function computeTotal(kills)  -- computes total kills for a specific type (vehicle, ship, plane, etc.)
 		local total = 0
@@ -1298,9 +1295,9 @@ end]]
 		eventInd = 1
 		clusterHits = {}
 		trackedWeapons = {}
-		hitAIs = {}
-		hitHumans = {}
+		hitObjs = {}
 		landedUnits = {}
+        refuelings = {}
 		suppressDeath = {}
 		humanShots = {}
 		
@@ -1572,9 +1569,8 @@ end]]
 	local function runDeathLogic(deadName)
 		--slmod.info('runDeathLogic')
         if runDeathLogicChecker[deadName] then
-            slmod.warning('runDeathLogic Failed on: ' .. slmod.oneLineSerialize(hitHumans[deadName]))
-            hitHumans[deadName] = nil
-            hitAIs[deadName] = nil
+            slmod.warning('runDeathLogic Failed on: ' .. slmod.oneLineSerialize(hitObjs[deadName]))
+            hitObjs[deadName] = nil
             runDeathLogicChecker[deadName] = nil
             
         else
@@ -1958,7 +1954,7 @@ end]]
                     saveStat = {ucid = {deadUnit.coalition .. 'AI'}, typeName = {deadObjType}, AI = true}
                 end
                 saveStat.nest = getNest({ 'actions', 'losses'})
-                if landedUnits[deadObjType] and landedUnits[deadObjType] + 10 > DCS.getModelTime() then 
+                if landedUnits[deadName] then 
                     saveStat.default = {crashLanding = 0}
                     saveStat.addValue = {crashLanding = 1}
                 else
@@ -1972,7 +1968,7 @@ end]]
             
 			
 			-- wipe this unit if he is a hitHuman
-            hitHumans[deadName] = nil
+            hitObjs[deadName] = nil
             runDeathLogicChecker[deadName] = nil 
 		end
 	end
@@ -2397,13 +2393,13 @@ end]]
                                         saveToHit.inAirHit = inAirClients[tgtClient[1].ucid]
                                     end
                                     saveToHit.target = slmod.deepcopy(parseOutExtraClientData(tgtClient))
-                                    hitHumans[tgtName] = hitHumans[tgtName] or {}
-                                    hitHumans[tgtName][#hitHumans[tgtName] + 1] = saveToHit
-                                    --slmod.info('hitHumans added to')
+                                    hitObjs[tgtName] = hitObjs[tgtName] or {}
+                                    hitObjs[tgtName][#hitObjs[tgtName] + 1] = saveToHit
+                                    --slmod.info('hitObjs added to')
                                     tgtInfoForFHit = slmod.deepcopy(tgtClient)
                                 else
-                                    hitAIs[tgtName] = hitAIs[tgtName] or {}
-                                    hitAIs[tgtName][#hitAIs[tgtName] + 1] = saveToHit
+                                    hitObjs[tgtName] = hitObjs[tgtName] or {}
+                                    hitObjs[tgtName][#hitObjs[tgtName] + 1] = saveToHit
                                 end
                                 
                                 if tgtSide ~= initSide then  -- hits on enemy units in here
@@ -2468,8 +2464,8 @@ end]]
                             inAirHit = inAirClients[tgtClient[1].ucid]
                         end
                     
-                        hitHumans[tgtName] = hitHumans[tgtName] or {}
-                        hitHumans[tgtName][#hitHumans[tgtName] + 1] = {time = time, initiator = initName, target = slmod.deepcopy(tgtClient), inAirHit = inAirHit, weapon = weapon, shotFrom = initType}
+                        hitObjs[tgtName] = hitObjs[tgtName] or {}
+                        hitObjs[tgtName][#hitObjs[tgtName] + 1] = {time = time, initiator = initName, target = slmod.deepcopy(tgtClient), inAirHit = inAirHit, weapon = weapon, shotFrom = initType}
                         ----slmod.info('here9')
                     
                     
@@ -2506,50 +2502,57 @@ end]]
                     end
 				end -- end of pilot dead
 				----------------------------------------------------------------------------------------------------------
-				
-				
-				
+				-- landedUnits changes. Current it is a value for players that are hit and then land.
+                -- Want to change it to check for bounce stats.
+				-- And for AI that are hit and land to get cleared. 
+				-- New value needs to be indexed by initiator, and keep table with time, saveStat value (with nest).
 				----------------------------------------------------------------------------------------------------------
 				if event.type == 'land' then  -- check if this is the valid name.
-					if event.initiator then 
-                        if hitHumans[event.initiator] then
-                            landedUnits[event.initiator] = DCS.getModelTime()
+                    if event.initiator then 
+                        local lUnit = {}
+                        lUnit.t = DCS.getModelTime()
+                        if hitObjs[event.initiator] then
+                            lUnit.hit = true
                         end
-                        
-                        saveStat.nest = getNest({ 'actions', 'landing'})
-                        if event.target then
-                            if slmod.allMissionUnitsByName[event.target] then
-                                if slmod.allMissionUnitsByName[event.target].category == 3 then
-                                    table.insert(saveStat.nest, 'FARP')
+                        if saveStat then 
+                            saveStat.nest = getNest({ 'actions', 'landing'})
+                            if event.target then
+                                if slmod.allMissionUnitsByName[event.target] then
+                                    if slmod.allMissionUnitsByName[event.target].category == 3 then
+                                        table.insert(saveStat.nest, 'FARP')
+                                    else
+                                        table.insert(saveStat.nest, slmod.allMissionUnitsByName[event.target].objtype)
+                                    end
                                 else
-                                    table.insert(saveStat.nest, slmod.allMissionUnitsByName[event.target].objtype)
+                                    table.insert(saveStat.nest, 'airbase')
                                 end
                             else
-                                table.insert(saveStat.nest, 'airbase')
+                                table.insert(saveStat.nest, 'austere')
                             end
-                        else
-                            table.insert(saveStat.nest, 'austere')
-                        end
-                        saveStat.default = 0
-                        saveStat.addValue = 1
-                        slmod.stats.advChangeStatsValue(saveStat)
-                        --slmod.info('landing event at: ' .. event.place)
-                        if event.target and slmod.allMissionUnitsByName[event.target] then
-                            local objData = slmod.allMissionUnitsByName[event.target]
-                            if objData.category == 'ship' then
-                                --slmod.info('someoneLandedOnShip')
-                                if slmod.clientsByName[event.initiator] then
-                                    --slmod.info('was a player')
-                            
-                                    local modEvent = slmod.deepcopy(event)
-                                    modEvent.ucid = saveStat.ucid
-                                    modEvent.typeName = saveStat.typeName
-                                    table.insert(cvLandings, modEvent)
-                                    --slmod.info('inserted into cvLandings')
-                                    slmod.scheduleFunction(clearCVLanding, {event.t}, DCS.getModelTime() + 3.5)
+                            saveStat.default = 0
+                            saveStat.addValue = 1
+                            --slmod.stats.advChangeStatsValue(saveStat)
+                            lUnit.saveStat = slmod.deepcopy(saveStat)
+                            --slmod.info('landing event at: ' .. event.place)
+                            if event.target and slmod.allMissionUnitsByName[event.target] then
+                                local objData = slmod.allMissionUnitsByName[event.target]
+                                if objData.category == 'ship' then
+                                    --slmod.info('someoneLandedOnShip')
+                                    lUnit.ship = true
+                                    if slmod.clientsByName[event.initiator] then
+                                        --slmod.info('was a player')
+                                
+                                        local modEvent = slmod.deepcopy(event)
+                                        modEvent.ucid = saveStat.ucid
+                                        modEvent.typeName = saveStat.typeName
+                                        table.insert(cvLandings, modEvent)
+                                        --slmod.info('inserted into cvLandings')
+                                        slmod.scheduleFunction(clearCVLanding, {event.t}, DCS.getModelTime() + 3.5)
+                                    end
                                 end
                             end
                         end
+                        landedUnits[event.initiator] = lUnit
 					end
 				end -- end of land
 				----------------------------------------------------------------------------------------------------------
@@ -2604,40 +2607,37 @@ end]]
 				----------------------------------------------------------------------------------------------------------
 				if event.type == 'takeoff' then  -- check if this is the valid name.
                     if saveStat then
-                        if landedUnits[event.initiator] then
-                            landedUnits[event.initiator] = nil
-                        end
                         saveStat.default = 0
                         saveStat.addValue = 1
-                        -- iterate back up to 10 seconds to see if the player bounced
-                        for i = eventInd - 1, 4, -1 do
-                            local cEvent = slmod.events[i]
-                            if event.t - 10 < cEvent.t then  --- bounce code
-                                if cEvent.initiator and cEvent.initiator == event.initiator and cEvent.type == 'land' then
-                                     saveStat.nest = getNest({ 'actions', 'bounced'})
-                                     slmod.stats.advChangeStatsValue(saveStat)
-                                     break -- +1 bounce for every landing. 
+                        if landedUnits[event.initiator] then
+                            saveStat.nest = getNest({ 'actions', 'bounced'})
+                            
+                            if event.target_objtype and slmod.allMissionUnitsByName[event.target] then 
+                                local tObjType = slmod.catsByUnitType[event.target_objtype]
+                                local iObjType = slmod.catsByUnitType[event.initiator_objtype]
+                                if iObjType and tObjType and and iObjType[1] == 'Planes' and tObjType[1] == 'Ships' then 
+                                    saveStat.nest[#saveStat.nest] = 'bolter'
                                 end
-                            else -- outside time range, exit loop
-                                break
-                            end                            
-                        end
-                        saveStat.nest = getNest({ 'actions', 'takeoff'})
-                        if event.target then
-                            if slmod.allMissionUnitsByName[event.target] then
-                                if slmod.allMissionUnitsByName[event.target].category == 3 then
-                                    table.insert(saveStat.nest, 'FARP')
+                            end
+                            
+                        else
+                            saveStat.nest = getNest({ 'actions', 'takeoff'})
+                            if event.target then
+                                if slmod.allMissionUnitsByName[event.target] then
+                                    if slmod.allMissionUnitsByName[event.target].category == 3 then
+                                        table.insert(saveStat.nest, 'FARP')
+                                    else
+                                        table.insert(saveStat.nest, slmod.allMissionUnitsByName[event.target].objtype)
+                                    end
                                 else
-                                    table.insert(saveStat.nest, slmod.allMissionUnitsByName[event.target].objtype)
+                                    table.insert(saveStat.nest, 'airbase')
                                 end
                             else
-                                table.insert(saveStat.nest, 'airbase')
+                                table.insert(saveStat.nest, 'austere')
                             end
-                        else
-                            table.insert(saveStat.nest, 'austere')
                         end
-
                         slmod.stats.advChangeStatsValue(saveStat)
+                        landedUnits[event.initiator] = nil
 					end
 				end
 				----------------------------------------------------------------------------------------------------------
@@ -2657,30 +2657,27 @@ end]]
 					end				
 				end	-- end of eject
 				----------------------------------------------------------------------------------------------------------
-				if event.type == 'refueling stop' then
+				if event.type == 'refueling' and saveStat then -- Refueling event does not work on clients, but has been reported since 2.5.5.40647
+                    refuelings[event.initiator] = DCS.getModelTime()
+                end
+                
+                if event.type == 'refueling stop' then
                     if saveStat then
-                        local oldE
-                        for i = (eventInd - 2), 4, -1 do
-                            if event.initiator == slmod.events[i].initiator then -- finds the first start shooting event from the current end shootingfor the initiator
-                            --Iterate back to find when refueling started
-                            -- Go back max 40 events?
-                                if slmod.events[i].type == 'refueling' then
-                                    local rTime = event.t - slmod.events[i].t
-                                    saveStat.default = {total = 0, connects = 0, short = 0, med = 0, long = 0}
-                                    saveStat.nest = getNest({'actions', 'tanking'})
-                                    saveStat.addValue = {connects = 1}
-                                    saveStat.addValue.total = rTime
-                                    if rTime < 10 then
-                                        saveStat.addValue.short = 1
-                                    elseif rTime >= 10 and rTime < 60 then
-                                        saveStat.addValue.med = 1
-                                    else    
-                                        saveStat.addValue.long = 1
-                                    end
-                                    slmod.stats.advChangeStatsValue(saveStat)
-                                    break
-                                end
+                        if event.initiator and refuelings[event.initiator] then 
+                            local rTime = event.t - refuelings[event.initiator]
+                            saveStat.default = {total = 0, connects = 0, short = 0, med = 0, long = 0}
+                            saveStat.nest = getNest({'actions', 'tanking'})
+                            saveStat.addValue = {connects = 1}
+                            saveStat.addValue.total = rTime
+                            if rTime < 10 then
+                                saveStat.addValue.short = 1
+                            elseif rTime >= 10 and rTime < 60 then
+                                saveStat.addValue.med = 1
+                            else    
+                                saveStat.addValue.long = 1
                             end
+                            slmod.stats.advChangeStatsValue(saveStat)
+                            refuelings[event.initiator] = nil
                         end
                     end
                 end
@@ -2691,18 +2688,24 @@ end]]
 			
 			-- If a hitHuman lands and comes to a stop after landing without dying, remove them from hit units.
 			local currentTime = DCS.getModelTime()
-			for unitName, landTime in pairs(landedUnits) do
-				if slmod.activeUnitsByName[unitName] then
-					if currentTime - landTime > 10 then  -- start checking to see if the unit is stationary.
-						if unitIsStationary(unitName) then
-							----slmod.info(unitName .. ' was a hit unit and has landed safely, clear it so it cant be TKd')
-                            hitHumans[unitName] = nil -- human cannot be killed now.
+			for unitName, landData in pairs(landedUnits) do
+				
+                if slmod.activeUnitsByName[unitName] then
+	
+                    if currentTime - landData.t > 10 then  -- start checking to see if the unit is stationary.
+                        if unitIsStationary(unitName) or landData.ship then
+							if landData.saveStat then 
+                                slmod.stats.advChangeStatsValue(landData.saveStat)
+                                
+                                if hitObjs[unitName] then
+                                    landedUnits[unitName].saveStat.nest[#landedUnits[unitName].saveStat.nest] = 'landedWhileDamaged'
+                                    slmod.stats.advChangeStatsValue(landData.saveStat)
+                                end
+                            end
+                            --slmod.info(unitName .. ' was a hit unit and has landed safely, clear it so it cant be TKd')
+                            hitObjs[unitName] = nil
 							landedUnits[unitName] = nil
                             
-                            --[[
-                            Potentially add stat "landedWhileDamaged" stat. 
-                            
-                            ]]
 						end
 					end
 				else
@@ -2712,14 +2715,14 @@ end]]
 			end
 			
 			
-			--[[If any entries in hitHumans are no longer alive, then it counts it as a death, and removes the entry of hitHumans.
-			The removal of that entry in hitHumans prevents a potential future "dead" event from counting as an additional death.
-			Remember- hitHumans only includes humans that were hit, so this function won't erroneously count crashes for no reason.
+			--[[If any entries in hitObjs are no longer alive, then it counts it as a death, and removes the entry of hitObjs.
+			The removal of that entry in hitObjs prevents a potential future "dead" event from counting as an additional death.
+			Remember- hitObjs only includes humans that were hit, so this function won't erroneously count crashes for no reason.
 			
 			ALSO, clear the landedUnits table entry for this unit if it is not alive.]]
 			
-			-- NOW, check to see if any hitHumans are non-existant.
-			for unitName, hits in pairs(hitHumans) do
+			-- NOW, check to see if any hitObjs are non-existant.
+			for unitName, hits in pairs(hitObjs) do
 				if not unitIsAlive(unitName) then
 					----slmod.info('SlmodStats- hit client unitName: ' .. unitName .. ', hits[#hits]: ' .. slmod.oneLineSerialize(hits[#hits]) .. '  no longer exists, running death logic.')
 					
