@@ -1,6 +1,6 @@
 		
 	--slmod
-	local loadVersion = '7_5'
+	local loadVersion = '7_6'
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodConfig.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodUtils.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodEvents.lua')
@@ -11,6 +11,7 @@
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodPOSMenu.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodAdminMenu.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodStats.lua')
+    dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodStatsDisplay.lua')
     dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodMetaStats.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodAutoAdmin.lua')
 	dofile(lfs.writedir() .. 'Scripts/net/Slmodv'  .. loadVersion .. '/SlmodPingCheck.lua')

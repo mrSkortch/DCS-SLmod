@@ -114,6 +114,9 @@ do
 	sandbox.slmod['weapons_impacting_in_moving_zones_net'] = slmod.weapons_impacting_in_moving_zones_net
 	sandbox.slmod['weapons_in_zones_net'] = slmod.weapons_in_zones_net
 	sandbox.slmod['weapons_in_moving_zones_net'] = slmod.weapons_in_moving_zones_net
+    
+    sandbox.slmod['custom_stats_net'] = slmod.custom_stats_net
+    sandbox.slmod['set_campaign_net'] = slmod.set_campaign_net
 	
 	--creating slmod.clients and banning code.
 

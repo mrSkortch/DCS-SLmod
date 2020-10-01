@@ -1585,8 +1585,10 @@ function slmod.getClientNameAndRtId(client_id) -- unit name and RTID. CA slots d
         if not seat then 
             seat = 1
         end
+
 		slot_id = tonumber(slot_id)
         seat = tonumber(seat)
+		
         if slot_id and slot_id > 0 then  --making sure it successfully converted, and it's a reasonable value
             return DCS.getUnitProperty(slot_id, 3), DCS.getUnitProperty(slot_id, 1), seat
 		end

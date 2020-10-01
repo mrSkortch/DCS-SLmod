@@ -693,9 +693,8 @@ function slmod.create_getUnitXYZ()  -- function to return unit x,y,z data.
 slmod.getUnitXYZ = function(rtId)
 	local unit = {id_ = rtId}
     if unit then
-        local cat = Object.getCategory(unit)
-        if Object.isExist(unit) and (cat == 1 and Unit.isActive(unit) or cat == 3 or cat == 6) then
-            local pos = Object.getPosition(unit).p
+        if Unit.isExist(unit) and Unit.isActive(unit) then
+            local pos = Unit.getPosition(unit).p
             return table.concat({pos.x, ' ', pos.y, ' ', pos.z}) 
         end
     end
@@ -723,7 +722,7 @@ end
 
 
 function slmod.updateActiveUnits()  -- the coroutine to update active units table.
-	--slmod.info('beginning slmod.updateActiveUnits')
+	slmod.info('beginning slmod.updateActiveUnits')
 	-- start a new cycle...  beginning assumption: assume this function runs about 20 times a sec.
 	if slmod.activeUnitsBase then  -- only run if slmod.activeUnitsBase
 		local numUnits = #slmod.activeUnitsBase

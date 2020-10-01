@@ -89,7 +89,7 @@ if slmod.config.MOTD_enabled then
 				if slmod.config.autoAdmin.teamCollisionKill.enabled then
 					offCounter = offCounter + 1
 				end
-				if offCounter ~= 0 then
+				if offCounter ~= 0 and slmod.config.autoAdmin.MOTD_show_settings then
 					titleTbl[#titleTbl + 1] = 'WARNING! '
 					--title = title .. 'WARNING! '
 					if slmod.config.autoAdmin.autoKickEnabled then
@@ -145,7 +145,7 @@ if slmod.config.MOTD_enabled then
 				
 			end
 			
-			if slmod.config.coord_converter then
+			if slmod.config.coord_converter and slmod.config.MOTD_show_coord then
 				titleTbl[#titleTbl + 1] = '\nSlmod Coordinate Converter is enabled. For instructions on how to use it, say "-conv" in chat.'
 				--title = title .. 'This server has the Slmod Coordinate Converter enabled. For instructions on how to use it, say "-conv" in chat.\n'
 			end
