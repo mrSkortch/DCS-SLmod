@@ -2502,10 +2502,7 @@ end]]
                     end
 				end -- end of pilot dead
 				----------------------------------------------------------------------------------------------------------
-				-- landedUnits changes. Current it is a value for players that are hit and then land.
-                -- Want to change it to check for bounce stats.
-				-- And for AI that are hit and land to get cleared. 
-				-- New value needs to be indexed by initiator, and keep table with time, saveStat value (with nest).
+
 				----------------------------------------------------------------------------------------------------------
 				if event.type == 'land' then  -- check if this is the valid name.
                     if event.initiator then 
@@ -2525,6 +2522,11 @@ end]]
                                     end
                                 else
                                     table.insert(saveStat.nest, 'airbase')
+                                    if slmod.config.stats_level == 2 then
+                                        saveStat.nestAlt = slmod.deepcopy(saveStat.nest)
+                                        saveStat.nestAlt[#saveStat.nestAlt] = 'baseList'
+                                        table.insert(saveStat.nestAlt, event.target)
+                                    end
                                 end
                             else
                                 table.insert(saveStat.nest, 'austere')
@@ -2615,7 +2617,7 @@ end]]
                             if event.target_objtype and slmod.allMissionUnitsByName[event.target] then 
                                 local tObjType = slmod.catsByUnitType[event.target_objtype]
                                 local iObjType = slmod.catsByUnitType[event.initiator_objtype]
-                                if iObjType and tObjType and and iObjType[1] == 'Planes' and tObjType[1] == 'Ships' then 
+                                if iObjType and tObjType and  iObjType[1] == 'Planes' and tObjType[1] == 'Ships' then 
                                     saveStat.nest[#saveStat.nest] = 'bolter'
                                 end
                             end
@@ -2631,6 +2633,10 @@ end]]
                                     end
                                 else
                                     table.insert(saveStat.nest, 'airbase')
+                                    if slmod.config.stats_level == 2 then
+                                        saveStat.nest[#saveStat.nest] = 'baseList'
+                                        table.insert(saveStat.nest, event.target)
+                                    end
                                 end
                             else
                                 table.insert(saveStat.nest, 'austere')
@@ -2696,6 +2702,12 @@ end]]
                         if unitIsStationary(unitName) or landData.ship then
 							if landData.saveStat then 
                                 slmod.stats.advChangeStatsValue(landData.saveStat)
+
+                                if landData.saveStat.nestAlt then   -- not very elegant
+                                    local tStat = slmod.deepcopy(landData.saveStat)
+                                    tStat.nest = tStat.nestAlt
+                                    slmod.stats.advChangeStatsValue(tStat)
+                                end
                                 
                                 if hitObjs[unitName] then
                                     landedUnits[unitName].saveStat.nest[#landedUnits[unitName].saveStat.nest] = 'landedWhileDamaged'
