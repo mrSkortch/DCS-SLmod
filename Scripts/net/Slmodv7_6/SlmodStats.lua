@@ -222,11 +222,13 @@ do
         if type(newValue) == 'table' then
             statsTableKeys[newValue] = statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']'
         end
-        --if not t[key] then
-        --    slmod.warning('Key not found: ' .. slmod.basicSerialize(key))
-       -- else
+        if not t[key] then
+            slmod.warning('Key not found: ' .. slmod.basicSerialize(key))
+            slmod.warning('Writing valie: ' .. slmod.basicSerialize(newValue))
+            return
+        else
             t[key] = newValue
-        --end
+        end
         local statsChangeString = statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
         statsF:write(statsChangeString)
         statWrites = statWrites + 1
@@ -1640,7 +1642,7 @@ end]]
             ]]
 			local allHits = getHitData(deadName)
             local validHits = {}
-            if #allHits > 0 then -- assists are enabled and the object was hit more than once. 
+            if allHits and type(allHits) == 'table' and #allHits > 0 then -- assists are enabled and the object was hit more than once. 
                 --slmod.info('number of hits: ' .. #allHits)
                 local scope = #allHits
                 if slmod.config.assists_level and slmod.config.assists_level > 0 then
@@ -1727,7 +1729,6 @@ end]]
                             end
                         end
                     else
-                        
                         ucid = {lHit.initiator_coalition.. 'AI'}
                         typeName = {lHit.shotFrom}
                     end
@@ -2465,7 +2466,7 @@ end]]
                         end
                     
                         hitObjs[tgtName] = hitObjs[tgtName] or {}
-                        hitObjs[tgtName][#hitObjs[tgtName] + 1] = {time = time, initiator = initName, target = slmod.deepcopy(tgtClient), inAirHit = inAirHit, weapon = weapon, shotFrom = initType}
+                        hitObjs[tgtName][#hitObjs[tgtName] + 1] = {time = time, initiator = initName, target = slmod.deepcopy(tgtClient), inAirHit = inAirHit, weapon = weapon, shotFrom = initType, initiator_coalition = initSide}
                         ----slmod.info('here9')
                     
                     
@@ -2631,8 +2632,10 @@ end]]
                                     else
                                         table.insert(saveStat.nest, slmod.allMissionUnitsByName[event.target].objtype)
                                     end
+                                    
                                 else
                                     table.insert(saveStat.nest, 'airbase')
+                                    slmod.stats.advChangeStatsValue(saveStat)
                                     if slmod.config.stats_level == 2 then
                                         saveStat.nest[#saveStat.nest] = 'baseList'
                                         table.insert(saveStat.nest, event.target)

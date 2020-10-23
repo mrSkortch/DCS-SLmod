@@ -722,7 +722,7 @@ end
 
 
 function slmod.updateActiveUnits()  -- the coroutine to update active units table.
-	slmod.info('beginning slmod.updateActiveUnits')
+	--slmod.info('beginning slmod.updateActiveUnits')
 	-- start a new cycle...  beginning assumption: assume this function runs about 20 times a sec.
 	if slmod.activeUnitsBase then  -- only run if slmod.activeUnitsBase
 		local numUnits = #slmod.activeUnitsBase
