@@ -222,9 +222,8 @@ do
         if type(newValue) == 'table' then
             statsTableKeys[newValue] = statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']'
         end
-        if not t[key] then
-            slmod.warning('Key not found: ' .. slmod.basicSerialize(key))
-            slmod.warning('Writing valie: ' .. slmod.basicSerialize(newValue))
+        if not key then
+            slmod.warning('Key not found, trying to write value: ' .. slmod.oneLineSerialize(newValue))
             return
         else
             t[key] = newValue
@@ -239,6 +238,42 @@ do
         --testWrite()
 	end
     
+
+    	-- Create the nextIdNum variable, so stats knows the next stats ID number it can use for a new player.
+	local nextIDNum = 1
+	local pIds = {}
+    local function getNextId()
+        
+        while pIds[nextIDNum] do
+            --slmod.info(nextIDNum)
+            nextIDNum = nextIDNum + 1
+        end
+        --slmod.info('rtn: ' .. nextIDNum)
+        return slmod.deepcopy(nextIDNum)
+    end    
+    
+	for ucid, entry in pairs(stats) do  -- gets the next free ID num. But also adds all of the Ids to a list indexed by Id. 
+        pIds[entry.id] = ucid
+        
+	end
+    -- and because it is possible for stats to be deleted and penStats to be kept. Iterate penStats just in case. 
+    for ucid, entry in pairs(penStats) do
+        pIds[entry.id] = ucid
+    end
+
+    	-- function called to add a new player to SlmodStats.
+	local function createMisStatsPlayer(ucid)  -- call AFTER the regular stats createNewPlayer.
+        local pStats = stats[ucid]
+		if not pStats then
+			slmod.error('Mission Stats: player (ucid = ' .. tostring(ucid) .. ') does not exist in regular stats!')
+		else
+			slmod.stats.changeMisStatsValue(misStats, ucid, {})
+			slmod.stats.changeMisStatsValue(misStats[ucid], 'names', slmod.deepcopy(pStats.names))
+			slmod.stats.changeMisStatsValue(misStats[ucid], 'id', pStats.id)
+			slmod.stats.changeMisStatsValue(misStats[ucid], 'times', {})
+		end
+ 	end
+    
     local function createCampStatsPlayer(ucid)
         local pStats = stats[ucid]
 		if not pStats then
@@ -249,8 +284,36 @@ do
 			slmod.stats.changeCampStatsValue(campStats[ucid], 'id', pStats.id)
 			slmod.stats.changeCampStatsValue(campStats[ucid], 'times', {})
 		end
-    
     end
+    
+
+	---------------------------------------------------------------------------------------------------
+	-- function called to add a new player to SlmodStats.
+	local function createNewPlayer(ucid, name, cMizStat) 
+        slmod.stats.changeStatsValue(stats, ucid, {}) -- use original to write it
+        if penStats[ucid] then -- player existed before in penstats. So re-assign them their initial data
+            slmod.stats.changeStatsValue(stats[ucid], 'names', penStats[ucid].names)
+            slmod.stats.changeStatsValue(stats[ucid], 'id', penStats[ucid].id)
+            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', penStats[ucid].joinDate)   
+        else
+            slmod.stats.changeStatsValue(stats[ucid], 'names', { [1] = name })
+            slmod.stats.changeStatsValue(stats[ucid], 'id', getNextId())
+            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', os.time())
+        end
+		
+        pIds[stats[ucid].id] = ucid
+        
+		slmod.stats.changeStatsValue(stats[ucid], 'times', {})
+        
+        if slmod.config.enable_mission_stats and cMizStat then
+            createMisStatsPlayer(ucid)
+        end
+        
+        if campStatsActive == true and not campStats[ucid] then
+            createCampStatsPlayer(ucid)
+        end
+
+	end
     
    	---------------------------------------------------------------------------------------------------
     
@@ -368,150 +431,163 @@ do
         for j = 1, #useUcid do
             if stats[useUcid[j]] then
                 local lStats = stats[useUcid[j]]
-                if vars.penalty then -- add to penalty stats file
-                    if not penStats[useUcid[j]] then -- create user pen stats
-                        --slmod.info('create Pen stats')
-                        slmod.stats.createPlayerPenaltyStats(useUcid[j], true)
-                    end
-                    slmod.stats.changePenStatsValue(penStats[useUcid[j]][nest], #penStats[useUcid[j]][nest] + 1, addValue)
-                else
-                    local mStats = misStats[useUcid[j]]
-                    local lEntry = slmod.deepcopy(nest)
-                    local mEntry = slmod.deepcopy(nest)
-                    
-                    local cStats 
-                    if campStats and campStats[useUcid[j]] then
-                        cStats = campStats[useUcid[j]]
-                    end
-                    local cEntry = slmod.deepcopy(nest)
-                    
-                    local default = slmod.deepcopy(def)
-                    if type(nest) == 'table' then -- nest can be a string for root level or table for nested levels
-                        for i = 1, #nest - 1 do
-                            --slmod.info(i .. ' ' .. lEntry[i])
-                            if lEntry[i] == 'typeName' and typeName then
-                                lEntry[i] = typeName[j]
-                                mEntry[i] = typeName[j]
-                                cEntry[i] = typeName[j]
-                            end
-                            if not lStats[lEntry[i]] then
-                                slmod.stats.changeStatsValue(lStats, lEntry[i], {})
-                            end
-                            lStats = lStats[lEntry[i]]
-                            if slmod.config.enable_mission_stats then
-                                if not mStats[mEntry[i]] then
-                                    slmod.stats.changeMisStatsValue(mStats, mEntry[i], {})
-                                end  
-                                mStats = mStats[mEntry[i]]
-                            end
-                            if campStatsActive == true then
-                                if not cStats[cEntry[i]] then
-                                    slmod.stats.changeCampStatsValue(cStats, cEntry[i], {})
-                                end  
-                                cStats = cStats[cEntry[i]]
-                            end
+                if not lStats then
+                    slmod.warning('No Stats table exists for: ' .. useUcid[j])
+                    for id, cData in pairs(slmod.clients) do
+                        if cData.ucid == useUcid[j] then
+                            createNewPlayer(cData.ucid, cData.name, true)
+                            break
                         end
-                        lEntry = lEntry[#lEntry]
-                        mEntry = mEntry[#mEntry]
-                        cEntry = cEntry[#cEntry]
                     end
-                    if not lStats[lEntry] then -- if this table is not there, then it needs to create it!
-                        slmod.stats.changeStatsValue(lStats, lEntry, default or {})
-
+                end
+                if lStats then 
+                    if vars.penalty then -- add to penalty stats file
+                        if not penStats[useUcid[j]] then -- create user pen stats
+                            --slmod.info('create Pen stats')
+                            slmod.stats.createPlayerPenaltyStats(useUcid[j], true)
+                        end
+                        slmod.stats.changePenStatsValue(penStats[useUcid[j]][nest], #penStats[useUcid[j]][nest] + 1, addValue)
                     else
-                        --slmod.info(lEntry .. ' exists')
-                    end
-                    
-                    if slmod.config.enable_mission_stats then
-                        if not mStats[mEntry] then 
-                            local mDefault
-                            if default then 
-                                mDefault = slmod.deepcopy(default)
-                            end
-                            slmod.stats.changeMisStatsValue(mStats, mEntry, mDefault or {})
+                        local mStats = misStats[useUcid[j]]
+                        local lEntry = slmod.deepcopy(nest)
+                        local mEntry = slmod.deepcopy(nest)
+                        
+                        local cStats 
+                        if campStats and campStats[useUcid[j]] then
+                            cStats = campStats[useUcid[j]]
                         end
-                        -- insert code to create it in mission stats here because if it doesnt exist in main stats then it doesn't exist in mission stats
-                    end
-                    if campStatsActive == true and not cStats[cEntry] then
-                        local cDefault
-                        if default then
-                            cDefault = slmod.deepcopy(default)
-                        end
-                        slmod.stats.changeCampStatsValue(cStats, cEntry, cDefault or {})
-                    end
-                    if addValue then 
-                        if type(addValue) == 'table' then 
-                            for index, value in pairs(addValue) do
-                                if lStats[lEntry][index] then
-                                    --slmod.info('val is ' .. lStats[lEntry][index])
-                                    slmod.stats.changeStatsValue(lStats[lEntry], index, lStats[lEntry][index] + value)
-                                elseif default[index] then
-                                    slmod.stats.changeStatsValue(lStats[lEntry], index, default[index] + value)
+                        local cEntry = slmod.deepcopy(nest)
+                        
+                        local default = slmod.deepcopy(def)
+                        if type(nest) == 'table' then -- nest can be a string for root level or table for nested levels
+                            for i = 1, #nest - 1 do
+                                --slmod.info(i .. ' ' .. lEntry[i])
+                                if lEntry[i] == 'typeName' and typeName then
+                                    lEntry[i] = typeName[j]
+                                    mEntry[i] = typeName[j]
+                                    cEntry[i] = typeName[j]
                                 end
+                                if not lStats[lEntry[i]] then
+                                    slmod.stats.changeStatsValue(lStats, lEntry[i], {})
+                                end
+                                lStats = lStats[lEntry[i]]
                                 if slmod.config.enable_mission_stats then
-                                    if mStats[mEntry][index] then 
-                                        ----slmod.info('mval is ' .. mStats[mEntry][index])
-                                        slmod.stats.changeMisStatsValue(mStats[mEntry], index, mStats[mEntry][index] + value)
-                                    end
+                                    if not mStats[mEntry[i]] then
+                                        slmod.stats.changeMisStatsValue(mStats, mEntry[i], {})
+                                    end  
+                                    mStats = mStats[mEntry[i]]
                                 end
                                 if campStatsActive == true then
-                                    if cStats[cEntry][index] then 
-                                        ----slmod.info('mval is ' .. mStats[mEntry][index])
-                                        slmod.stats.changeCampStatsValue(cStats[cEntry], index, cStats[cEntry][index] + value)
-                                    end
+                                    if not cStats[cEntry[i]] then
+                                        slmod.stats.changeCampStatsValue(cStats, cEntry[i], {})
+                                    end  
+                                    cStats = cStats[cEntry[i]]
                                 end
                             end
-                        else    
-                            --slmod.info(addValue .. ' is added to single val ' .. lEntry)
-                            slmod.stats.changeStatsValue(lStats, lEntry, lStats[lEntry] + addValue)
-                            if  slmod.config.enable_mission_stats then 
-                                slmod.stats.changeMisStatsValue(mStats, mEntry, mStats[mEntry] + addValue)
-                            end
-                            if campStatsActive == true then
-                                slmod.stats.changeCampStatsValue(cStats, cEntry, cStats[cEntry] + addValue)
-                            end
+                            lEntry = lEntry[#lEntry]
+                            mEntry = mEntry[#mEntry]
+                            cEntry = cEntry[#cEntry]
                         end
-                    end
-                    if vars.setValue then -- change one and only one value to this. 
-                        slmod.stats.changeStatsValue(lStats, lEntry, vars.setValue)
-                        if  slmod.config.enable_mission_stats then 
-                            slmod.stats.changeMisStatsValue(mStats, mEntry, vars.setValue)
-                        end
-                        if campStatsActive == true then
-                            slmod.stats.changeCampStatsValue(cStats, cEntry, vars.setValue)
-                        end
-                    end
-                    if vars.insert then
-                        --slmod.info('insert')
-                        if vars.insertAt then
-                            -- can't do a simple table.insert. Need to get all values, insert at start of table, THEN rewrite all table entries. 
-                            local tab = slmod.deepcopy(lStats[lEntry])
-                            table.insert(tab, insertAt, vars.insert)
-                            if vars.maxSaved and type(vars.maxSaved) == 'number' then
-                                for i = 1, #tab do
-                                    if i > vars.maxSaved then
-                                        tab[i] = nil
-                                    end
-                                end
-                            end
-                            slmod.stats.changeStatsValue(lStats, lEntry, tab)
-                            if slmod.config.enable_mission_stats then 
-                                slmod.stats.changeMisStatsValue(mStats, mEntry, tab)
-                            end
-                            if campStatsActive == true then
-                                slmod.stats.changeCampStatsValue(cStats, cEntry, tab)
-                            end
+                        if not lStats[lEntry] then -- if this table is not there, then it needs to create it!
+                            slmod.stats.changeStatsValue(lStats, lEntry, default or {})
+
                         else
-                            --slmod.info('just insert')
-                            slmod.stats.changeStatsValue(lStats[lEntry], #lStats[lEntry] + 1, vars.insert)
+                            --slmod.info(lEntry .. ' exists')
+                        end
+                        
+                        if slmod.config.enable_mission_stats then
+                            if not mStats[mEntry] then 
+                                local mDefault
+                                if default then 
+                                    mDefault = slmod.deepcopy(default)
+                                end
+                                slmod.stats.changeMisStatsValue(mStats, mEntry, mDefault or {})
+                            end
+                            -- insert code to create it in mission stats here because if it doesnt exist in main stats then it doesn't exist in mission stats
+                        end
+                        if campStatsActive == true and not cStats[cEntry] then
+                            local cDefault
+                            if default then
+                                cDefault = slmod.deepcopy(default)
+                            end
+                            slmod.stats.changeCampStatsValue(cStats, cEntry, cDefault or {})
+                        end
+                        if addValue then 
+                            if type(addValue) == 'table' then 
+                                for index, value in pairs(addValue) do
+                                    if lStats[lEntry][index] then
+                                        --slmod.info('val is ' .. lStats[lEntry][index])
+                                        slmod.stats.changeStatsValue(lStats[lEntry], index, lStats[lEntry][index] + value)
+                                    elseif default[index] then
+                                        slmod.stats.changeStatsValue(lStats[lEntry], index, default[index] + value)
+                                    end
+                                    if slmod.config.enable_mission_stats then
+                                        if mStats[mEntry][index] then 
+                                            ----slmod.info('mval is ' .. mStats[mEntry][index])
+                                            slmod.stats.changeMisStatsValue(mStats[mEntry], index, mStats[mEntry][index] + value)
+                                        end
+                                    end
+                                    if campStatsActive == true then
+                                        if cStats[cEntry][index] then 
+                                            ----slmod.info('mval is ' .. mStats[mEntry][index])
+                                            slmod.stats.changeCampStatsValue(cStats[cEntry], index, cStats[cEntry][index] + value)
+                                        end
+                                    end
+                                end
+                            else    
+                                --slmod.info(addValue .. ' is added to single val ' .. lEntry)
+                                slmod.stats.changeStatsValue(lStats, lEntry, lStats[lEntry] + addValue)
+                                if  slmod.config.enable_mission_stats then 
+                                    slmod.stats.changeMisStatsValue(mStats, mEntry, mStats[mEntry] + addValue)
+                                end
+                                if campStatsActive == true then
+                                    slmod.stats.changeCampStatsValue(cStats, cEntry, cStats[cEntry] + addValue)
+                                end
+                            end
+                        end
+                        if vars.setValue then -- change one and only one value to this. 
+                            slmod.stats.changeStatsValue(lStats, lEntry, vars.setValue)
                             if  slmod.config.enable_mission_stats then 
-                                slmod.stats.changeMisStatsValue(mStats[mEntry], #mStats[mEntry] + 1, vars.insert)
+                                slmod.stats.changeMisStatsValue(mStats, mEntry, vars.setValue)
                             end
                             if campStatsActive == true then
-                                slmod.stats.changeCampStatsValue(cStats[cEntry], #cStats[cEntry] + 1, vars.insert)
+                                slmod.stats.changeCampStatsValue(cStats, cEntry, vars.setValue)
+                            end
+                        end
+                        if vars.insert then
+                            --slmod.info('insert')
+                            if vars.insertAt then
+                                -- can't do a simple table.insert. Need to get all values, insert at start of table, THEN rewrite all table entries. 
+                                local tab = slmod.deepcopy(lStats[lEntry])
+                                table.insert(tab, insertAt, vars.insert)
+                                if vars.maxSaved and type(vars.maxSaved) == 'number' then
+                                    for i = 1, #tab do
+                                        if i > vars.maxSaved then
+                                            tab[i] = nil
+                                        end
+                                    end
+                                end
+                                slmod.stats.changeStatsValue(lStats, lEntry, tab)
+                                if slmod.config.enable_mission_stats then 
+                                    slmod.stats.changeMisStatsValue(mStats, mEntry, tab)
+                                end
+                                if campStatsActive == true then
+                                    slmod.stats.changeCampStatsValue(cStats, cEntry, tab)
+                                end
+                            else
+                                --slmod.info('just insert')
+                                slmod.stats.changeStatsValue(lStats[lEntry], #lStats[lEntry] + 1, vars.insert)
+                                if  slmod.config.enable_mission_stats then 
+                                    slmod.stats.changeMisStatsValue(mStats[mEntry], #mStats[mEntry] + 1, vars.insert)
+                                end
+                                if campStatsActive == true then
+                                    slmod.stats.changeCampStatsValue(cStats[cEntry], #cStats[cEntry] + 1, vars.insert)
+                                end
                             end
                         end
                     end
+                
+
                 end
             end
 
@@ -531,69 +607,7 @@ do
         return
     end
    	--------------------------------------------------------------------------------------------------
-	-- Create the nextIdNum variable, so stats knows the next stats ID number it can use for a new player.
-	local nextIDNum = 1
-	local pIds = {}
-    local function getNextId()
-        
-        while pIds[nextIDNum] do
-            --slmod.info(nextIDNum)
-            nextIDNum = nextIDNum + 1
-        end
-        --slmod.info('rtn: ' .. nextIDNum)
-        return slmod.deepcopy(nextIDNum)
-    end    
-    
-	for ucid, entry in pairs(stats) do  -- gets the next free ID num. But also adds all of the Ids to a list indexed by Id. 
-        pIds[entry.id] = ucid
-        
-	end
-    -- and because it is possible for stats to be deleted and penStats to be kept. Iterate penStats just in case. 
-    for ucid, entry in pairs(penStats) do
-        pIds[entry.id] = ucid
-    end
 
-    	-- function called to add a new player to SlmodStats.
-	local function createMisStatsPlayer(ucid)  -- call AFTER the regular stats createNewPlayer.
-        local pStats = stats[ucid]
-		if not pStats then
-			slmod.error('Mission Stats: player (ucid = ' .. tostring(ucid) .. ') does not exist in regular stats!')
-		else
-			slmod.stats.changeMisStatsValue(misStats, ucid, {})
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'names', slmod.deepcopy(pStats.names))
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'id', pStats.id)
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'times', {})
-		end
- 	end
-    
-
-	---------------------------------------------------------------------------------------------------
-	-- function called to add a new player to SlmodStats.
-	local function createNewPlayer(ucid, name, cMizStat) 
-        slmod.stats.changeStatsValue(stats, ucid, {}) -- use original to write it
-        if penStats[ucid] then -- player existed before in penstats. So re-assign them their initial data
-            slmod.stats.changeStatsValue(stats[ucid], 'names', penStats[ucid].names)
-            slmod.stats.changeStatsValue(stats[ucid], 'id', penStats[ucid].id)
-            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', penStats[ucid].joinDate)   
-        else
-            slmod.stats.changeStatsValue(stats[ucid], 'names', { [1] = name })
-            slmod.stats.changeStatsValue(stats[ucid], 'id', getNextId())
-            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', os.time())
-        end
-		
-        pIds[stats[ucid].id] = ucid
-        
-		slmod.stats.changeStatsValue(stats[ucid], 'times', {})
-        
-        if slmod.config.enable_mission_stats and cMizStat then
-            createMisStatsPlayer(ucid)
-        end
-        
-        if campStatsActive == true and not campStats[ucid] then
-            createCampStatsPlayer(ucid)
-        end
-
-	end
 
     
     --- new function to create the penalty stats for a player
@@ -850,7 +864,7 @@ do
 	
 	end
 	function slmod.stats.onSetUnit(id)
-		if not id then
+        if not id then
 			slmod.error('slmod.stats.onSetUnit(id): client has no id!!!')
 			return
 		end
@@ -864,7 +878,6 @@ do
 		
 			local newStatsNames  -- moved to this scope so that misStats has access.
 			local newName
-			
 			if not stats[ucid] then
                 createNewPlayer(ucid, name, true)
 			else  -- check to see if name matches	
