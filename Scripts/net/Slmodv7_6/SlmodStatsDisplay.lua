@@ -833,8 +833,13 @@ do
             local requester = slmod.clients[clientId]
 			
             if requester then
-               --slmod.info('requester')
-				if stats[requester.ucid] then  -- this check invalid if server stats ever optionally disabled.
+                slmod.info('requester: '.. slmod.oneLineSerialize(requester))
+                if not stats then
+                    slmod.info('Stats table not loaded')
+                    slmod.stats.displayInit()
+                end
+               
+				if stats and stats[requester.ucid] then  -- this check invalid if server stats ever optionally disabled.
                    --slmod.info('is in stats')
 					local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
                    --slmod.info('StatsTouse')

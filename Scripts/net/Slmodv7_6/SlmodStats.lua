@@ -467,6 +467,9 @@ do
                                     mEntry[i] = typeName[j]
                                     cEntry[i] = typeName[j]
                                 end
+                                if not lEntry[i] then
+                                    slmod.warning(slmod.oneLineSerialize(nest) .. 'index: ' .. i) 
+                                end
                                 if not lStats[lEntry[i]] then
                                     slmod.stats.changeStatsValue(lStats, lEntry[i], {})
                                 end
@@ -1722,6 +1725,7 @@ end]]
                  --slmod.info(slmod.oneLineSerialize(dStat))
                 -- Only do dead check stuff once, cause it only died once.
                 for i = 1, #validHits do
+                    --slmod.info(i)
                     local lHit = validHits[i]
                     local killerObj = lHit.initiator
                     local killerObjType = 'unknown'
@@ -1904,10 +1908,12 @@ end]]
                                 
                             
                         else
-                            if type(killerObj) == 'table' then
-                                slmod.warning('SlmodStats- hitter (' .. slmod.oneLineSerialize(killerObj) .. ') is not an SlmodClient, and dead unit (unitName = ' .. tostring(deadName) .. ') is not an SlmodClient!')
-                            else
-                                slmod.warning('SlmodStats- hitter (' .. tostring(killerObj) .. ') is not an SlmodClient, and dead unit (unitName = ' .. tostring(deadName) .. ') is not an SlmodClient!')
+                            if slmod.config.stats_coa > 1 then 
+                                if type(killerObj) == 'table' then
+                                    slmod.warning('SlmodStats- hitter (' .. slmod.oneLineSerialize(killerObj) .. ') is not an SlmodClient, and dead unit (unitName = ' .. tostring(deadName) .. ') is not an SlmodClient!')
+                                else
+                                    slmod.warning('SlmodStats- hitter (' .. tostring(killerObj) .. ') is not an SlmodClient, and dead unit (unitName = ' .. tostring(deadName) .. ') is not an SlmodClient!')
+                                end
                             end
                         end
                         --slmod.info('check for death stats')
@@ -2110,6 +2116,12 @@ end]]
                 local initSide = event.initiator_coalition
                 local initClient
                 local testRun = false
+                
+                if slmod.allMissionUnitsByName[event.initiator] and not event.initiator_objtype then 
+                    slmod.info('objtype missing in event')
+                    slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
+                    event.initiator_objtype = slmod.allMissionUnitsByName[event.initiator].objtype
+                end 
 				if (slmod.clientsByRtId and (slmod.clientsByName[event.initiator] or slmod.oldClientsByName[event.initiator])) or event.initiator == 'FakeShotDown' then
                     --slmod.info(event.initiator)
                     initiator = slmod.clientsByRtId[event.initiatorID] or slmod.oldClientsByName[event.initiator]
