@@ -1286,6 +1286,17 @@ do
         
         addUDPData(tbl)
     end
+    
+    
+    function slmod.missionAdminAction(id, action, reason)
+        local tbl = {}
+        tbl[1] = 'slmod.mission_admin_action'
+        tbl[2] = id
+        tbl[3] = action
+        tbl[4] = reason
+        
+        addUDPData(tbl)
+    end
 	
 	Slmod = slmod -- if someone accidentally uses Slmod, it works.
 	

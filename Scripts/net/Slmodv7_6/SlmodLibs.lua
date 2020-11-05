@@ -2726,6 +2726,7 @@ function slmod.reset()
 
 		slmod.stats.onMission()
 		
+        slmod.scheduleFunction(slmod.stats.displayInit, {}, DCS.getModelTime() + 10)
 
 	end
     
