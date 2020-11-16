@@ -2118,8 +2118,8 @@ end]]
                 local testRun = false
                 
                 if slmod.allMissionUnitsByName[event.initiator] and not event.initiator_objtype then 
-                    slmod.info('objtype missing in event')
-                    slmod.info(slmod.oneLineSerialize(slmod.events[eventInd]))
+                    --slmod.info('objtype missing in event')
+                    --slmod.info(slmod.oneLineSerialize(event))
                     event.initiator_objtype = slmod.allMissionUnitsByName[event.initiator].objtype
                 end 
 				if (slmod.clientsByRtId and (slmod.clientsByName[event.initiator] or slmod.oldClientsByName[event.initiator])) or event.initiator == 'FakeShotDown' then
