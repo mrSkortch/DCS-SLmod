@@ -10,7 +10,7 @@ do
     local campStats
     
     function slmod.stats.displayInit()
-       --slmod.info('display stats init')
+        --slmod.info('display stats init')
         stats = slmod.stats.getStats()
         penStats = slmod.stats.getPenStats()
         misStats = slmod.stats.getMisStats()
@@ -256,7 +256,7 @@ do
                 local aTime = 0
                 local killList = slmod.deepcopy(commonStatTbl)
                 local pvp = {kills = 0, losses = 0}
-				local losses = {crash = 0, eject = 0, pilotDeath = 0}
+				local losses = {crash = 0, eject = 0, pilotDeath = 0, pilotError = 0, crashLanding = 0}
                 --slmod.info('do plat') 
 				for i = 1, #platforms do
 					--slmod.info(i)
@@ -309,6 +309,9 @@ do
                         --slmod.info('losses')
                         if pStats.times[platforms[i]].actions.losses then
                             for statType, statData in pairs(pStats.times[platforms[i]].actions.losses) do
+                                if not losses[statType] then
+                                    losses[statType] = 0
+                                end
                                 losses[statType] =  losses[statType] + statData
                             end
                         end
@@ -477,6 +480,10 @@ do
 				p1Tbl[#p1Tbl + 1] = tostring(losses.eject)
 				p1Tbl[#p1Tbl + 1] = ';  Pilot Deaths: '
 				p1Tbl[#p1Tbl + 1] = tostring(losses.pilotDeath)
+                p1Tbl[#p1Tbl + 1] = ';  Pilot Error: '
+				p1Tbl[#p1Tbl + 1] = tostring(losses.pilotError)
+                p1Tbl[#p1Tbl + 1] = ';  Crash Landing: '
+				p1Tbl[#p1Tbl + 1] = tostring(losses.crashLanding)
 				p1Tbl[#p1Tbl + 1] = ';\n\n'
                 
                --slmod.info('ac check')
@@ -833,9 +840,9 @@ do
             local requester = slmod.clients[clientId]
 			
             if requester then
-                slmod.info('requester: '.. slmod.oneLineSerialize(requester))
+                --slmod.info('requester: '.. slmod.oneLineSerialize(requester))
                 if not stats then
-                    slmod.info('Stats table not loaded')
+                    --slmod.info('Stats table not loaded')
                     slmod.stats.displayInit()
                 end
                
