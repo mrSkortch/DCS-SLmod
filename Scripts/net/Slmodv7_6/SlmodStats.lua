@@ -66,8 +66,8 @@ do
             statData = penStats   
             fileF = penStatsF
         elseif l == 'camp' then
-            slmod.info(campStatsDir)
-            slmod.info(f)
+           -- slmod.info(campStatsDir)
+            --slmod.info(f)
             lstatsDir = campStatsDir
             envName = 'campStats'
             statData = campStats
@@ -145,6 +145,10 @@ do
         if not statData then
             statData = {}
         end
+        
+        local jsonFileName = string.gsub(fileName, '.lua', '.json')
+        
+        local jsonStats = net.lua2json(statData)
         if l == 'meta' then
             local newStatsS = slmod.serialize('metaStats', statData) ..'\n'
             fileF = io.open(lstatsDir .. fileName, 'w')
@@ -165,7 +169,7 @@ do
             penStatsF = io.open(lstatsDir .. fileName, 'w')
             penStatsF:write(newStatsS)
         elseif l == 'camp' then
-            slmod.info('open')
+           -- slmod.info('open')
             local newStatsS = slmod.serialize('campStats', statData) ..'\n'
             campStatsF = io.open(lstatsDir .. fileName, 'w')
             campStatsF:write(newStatsS)
@@ -176,6 +180,15 @@ do
             statsF = io.open(lstatsDir .. fileName, 'w')
             statsF:write(newStatsS)
         end
+        
+        if slmod.config.save_json_stats then
+            --slmod.info('writing json file')
+           -- slmod.info(jsonFileName)
+            local jsonF = io.open(lstatsDir .. jsonFileName, 'w')
+            jsonF:write(jsonStats)
+            jsonF:close()
+        end
+        
         return statData, fileF
 	end
     stats = slmod.stats.resetFile()
@@ -192,207 +205,232 @@ do
     
 	-------------------------------------------------------------------------------------------------------
 	-- Create statsTableKeys database
-    local statsTableKeys = {}  -- stores strings that corresponds to table indexes within stats... needed for updating file.
-	statsTableKeys[stats] = 'stats'
-	do
-		local function makeStatsTableKeys(levelKey, t)
-            for key, val in pairs(t) do
-                if type(val) == 'table' and type(key) == 'string' then
-					key = levelKey .. '[' .. slmod.basicSerialize(key) .. ']'
-					statsTableKeys[val] = key  -- works because each table only exists once in Slmod stats- it's REQUIRED!!! DO NOT FORGET THIS!
-                    ----slmod.info(slmod.basicSerialize(val) .. ' : ' .. key)
-					makeStatsTableKeys(key, val)
-				end
-			end
-		end
-		
-		makeStatsTableKeys('stats', stats)
-	end	
-	------------------------------------------------------------------------------------------------------
-
-    ----------------
-	-- call this function each time a value in stats needs to be changed... 
-    -- For all root entries for a player and changing actual values by advChangeStatsValue
-	-- t: the table in stats that this value belongs under
-    function slmod.stats.changeStatsValue(t, key, newValue)
-        if not t then
-			slmod.error('Invalue stats table specified!')
-			return
-        end
-        if type(newValue) == 'table' then
-            statsTableKeys[newValue] = statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']'
-        end
-        if not key then
-            slmod.warning('Key not found, trying to write value: ' .. slmod.oneLineSerialize(newValue))
-            return
-        else
-            t[key] = newValue
-        end
-        local statsChangeString = statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
-        statsF:write(statsChangeString)
-        statWrites = statWrites + 1
-        if statWrites > 10000 then
-            recompileStats()
-        end
-		----slmod.info(statsChangeString)
-        --testWrite()
-	end
     
-
-    	-- Create the nextIdNum variable, so stats knows the next stats ID number it can use for a new player.
-	local nextIDNum = 1
-	local pIds = {}
-    local function getNextId()
-        
-        while pIds[nextIDNum] do
-            --slmod.info(nextIDNum)
-            nextIDNum = nextIDNum + 1
-        end
-        --slmod.info('rtn: ' .. nextIDNum)
-        return slmod.deepcopy(nextIDNum)
-    end    
-    
-	for ucid, entry in pairs(stats) do  -- gets the next free ID num. But also adds all of the Ids to a list indexed by Id. 
-        pIds[entry.id] = ucid
-        
-	end
-    -- and because it is possible for stats to be deleted and penStats to be kept. Iterate penStats just in case. 
-    for ucid, entry in pairs(penStats) do
-        pIds[entry.id] = ucid
-    end
-
-    	-- function called to add a new player to SlmodStats.
-	local function createMisStatsPlayer(ucid)  -- call AFTER the regular stats createNewPlayer.
-        local pStats = stats[ucid]
-		if not pStats then
-			slmod.error('Mission Stats: player (ucid = ' .. tostring(ucid) .. ') does not exist in regular stats!')
-		else
-			slmod.stats.changeMisStatsValue(misStats, ucid, {})
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'names', slmod.deepcopy(pStats.names))
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'id', pStats.id)
-			slmod.stats.changeMisStatsValue(misStats[ucid], 'times', {})
-		end
- 	end
-    
-    local function createCampStatsPlayer(ucid)
-        local pStats = stats[ucid]
-		if not pStats then
-			slmod.error('Campaign Stats: player (ucid = ' .. tostring(ucid) .. ') does not exist in regular stats!')
-		else
-			slmod.stats.changeCampStatsValue(campStats, ucid, {})
-			slmod.stats.changeCampStatsValue(campStats[ucid], 'names', slmod.deepcopy(pStats.names))
-			slmod.stats.changeCampStatsValue(campStats[ucid], 'id', pStats.id)
-			slmod.stats.changeCampStatsValue(campStats[ucid], 'times', {})
-		end
-    end
-    
-
-	---------------------------------------------------------------------------------------------------
-	-- function called to add a new player to SlmodStats.
-	local function createNewPlayer(ucid, name, cMizStat) 
-        slmod.stats.changeStatsValue(stats, ucid, {}) -- use original to write it
-        if penStats[ucid] then -- player existed before in penstats. So re-assign them their initial data
-            slmod.stats.changeStatsValue(stats[ucid], 'names', penStats[ucid].names)
-            slmod.stats.changeStatsValue(stats[ucid], 'id', penStats[ucid].id)
-            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', penStats[ucid].joinDate)   
-        else
-            slmod.stats.changeStatsValue(stats[ucid], 'names', { [1] = name })
-            slmod.stats.changeStatsValue(stats[ucid], 'id', getNextId())
-            slmod.stats.changeStatsValue(stats[ucid], 'joinDate', os.time())
-        end
-		
-        pIds[stats[ucid].id] = ucid
-        
-		slmod.stats.changeStatsValue(stats[ucid], 'times', {})
-        
-        if slmod.config.enable_mission_stats and cMizStat then
-            createMisStatsPlayer(ucid)
-        end
-        
-        if campStatsActive == true and not campStats[ucid] then
-            createCampStatsPlayer(ucid)
-        end
-
-	end
-    
-   	---------------------------------------------------------------------------------------------------
-    
-
-    
-    local campStatsTableKeys = {}  -- stores strings that corresponds to table indexes within stats... needed for updating file.
-    local function buildCampStatsKeys()
-        campStatsTableKeys[campStats] = 'campStats'
+        local statsTableKeys = {}  -- stores strings that corresponds to table indexes within stats... needed for updating file.
+        statsTableKeys[stats] = 'stats'
         do
             local function makeStatsTableKeys(levelKey, t)
                 for key, val in pairs(t) do
                     if type(val) == 'table' and type(key) == 'string' then
                         key = levelKey .. '[' .. slmod.basicSerialize(key) .. ']'
-                        campStatsTableKeys[val] = key  -- works because each table only exists once in Slmod stats- it's REQUIRED!!! DO NOT FORGET THIS!
+                        statsTableKeys[val] = key  -- works because each table only exists once in Slmod stats- it's REQUIRED!!! DO NOT FORGET THIS!
                         ----slmod.info(slmod.basicSerialize(val) .. ' : ' .. key)
                         makeStatsTableKeys(key, val)
                     end
                 end
             end
             
-            makeStatsTableKeys('campStats', campStats)
+            makeStatsTableKeys('stats', stats)
         end	
-    end
-    
-    
-    function slmod.stats.startCampaign(cFile)
-        campStats = slmod.stats.resetFile('camp', cFile)
-        buildCampStatsKeys()
-        if campStats and slmod.config.stats_coa > 0 then 
-            if not campStats['bluePlayers'] then
-                createCampStatsPlayer('bluePlayers')
-            end
-            if not campStats['redPlayers'] then
-                createCampStatsPlayer('redPlayers')
-            end
-            if slmod.config.stats_coa > 1 then
-                if not campStats['blueAI'] then
-                    createCampStatsPlayer('blueAI')
-                end
-                if not campStats['redAI'] then
-                    createCampStatsPlayer('redAI')
-                end
-            end
-        end
-    end
-    
-    
-    function slmod.stats.changeCampStatsValue(t, key, newValue)
-        if not t then
-			slmod.error('Invalue stats table specified!')
-			return
-        end
-        if type(newValue) == 'table' then
-            campStatsTableKeys[newValue] = campStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']'
-        end
-        --if not t[key] then
-        --    slmod.warning('Key not found: ' .. slmod.basicSerialize(key))
-       -- else
-            t[key] = newValue
-        --end
-        local statsChangeString = campStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
-        campStatsF:write(statsChangeString)
+        ------------------------------------------------------------------------------------------------------
+        --[[ stats write buffer
 
-		----slmod.info(statsChangeString)
-        --testWrite()
-	end
-    
-    
-    --[[ stats write buffer
-        Scheduled to run at set interval of every few seconds. or a max size of number of writes. 
-        Attempts to simplify the writing process when numerous similar events occur. Why write 30 times that a player has launched 30 rockets in a salvo when it can take 30 shot events and save the last value. 
-        Edit
+        ]]
+        local statsBuffer = {}
+        local buffer = {}
+        local function statsWriteBuffer()
+            --slmod.scheduleFunction(statsWriteBuffer, {}, DCS.getModelTime() + 4)
+            if #statsBuffer > 0 then
+                for i = 1, #statsBuffer do
+                    local lStat = buffer[statsBuffer[i]]
+                    local wVal = statsBuffer[i] .. ' = ' .. slmod.oneLineSerialize(lStat.val) .. '\n'
+                    if lStat.tName == 'stats' then
+                        statsF:write(wVal)
+                    elseif lStat.tName == 'misStats' then
+                        misStatsF:write(wVal)
+                    elseif lStat.tName == 'campStats' then
+                        campStatsF:write(wVal)
+                    end
+                end
+                statsBuffer = {}
+                buffer = {}
+            end
+        end
+        
+        local function addStatToBuffer(tName, key, newValue)
+            if buffer[key] then
+                buffer[key].val = newValue
+            else    
+                buffer[key] = {tName = tName, val = newValue, index = #statsBuffer + 1}
+                table.insert(statsBuffer, key)
+            end
+            
+        end
+        ----------------
+        -- call this function each time a value in stats needs to be changed... 
+        -- For all root entries for a player and changing actual values by advChangeStatsValue
+        -- t: the table in stats that this value belongs under
+        function slmod.stats.changeStatsValue(t, key, newValue, def)
+            if not t then
+                slmod.error('Invalue stats table specified!')
+                return
+            end
+            if type(newValue) == 'table' then
+                statsTableKeys[newValue] = statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']'
+            end
+            if not key then
+                slmod.warning('Key not found, trying to write value: ' .. slmod.oneLineSerialize(newValue))
+                return
+            else
+                t[key] = newValue
+            end
+            --local statsChangeString = statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
 
+            addStatToBuffer('stats', statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']', slmod.deepcopy(newValue))
+            statWrites = statWrites + 1
+            if statWrites > 10000 then
+                recompileStats()
+            end
+           
+
+        end
+        
+
+            -- Create the nextIdNum variable, so stats knows the next stats ID number it can use for a new player.
+        local nextIDNum = 1
+        local pIds = {}
+        local function getNextId()
+            
+            while pIds[nextIDNum] do
+                --slmod.info(nextIDNum)
+                nextIDNum = nextIDNum + 1
+            end
+            --slmod.info('rtn: ' .. nextIDNum)
+            return slmod.deepcopy(nextIDNum)
+        end    
+        
+        for ucid, entry in pairs(stats) do  -- gets the next free ID num. But also adds all of the Ids to a list indexed by Id. 
+            pIds[entry.id] = ucid
+            
+        end
+        -- and because it is possible for stats to be deleted and penStats to be kept. Iterate penStats just in case. 
+        for ucid, entry in pairs(penStats) do
+            pIds[entry.id] = ucid
+        end
+
+            -- function called to add a new player to SlmodStats.
+        local function createMisStatsPlayer(ucid)  -- call AFTER the regular stats createNewPlayer.
+            local pStats = stats[ucid]
+            if not pStats then
+                slmod.error('Mission Stats: player (ucid = ' .. tostring(ucid) .. ') does not exist in regular stats!')
+            else
+                slmod.stats.changeMisStatsValue(misStats, ucid, {})
+                slmod.stats.changeMisStatsValue(misStats[ucid], 'names', slmod.deepcopy(pStats.names))
+                slmod.stats.changeMisStatsValue(misStats[ucid], 'id', pStats.id)
+                slmod.stats.changeMisStatsValue(misStats[ucid], 'times', {})
+            end
+        end
+        
+        local function createCampStatsPlayer(ucid)
+            local pStats = stats[ucid]
+            if not pStats then
+                slmod.error('Campaign Stats: player (ucid = ' .. tostring(ucid) .. ') does not exist in regular stats!')
+            else
+                slmod.stats.changeCampStatsValue(campStats, ucid, {})
+                slmod.stats.changeCampStatsValue(campStats[ucid], 'names', slmod.deepcopy(pStats.names))
+                slmod.stats.changeCampStatsValue(campStats[ucid], 'id', pStats.id)
+                slmod.stats.changeCampStatsValue(campStats[ucid], 'times', {})
+            end
+        end
+        
+
+        ---------------------------------------------------------------------------------------------------
+        -- function called to add a new player to SlmodStats.
+        local function createNewPlayer(ucid, name, cMizStat) 
+            slmod.stats.changeStatsValue(stats, ucid, {}) -- use original to write it
+            if penStats[ucid] then -- player existed before in penstats. So re-assign them their initial data
+                slmod.stats.changeStatsValue(stats[ucid], 'names', penStats[ucid].names)
+                slmod.stats.changeStatsValue(stats[ucid], 'id', penStats[ucid].id)
+                slmod.stats.changeStatsValue(stats[ucid], 'joinDate', penStats[ucid].joinDate)   
+            else
+                slmod.stats.changeStatsValue(stats[ucid], 'names', { [1] = name })
+                slmod.stats.changeStatsValue(stats[ucid], 'id', getNextId())
+                slmod.stats.changeStatsValue(stats[ucid], 'joinDate', os.time())
+            end
+            
+            pIds[stats[ucid].id] = ucid
+            
+            slmod.stats.changeStatsValue(stats[ucid], 'times', {})
+            
+            if slmod.config.enable_mission_stats and cMizStat then
+                createMisStatsPlayer(ucid)
+            end
+            
+            if campStatsActive == true and not campStats[ucid] then
+                createCampStatsPlayer(ucid)
+            end
+
+        end
+        
+        ---------------------------------------------------------------------------------------------------
+        
+
+        
+        local campStatsTableKeys = {}  -- stores strings that corresponds to table indexes within stats... needed for updating file.
+        local function buildCampStatsKeys()
+            campStatsTableKeys[campStats] = 'campStats'
+            do
+                local function makeStatsTableKeys(levelKey, t)
+                    for key, val in pairs(t) do
+                        if type(val) == 'table' and type(key) == 'string' then
+                            key = levelKey .. '[' .. slmod.basicSerialize(key) .. ']'
+                            campStatsTableKeys[val] = key  -- works because each table only exists once in Slmod stats- it's REQUIRED!!! DO NOT FORGET THIS!
+                            ----slmod.info(slmod.basicSerialize(val) .. ' : ' .. key)
+                            makeStatsTableKeys(key, val)
+                        end
+                    end
+                end
+                
+                makeStatsTableKeys('campStats', campStats)
+            end	
+        end
+        
+        
+        function slmod.stats.startCampaign(cFile)
+            campStats = slmod.stats.resetFile('camp', cFile)
+            buildCampStatsKeys()
+            if campStats and slmod.config.stats_coa > 0 then 
+                if not campStats['bluePlayers'] then
+                    createCampStatsPlayer('bluePlayers')
+                end
+                if not campStats['redPlayers'] then
+                    createCampStatsPlayer('redPlayers')
+                end
+                if slmod.config.stats_coa > 1 then
+                    if not campStats['blueAI'] then
+                        createCampStatsPlayer('blueAI')
+                    end
+                    if not campStats['redAI'] then
+                        createCampStatsPlayer('redAI')
+                    end
+                end
+            end
+        end
+        
+        
+        function slmod.stats.changeCampStatsValue(t, key, newValue)
+            if not t then
+                slmod.error('Invalue stats table specified!')
+                return
+            end
+            if type(newValue) == 'table' then
+                campStatsTableKeys[newValue] = campStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']'
+            end
+            --if not t[key] then
+            --    slmod.warning('Key not found: ' .. slmod.basicSerialize(key))
+           -- else
+                t[key] = newValue
+            --end
+            --local statsChangeString = campStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
+            addStatToBuffer('campStats', campStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']', slmod.oneLineSerialize(newValue))
+            --campStatsF:write(statsChangeString)
+
+            ----slmod.info(statsChangeString)
+            --testWrite()
+        end
     
-    ]]
-    local function statsWriteBuffer(value)
     
-    
-    end
+
     
     --[[AdvancedChangeStatsValue()
     New function meant to simplify how stats are added amoung multiple files and multicrew aircraft. 
@@ -595,6 +633,18 @@ do
             end
 
         end
+        --[[
+        if slmod.config.save_best_life and slmod.config.save_best_life > 0 and not (vars.AI or vars.penalty or vars.life) then
+            local lifeVars = slmod.deepcopy(vars)
+            lifeVars.life = true
+            if type(lifeVars.nest) == 'table' then
+                table.insert(lifeVars.nest, 1, 'currentLife')
+            else
+                lifeVars.nest = {'currentLife', vars.nest}
+            end
+            slmod.scheduleFunction(slmod.stats.advChangeStatsValue, {lifeVars, logg}, DCS.getModelTime() + 1)
+        end]]
+        
         if slmod.config.stats_coa and slmod.config.stats_coa > 0 and vars.coa and not (vars.AI or vars.penalty) then
             -- change vars.ucid to correspond to player or AI value based on setting
             -- Do I really want to have stats for that?
@@ -605,7 +655,8 @@ do
             end
             cVars.ucid = u
             cVars.coa = nil
-            slmod.stats.advChangeStatsValue(cVars, logg)
+            
+            slmod.scheduleFunction(slmod.stats.advChangeStatsValue, {cVars, logg}, DCS.getModelTime() + 1)
         end
         return
     end
@@ -698,7 +749,8 @@ do
         t[key] = newValue
         if misStatsF then
             local misStatsChangeString = misStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
-            misStatsF:write(misStatsChangeString)
+            addStatToBuffer('misStats', key, slmod.deepCopy(misStatsChangeString))
+            --misStatsF:write(misStatsChangeString)
            -- --slmod.info(misStatsChangeString)
         end
         
@@ -744,8 +796,187 @@ do
     
     
     local multiCrewDefs = {}
-	multiCrewDefs['Mi-8MT'] = {[2] = 'Copilot', [3] = 'FO', [4] = 'Dakka'}
-    multiCrewDefs['UH-1H'] = {[2] = 'Copilot', [3] = 'Dakka', [4] = 'DakkaDakka'}
+	multiCrewDefs['Mi-8MT'] = {[2] = 'Copilot', [3] = 'FO', [4] = 'LG', [5] = 'RG'}
+    multiCrewDefs['UH-1H'] = {[2] = 'Copilot', [3] = 'LG', [4] = 'RG'}
+    
+    
+    local function getLifeScore(lStats)
+        local score = 0
+        local fTime = 0
+        -- check basic level
+        if lStats.kills then
+            for kCat, kData in pairs(lStats.kills) do
+                if type(kData) == 'table' then
+                    for kEntry, kVal in pairs(kData) do
+                        if kEntry ~= 'total' then
+                            score = score + kVal
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- check aircraft>Kills
+        for acName, acVal in pairs(lStats.times) do
+            if acVal.inAir then
+                fTime = fTime + acVal.inAir
+            end
+            if acVal.kills then
+                for kCat, kData in pairs(acVal.kills) do
+                    if type(kData) == 'table' then
+                        for kEntry, kVal in pairs(kData) do
+                            if kEntry ~= 'total' then
+                                score = score + kVal
+                            end
+                        end
+                    end
+                end
+            end
+            if acVal.weapons then
+                for wepName, wepData in pairs(acVal.weapons) do
+                    if wepData.kL then
+                        for cat, catData in pairs(wepData.kL) do
+                            if catData.total then
+                               score = score + catData.total
+                            end
+                        end 
+                    end
+                end
+            
+            end
+        end
+        return score
+    end
+    local lifeEvents = {}
+    
+    local function checkLifeEnd(vars)
+        slmod.info('checkLifeEnd')
+        slmod.info(slmod.oneLineSerialize(vars))
+        if slmod.config.save_best_life and slmod.config.save_best_life > 0 then
+            local evalLife = false
+            local curTime = DCS.getModelTime()
+            local killUCID = {}
+            local eventName = vars.eventName
+            local ucids = vars.ucids
+            local unitName = vars.client[1].unitName
+            local killEm = false
+            if eventName == 'pilotDead' or (slmod.config.endLifeOn and slmod.config.endLifeOn[eventName] and slmod.config.endLifeOn[eventName] == true) then
+                killEm = true -- there was a pilot dead event or the other applicable event occurred. 
+            end
+            
+            
+            if not lifeEvents[unitName] then
+                lifeEvents[unitName] = {}
+            end 
+            
+            local tName = slmod.allMissionUnitsByName[unitName].objtype
+            
+            if not lifeEvents[unitName].num then
+                lifeEvents[unitName].num = 0
+                lifeEvents[unitName].deadPilots  = 0
+                lifeEvents[unitName].ucidList = {}
+            end
+            
+            if eventName == 'pilotDead' then
+                lifeEvents[unitName].deadPilots = lifeEvents[unitName].deadPilots + 1
+            end
+            
+                -- create and save table with info on death related events for a given aircraft.
+            for i = 1, #ucids do
+ 
+                if not lifeEvents[unitName][ucids[i]] then
+                    lifeEvents[unitName][ucids[i]] = {}
+                    lifeEvents[unitName].num = lifeEvents[unitName].num + 1
+                    table.insert(lifeEvents[unitName].ucidList, ucids[i])
+                end
+                if not lifeEvents[unitName][ucids[i]][eventName] then
+                    lifeEvents[unitName][ucids[i]][eventName] = curTime
+                end
+
+            end
+            
+            if killEm == true  then -- evaluate and populate list of players to set a new life
+                --[[
+                Must handle pilot deaths for multicrew aircraft. 
+                
+                Problems: 
+                    Aircraft can have multiple players per aircraft. Pilot dead event doesn't mean they can't land safely. 
+                    DCS does a shit job of giving multiCrew aircraft information
+                        A: Have to rely on slot roles and hope it accurately reflects the current status quo. 
+                    Pilot dead event doesn't occur for door gunners
+                        A: Just can't get a player death via being a door gunner until it is fixed.
+                    
+                Solutions:
+                    A. Require 2 deaths per aircraft
+                    B. Kill whoever is in 2nd seat first.
+                    C. Give death to first person to leave the slot. 
+                ]]
+                if multiCrewDefs[tName] and #ucids > 1 then -- if it is a multicrew aircraft and is multicrew right now
+                    if slmod.config.multicrew_life == 2 then
+                        if lifeEvents[unitName].deadPilots == 2 then
+                            killUCID = lifeEvents[unitName].ucidList
+                            evalLife = true
+                        end
+                    else
+                        for i = 1, #ucids do
+                            if lifeEvents[unitName][ucids[i]].leftSlot then
+                                table.insert(killUCID, ucids[i])
+                                evalLife = true
+                            end
+             
+                        end
+                    end
+                    
+                else
+                    killUCID = ucids
+                    if not lifeEvents[unitName][ucids[1]].pilotDead then -- special case of damaged but left the slot. 
+                        evalLife = true
+                    end
+                
+                end
+               
+            end
+            
+            
+            
+            if evalLife == true and #killUCID > 0 then
+                local numRemoved = 0
+                for i = 1, #killUCID do
+                    if stats[killUCID[i]] then
+                        local lStat = stats[killUCID[i]]
+                        local bestScore = 0
+                        local currentScore = 0 
+                        if lStat.bestLife then
+                            bestScore = getLifeScore(lStat.bestLife)
+                        end
+                        if lStat.currentLife then
+                            currentScore = getLifeScore(lStat.currentLife)
+                        end
+                        if currentScore > bestScore then
+                            lStat.currentLife.endDate = os.time
+                            local newWrite = {nest = {'bestLife'}, ucid = killUCID[i], setValue = lStat.currentLife}
+                            slmod.stats.advChangeStatsValue(newWrite) -- copy current life values into bestLife
+                            
+                            newWrite.nest = {'currentLife'}
+                            newWrite.setValue = {startDate = os.time}
+                            slmod.stats.advChangeStatsValue(newWrite) -- erase contents of current life
+                        end
+                    end
+                    
+                    if lifeEvents[unitName][killUCID[i]] then -- remove each players events. Stupid but possible for a player to die only for another to join the aircraft and generate other kill events. 
+                        lifeEvents[unitName][killUCID[i]] = nil
+                        lifeEvents[unitName].num = lifeEvents[unitName].num  - 1
+                        numRemoved = numRemoved + 1
+                    end
+                end
+                if numRemoved == lifeEvents[unitName].num  then -- fully remove that unit from list. 
+                    lifeEvents[unitName] = nil
+                end
+                 
+            end
+        end
+        return
+    end
     
 	-----------------------------------------------------------------------------------------------------
 	function slmod.stats.onMission()  -- for creating per-mission stats.
@@ -828,18 +1059,36 @@ do
             ['f-14'] = {[2] = 'RIO'}, -- other F14 versions proof
             ['f-15e'] = {[2] = 'WSO'}, -- future proof       
             ['mi-24'] = {[2] = 'WSO'}, -- future proof
+            ['l-39'] = {[2] = 'Copilot'},
         }
         for coaId, coaData in pairs(coas) do
             local slots = DCS.getAvailableSlots(coaId)
             for slotVal, slotData in pairs(slots) do
-                if not checked[slotData.type] then
-                    checked[slotData.type] = true
-                    for sName, sData in pairs(searchMC) do
-                        if string.find(string.lower(slotData.type), sName) then
-                            multiCrewDefs[slotData.type] = searchMC[sName]
-                        end
+
+                checked[slotData.type] = true
+                for sName, sData in pairs(searchMC) do
+                    if string.find(string.lower(slotData.type), sName) then
+                        multiCrewDefs[slotData.type] = searchMC[sName]
                     end
                 end
+                if string.find(slotData.unitId, '_') and not multiCrewDefs[slotData.type] then -- slot has a 2nd seat or more that hasn't been defined yet
+                    local roleName = slotData.role
+                    if slotData.role and string.len(slotData.role) < 6  then
+                        local initial = {}
+                        for w in string.gmatch(slotData.role, '%a+') do
+                            initial[#initial] = string.upper(string.sub(w, 1, 1))
+                        end
+                        roleName = table.concat(initial)
+                    else
+                        roleName = 'Copilot'
+                    end
+                    local slotInd = slotData.multicrew_place or tonumber(string.sub(slotData.unitId, string.len(slotData.unitId), string.len(slotData.unitId)))
+                    multiCrewDefs[slotData.type] = {}
+                    if slotInd then
+                        multiCrewDefs[slotData.type][slotInd] = roleName
+                    end
+                end
+                
             end
         end
         
@@ -861,18 +1110,42 @@ do
 	end
 	----------------------------------------------------------------------------------------------------------------------
 	local inAirClients = {}
-	---------------------------------------------------------------------------------------------------------
+	
+    
+    local function getNest(tbl)
+        local nest = {'times', 'typeName'}
+        if slmod.config.stats_level then
+            if slmod.config.stats_level == 0 then
+                nest = {}
+            elseif slmod.config.stats_level == 2 then
+                nest = {'times', 'typeName'}
+            end    
+        end
+        for i = 1, #tbl do
+            table.insert(nest, tbl[i])
+        end
+        return nest
+    end
+    
+    ---------------------------------------------------------------------------------------------------------
 	--player SWITCHES unit.  Used for detecting desertion under fire 
 	local function onSwitchUnit(id, oldUnitRtId)  
-	
+        --slmod.info('onSwitchUnit')
+        --slmod.info(id)
+        --slmod.info(oldUnitRtId)
+        --checkLifeEnd(oldUnitRtId, 'leftSlot')
+        
+
 	end
+    
 	function slmod.stats.onSetUnit(id)
         if not id then
 			slmod.error('slmod.stats.onSetUnit(id): client has no id!!!')
 			return
 		end
 		if slmod.clients[id].rtid then  -- client had an old rtid
-			onSwitchUnit(id, slmod.clients[id].rtid)
+			--slmod.info(slmod.oneLineSerialize(slmod.clients[id]))
+            onSwitchUnit(id, slmod.clients[id].rtid)
 		end
 		local ucid = slmod.clients[id].ucid
 		local name = slmod.clients[id].name
@@ -922,8 +1195,15 @@ do
 			end
             
             slmod.stats.advChangeStatsValue({ucid = ucid, default = 0, setValue = os.time(), nest = 'lastJoin'})
+            
+            --slmod.info(slmod.oneLineSerialize(slmod.oldClientsByName))
 			if inAirClients[ucid] then
+                --slmod.info('client was in Air')
                 -- add client left slot in air to losses here. 
+                if slmod.oldClientsByName[name] then
+                    --local objType = slmod.allMissionUnitsByName[name].objtype
+                    --slmod.stats.advChangeStatsValue({ucid = ucid, default = 0, addValue = 1, nest = getNest({'actions', 'losses', 'leftSlotInAir'}}))
+                end
             end
 		end
 	end
@@ -1067,20 +1347,7 @@ end]]
         return table.concat(names)
     end
     
-    local function getNest(tbl)
-        local nest = {'times', 'typeName'}
-        if slmod.config.stats_level then
-            if slmod.config.stats_level == 0 then
-                nest = {}
-            elseif slmod.config.stats_level == 2 then
-                nest = {'times', 'typeName'}
-            end    
-        end
-        for i = 1, #tbl do
-            table.insert(nest, tbl[i])
-        end
-        return nest
-    end
+
 	-------------------------------------------------------------------
     local hitSpamFilter = {}
 	local function onFriendlyHit(clients, target, weapon, player)
@@ -1188,16 +1455,20 @@ end]]
 			end
 		end
 	end
-    -- Function that lets people know how they were killed. 
-    local function onTellPlayerDied(initName, tgtName, weapon, killerObj)
-        if slmod.config.enable_tell_player_how_died then
+    -- Function that lets people know how they were killed. When it wasn't a TK or PvP
+    local function onTellPlayerDied(initName, weapon, scope)
+        --if slmod.config.enable_player_death_message then
+            --slmod.scopeMsg('Slmod- You were killed by: "' .. getPlayerNamesString(initName) .. tostring(weapon) .. '.', 1, 'chat') 
+        --end
         
-        end
-    
     end
+    
+
 	
 	
 	local hitObjs = {}
+    
+    
 
 	
 	
@@ -1711,6 +1982,11 @@ end]]
                         end
                     end
                     dStat = {ucid = ducid, typeName = dtypeName}
+                    
+                    --slmod.info('deadClient check to end life')
+                    if slmod.config.save_best_life and slmod.config.save_best_life > 0 then
+                        --checkLifeEnd({ucids = dStat.ucid, eventName = 'dead', client = deadClient})
+                    end
                 else
                     deadObjData[1] = {name = deadName}
                     if slmod.config.stats_coa > 1 then
@@ -1919,6 +2195,11 @@ end]]
                         --slmod.info('check for death stats')
                         --Add detailed loss to player here
                         if deadClient or slmod.config.stats_coa == 2 then 
+                            dStat.nest = getNest({'actions', 'losses'})
+                            dStat.default = {crash = 0, eject = 0, pilotDeath = 0}
+                            dStat.addValue = {crash = 1}
+                            slmod.stats.advChangeStatsValue(dStat)
+                            
                             dStat.nest = getNest({'actions', 'lostTo', killerStatsCat, killerStatsType})
                             dStat.addValue = 1
                             dStat.default = 0
@@ -1928,6 +2209,8 @@ end]]
                                 slmod.stats.advChangeStatsValue(dStat)
                             end
                         end
+
+                        
                         --slmod.info('end of kill stats')
                     else -- add assist
                        --slmod.info('in assist')
@@ -1960,7 +2243,7 @@ end]]
 			elseif deadClient or slmod.config.stats_coa == 2 then  -- client died without being hit.
                 local saveStat = {}
                 if deadClient then 
-                local ucid, typeName = {}, {}
+                    local ucid, typeName = {}, {}
                     for seat, data in pairs(deadClient) do
                         ucid[seat] = data.ucid
                         if seat > 1 then
@@ -1983,6 +2266,7 @@ end]]
                 end
 
                 slmod.stats.advChangeStatsValue(saveStat)
+
 			end
             
             
@@ -2000,7 +2284,7 @@ end]]
 
 	function slmod.stats.trackFlightTimes(prevTime)  -- call every 10 seconds, tracks flight time.
 		slmod.scheduleFunction(slmod.stats.trackFlightTimes, {DCS.getModelTime()}, DCS.getModelTime() + 10)  -- schedule first to avoid a Lua error.
-		
+		statsWriteBuffer()
 		inAirClients = {}  -- reset upvalue inAirClients table.
 		if prevTime and slmod.config.enable_slmod_stats then  -- slmod.config.enable_slmod_stats may be disabled after the mission has already started.
 			local dt = DCS.getModelTime() - prevTime
@@ -2525,6 +2809,10 @@ end]]
                             slmod.stats.advChangeStatsValue(saveStat)
                         end
                         
+                        if deadClient and slmod.config.save_best_life and slmod.config.save_best_life > 0 then
+                            --checkLifeEnd({ucids = saveStat.ucid, eventName = 'pilotDead', client = deadClient})
+                        end
+                        
                     end
 				end -- end of pilot dead
 				----------------------------------------------------------------------------------------------------------
@@ -2687,6 +2975,8 @@ end]]
                             saveStat.nest = getNest({'actions', 'losses'})
                             saveStat.addValue = {eject = 1}
                             slmod.stats.advChangeStatsValue(saveStat)
+                            
+                            --checkLifeEnd({eventName = 'eject', ucids = saveStat.ucid, client = deadClient })
 						end
 					end				
 				end	-- end of eject
