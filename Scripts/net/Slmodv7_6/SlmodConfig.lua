@@ -93,7 +93,7 @@ slmod.config = slmod.config or {}
 slmod.version = '7_6'  -- file directory
 
 slmod.mainVersion = '7_6'  -- so far, these are only used in MOTD and some load scripts.
-slmod.buildVersion = '143'  
+slmod.buildVersion = '144'  
 
 slmod.configVersion = '28'  -- as new options as are added to SlmodConfig, this will change.
 
@@ -221,9 +221,7 @@ do
 			new_oldf = nil
             oldPresent = true
 		end
-		net.log('here1')
 		local newF = io.open(config_dir .. 'config.lua', 'w')
-		net.log('here2')
 		if def and newF then
 
             local useSetting = {}
@@ -444,30 +442,30 @@ do
 			newF = nil
 			
 			--now load default settings
-            net.log('check values')
+           -- net.log('check values')
             for vName, v in pairs(useSetting) do
-                net.log(vName)
+                --net.log(vName)
                 if type(v) == 'table' then
-                    net.log(vName .. ' is a table')
+                    --net.log(vName .. ' is a table')
                     for tVal, tEntry in pairs(v) do
-                        net.log(tVal)
+                        --net.log(tVal)
                         if type(tEntry) ~= 'table' then
-                            net.log(tVal .. ' : ' .. tostring(tEntry))
+                            --net.log(tVal .. ' : ' .. tostring(tEntry))
                         end
                     end
                 else
                      net.log(v)
                 end
             end
-            net.log('fenv config')
+            --net.log('fenv config')
 			if not slmod.config then
-                net.log('no slmod.config, setfenv')
+               --net.log('no slmod.config, setfenv')
                 setfenv(useSetting, slmod.config)
             else
-                net.log('slmod.config exists')
+                --net.log('slmod.config exists')
                 slmod.config = useSetting
             end
-            net.log('double check')
+            --net.log('double check')
             
 			slmod.info('using default config settings.')
 			return true

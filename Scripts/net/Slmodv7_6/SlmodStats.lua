@@ -147,10 +147,6 @@ do
         if not statData then
             statData = {}
         end
-        
-        local jsonFileName = string.gsub(fileName, '.lua', '.json')
-        
-        local jsonStats = net.lua2json(statData)
         if l == 'meta' then
             local newStatsS = slmod.serialize('metaStats', statData) ..'\n'
             fileF = io.open(lstatsDir .. fileName, 'w')
@@ -186,6 +182,8 @@ do
         if slmod.config.save_json_stats then
             --slmod.info('writing json file')
            -- slmod.info(jsonFileName)
+            local jsonFileName = string.gsub(fileName, '.lua', '.json')
+            local jsonStats = net.lua2json(statData)
             local jsonF = io.open(lstatsDir .. jsonFileName, 'w')
             jsonF:write(jsonStats)
             jsonF:close()
@@ -207,7 +205,7 @@ do
     
 	-------------------------------------------------------------------------------------------------------
 	-- Create statsTableKeys database
-    
+    --slmod.info('makeTblKeys')
         local statsTableKeys = {}  -- stores strings that corresponds to table indexes within stats... needed for updating file.
         statsTableKeys[stats] = 'stats'
         do
@@ -372,7 +370,7 @@ do
         ---------------------------------------------------------------------------------------------------
         
 
-        
+         --slmod.info('camp keys')
         local campStatsTableKeys = {}  -- stores strings that corresponds to table indexes within stats... needed for updating file.
         local function buildCampStatsKeys()
             campStatsTableKeys[campStats] = 'campStats'
@@ -772,7 +770,7 @@ do
         
 	end
 	---------------------------------------------------------------------------------------------------
-  
+     --slmod.info('penTblKeys')
 	---------------------------------------------------------------------------------------------------------------------
     local penStatsTableKeys = {}  -- stores strings that corresponds to table indexes within penStats... needed for updating file.
 	penStatsTableKeys[penStats] = 'penStats'
@@ -810,7 +808,7 @@ do
         
 	end
     
-    
+     --slmod.info('mDefs')
     local multiCrewDefs = {}
 	multiCrewDefs['Mi-8MT'] = {[2] = 'Copilot', [3] = 'FO', [4] = 'LG', [5] = 'RG'}
     multiCrewDefs['UH-1H'] = {[2] = 'Copilot', [3] = 'LG', [4] = 'RG'}
