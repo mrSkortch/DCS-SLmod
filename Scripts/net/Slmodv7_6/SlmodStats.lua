@@ -32,6 +32,8 @@ do
     if campStatsDir:sub(campStatsDir:len(), campStatsDir:len()) ~= '\\' and campStatsDir:sub(campStatsDir:len(), campStatsDir:len()) ~= '/' then
         campStatsDir = campStatsDir .. '\\'
     end
+    
+    local useBuffer = false
 	-- new, reloadStats method
 	----slmod.info('do reset')
 	--slmod.stats.resetStatsFile()  -- load stats from file.
@@ -274,9 +276,14 @@ do
             else
                 t[key] = newValue
             end
-            --local statsChangeString = statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
-
-            addStatToBuffer('stats', statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']', slmod.deepcopy(newValue))
+            --
+            if useBuffer == true then
+                 addStatToBuffer('stats', statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']', slmod.deepcopy(newValue))
+            else
+                local statsChangeString = statsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
+                statsF:write(statsChangeString)
+            end
+           
             statWrites = statWrites + 1
             if statWrites > 10000 then
                 recompileStats()
@@ -421,9 +428,14 @@ do
            -- else
                 t[key] = newValue
             --end
-            --local statsChangeString = campStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
-            addStatToBuffer('campStats', campStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']', slmod.oneLineSerialize(newValue))
-            --campStatsF:write(statsChangeString)
+            --
+            if useBuffer == true then 
+                addStatToBuffer('campStats', campStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. ']', slmod.oneLineSerialize(newValue))
+            else
+                local statsChangeString = campStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
+                campStatsF:write(statsChangeString)
+            end
+            --
 
             ----slmod.info(statsChangeString)
             --testWrite()
@@ -749,8 +761,12 @@ do
         t[key] = newValue
         if misStatsF then
             local misStatsChangeString = misStatsTableKeys[t] .. '[' .. slmod.basicSerialize(key) .. '] = ' .. slmod.oneLineSerialize(newValue) .. '\n'
-            addStatToBuffer('misStats', key, slmod.deepCopy(misStatsChangeString))
-            --misStatsF:write(misStatsChangeString)
+            if useBuffer == true then
+                addStatToBuffer('misStats', key, slmod.deepCopy(misStatsChangeString))
+            else
+                misStatsF:write(misStatsChangeString)
+            end
+            --
            -- --slmod.info(misStatsChangeString)
         end
         
@@ -1457,9 +1473,9 @@ end]]
 	end
     -- Function that lets people know how they were killed. When it wasn't a TK or PvP
     local function onTellPlayerDied(initName, weapon, scope)
-        --if slmod.config.enable_player_death_message then
-            --slmod.scopeMsg('Slmod- You were killed by: "' .. getPlayerNamesString(initName) .. tostring(weapon) .. '.', 1, 'chat') 
-        --end
+        --[[if slmod.config.enable_player_death_message then
+            slmod.scopeMsg('Slmod- You were killed by: "' .. getPlayerNamesString(initName) .. tostring(weapon) .. '.', 1, 'chat') 
+        end]]
         
     end
     
