@@ -93,7 +93,7 @@ slmod.config = slmod.config or {}
 slmod.version = '7_6'  -- file directory
 
 slmod.mainVersion = '7_6'  -- so far, these are only used in MOTD and some load scripts.
-slmod.buildVersion = '144'  
+slmod.buildVersion = '145'  
 
 slmod.configVersion = '28'  -- as new options as are added to SlmodConfig, this will change.
 
@@ -221,6 +221,7 @@ do
 			new_oldf = nil
             oldPresent = true
 		end
+
 		local newF = io.open(config_dir .. 'config.lua', 'w')
 		if def and newF then
 
@@ -339,7 +340,12 @@ do
                     --net.log(entry.help)
                     newF:write(tostring(entry.help))
                     newF:write(tostring(']]\n'))
-                end 
+                end
+                if entry.helpSpec then
+                    newF:write(tostring('--[=['))
+                    newF:write(tostring(entry.helpSpec))
+                    newF:write(tostring(']=]\n'))
+                end
                 if entry.val then
                     --net.log('check val')
                     for valName, valData in pairs(entry.val) do
@@ -369,17 +375,14 @@ do
                         end
                         
                         if lSet then
-                            --net.log('check old setting')
+                            net.log('check old setting')
                             if type(lSet) == 'string' and (lSet == 'false' or lSet == 'nil') then -- exception created for false/nil due to loadstring deleting the entries on compile
-                                --net.log('lSet is string: ' .. lSet)
+                                net.log('lSet is string: ' .. lSet)
                                 if lSet == 'nil' then
                                     uSet = nil
                                 else
                                     uSet = false
                                 end
-                                    
-                                
- 
                             else
                               --  net.log(tostring((lSet)))
                                 if type(valData) == type(lSet) and not entry.root then
@@ -393,8 +396,16 @@ do
                             --net.log('Old setting')
                         else
                             --net.log('Use New Setting')
-                            uSet = valData
+                            if type(valData) == 'string' and (valData == 'false' or valData == 'nil') then
+                                if valData == 'false' then
+                                    uSet = false
+                                else
+                                    uSet = nil
+                                end
                             
+                            else
+                                uSet = valData
+                            end
                            -- net.log('assigned')
                         end
                         local writeValue = ''
@@ -441,25 +452,25 @@ do
 			newF:close()
 			newF = nil
 			
-			--now load default settings
-           -- net.log('check values')
+			--[[now load default settings
+            net.log('check values')
             for vName, v in pairs(useSetting) do
-                --net.log(vName)
+                net.log(vName)
                 if type(v) == 'table' then
-                    --net.log(vName .. ' is a table')
+                    net.log(vName .. ' is a table')
                     for tVal, tEntry in pairs(v) do
-                        --net.log(tVal)
+                        net.log(tVal)
                         if type(tEntry) ~= 'table' then
-                            --net.log(tVal .. ' : ' .. tostring(tEntry))
+                           net.log(tVal .. ' : ' .. tostring(tEntry))
                         end
                     end
                 else
                      net.log(v)
                 end
             end
-            --net.log('fenv config')
+            net.log('fenv config')]]
 			if not slmod.config then
-               --net.log('no slmod.config, setfenv')
+                --net.log('no slmod.config, setfenv')
                 setfenv(useSetting, slmod.config)
             else
                 --net.log('slmod.config exists')
@@ -480,7 +491,7 @@ do
 			return false
 		end
 	end
-	net.log('open config')
+	--net.log('open config')
 	local f = io.open(config_dir .. 'config.lua', 'r')
 	local check = true
     local verify

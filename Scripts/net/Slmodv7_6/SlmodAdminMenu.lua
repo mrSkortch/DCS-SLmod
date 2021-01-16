@@ -166,12 +166,12 @@ do
 			else
 				slmod.error('unable to load server admins, reason: ' .. tostring(err1))
 			end
-			
+			Admins_f:close()
 		else
 			Admins = Admins or {}
             update_admins()
 		end
-        Admins_f:close()
+        Admins_f = nil
 	end
 	----------------------------------------------------------------------------------------
 	
