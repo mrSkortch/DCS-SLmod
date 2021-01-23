@@ -33,6 +33,7 @@ do
         campStatsDir = campStatsDir .. '\\'
     end
     
+    
     local useBuffer = false
 	-- new, reloadStats method
 	----slmod.info('do reset')
@@ -44,7 +45,7 @@ do
         local fileF
         local fileName
         local lName = ''
-        local lstatsDir = statsDir
+        local lstatsDir
         local statData
         local envName = 'stats'
         if l == 'mission' then
@@ -78,6 +79,7 @@ do
             lName = f
         else
            -- --slmod.info('stats')
+            lstatsDir = statsDir
             fileF = statsF
             fileName = '\\SlmodStats.lua'
             lName = 'SlmodStats.lua'
@@ -1584,7 +1586,7 @@ end]]
 	end
 	
 	local acft = {} -- Aircraft List. Built by attributes DB, writes list of aicraft by name and display name. 
-    
+    acft['SA342'] = true -- because unicorn
     local function buildACFT()
         for uName, unitData in pairs(slmod.unitAttributes) do
             if unitData.attributes and unitData.attributes['Air'] then
