@@ -45,7 +45,7 @@ do
         local fileF
         local fileName
         local lName = ''
-        local lstatsDir
+        local lstatsDir = slmod.deepcopy(statsDir)
         local statData
         local envName = 'stats'
         if l == 'mission' then
@@ -79,7 +79,6 @@ do
             lName = f
         else
            -- --slmod.info('stats')
-            lstatsDir = statsDir
             fileF = statsF
             fileName = '\\SlmodStats.lua'
             lName = 'SlmodStats.lua'
