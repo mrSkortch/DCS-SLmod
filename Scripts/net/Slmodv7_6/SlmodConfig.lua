@@ -93,7 +93,7 @@ slmod.config = slmod.config or {}
 slmod.version = '7_6'  -- file directory
 
 slmod.mainVersion = '7_6'  -- so far, these are only used in MOTD and some load scripts.
-slmod.buildVersion = '146'  
+slmod.buildVersion = '147'  
 
 slmod.configVersion = '28'  -- as new options as are added to SlmodConfig, this will change.
 
@@ -105,6 +105,7 @@ do
 	lfs.mkdir(config_dir .. [[Missions\]])
 	lfs.mkdir(config_dir .. [[Chat Logs\]])
 	lfs.mkdir(config_dir .. [[Mission Stats\]])
+    lfs.mkdir(config_dir .. [[Mission Events\]])
     lfs.mkdir(config_dir .. [[Campaign Stats\]])
 	
 	-------------------------------------------------------------------------------------
@@ -180,7 +181,7 @@ do
     local makeFile = true
     local oldPresent = false
     if defF then
-        net.log('Read File')
+        --net.log('Read File')
         defSettings = defF:read('*all')
         defF:close()
         defF = nil
@@ -200,7 +201,7 @@ do
         end
     end
 	local function loadConfig(verify)
-		net.log('Load Config')
+		--net.log('Load Config')
         --lfs.mkdir(config_dir) -- try creating the dir, just to be sure
 		local oldf = io.open(config_dir .. 'config.lua', 'r')
         local curSettings
@@ -375,13 +376,16 @@ do
                         end
                         
                         if lSet then
-                            net.log('check old setting')
+                            --net.log('check old setting')
                             if type(lSet) == 'string' and (lSet == 'false' or lSet == 'nil') then -- exception created for false/nil due to loadstring deleting the entries on compile
-                                net.log('lSet is string: ' .. lSet)
+                                --net.log('lSet is string: ' .. lSet)
                                 if lSet == 'nil' then
                                     uSet = nil
                                 else
                                     uSet = false
+                                    if type(valData) ~= 'boolean' then
+                                         uSet = valData
+                                    end
                                 end
                             else
                               --  net.log(tostring((lSet)))
@@ -452,14 +456,14 @@ do
 			newF:close()
 			newF = nil
 			
-			--[[now load default settings
-            net.log('check values')
+			--now load default settings
+            --net.log('check values')
             for vName, v in pairs(useSetting) do
-                net.log(vName)
+                --net.log(vName)
                 if type(v) == 'table' then
-                    net.log(vName .. ' is a table')
+                    --net.log(vName .. ' is a table')
                     for tVal, tEntry in pairs(v) do
-                        net.log(tVal)
+                       --net.log(tVal)
                         if type(tEntry) ~= 'table' then
                            net.log(tVal .. ' : ' .. tostring(tEntry))
                         end
@@ -468,7 +472,7 @@ do
                      net.log(v)
                 end
             end
-            net.log('fenv config')]]
+            --net.log('fenv config')
 			if not slmod.config then
                 --net.log('no slmod.config, setfenv')
                 setfenv(useSetting, slmod.config)

@@ -118,6 +118,7 @@ do
     sandbox.slmod['custom_stats_net'] = slmod.custom_stats_net
     sandbox.slmod['set_campaign_net'] = slmod.set_campaign_net
     sandbox.slmod['mission_admin_action'] = slmod.mission_admin_action
+    sandbox.slmod['mission_config_net'] = slmod.mission_config_net
 	
 	--creating slmod.clients and banning code.
 
@@ -379,6 +380,19 @@ end
 --slmod.func_old.on_mission = slmod.func_old.on_mission or onMissionLoadBegin --onMissionLoadBegin
 function slmodCall.onMissionLoadBegin()
 	slmod.current_mission = DCS.getMissionName()
+    local missionName = ''
+    local strInd = slmod.current_mission:len()
+    while strInd > 1 do
+        local char = slmod.current_mission:sub(strInd, strInd)
+        if char == '\\' or char == '/' then
+            strInd = strInd + 1
+            break
+        end	
+        strInd = strInd - 1
+    end
+    missionName = slmod.current_mission:sub(strInd, slmod.current_mission:len())
+    slmod.current_mission_safe_name = missionName
+    
     slmod.current_map = DCS.getCurrentMission().mission.theatre
 	slmod.mission_start_time = DCS.getRealTime()  --needed to prevent CTD caused by C Lua API on net.pause and net.resume
 	slmod.mission_started = true

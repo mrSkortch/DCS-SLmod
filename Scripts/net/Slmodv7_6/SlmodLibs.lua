@@ -2612,6 +2612,60 @@ end
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+local function libConfig()
+	if slmod.ConvMenu then
+		slmod.ConvMenu:destroy()
+		slmod.ConvMenu = nil
+	end
+	if slmod.config.coord_converter then
+		slmod.create_ConvMenu()
+	end
+	
+	if SlmodAdminMenu then
+		SlmodAdminMenu.destroyIdBanMenu()
+		SlmodAdminMenu:destroy()
+		SlmodAdminMenu = nil
+	end
+	if slmod.config.admin_tools then
+		slmod.create_SlmodAdminMenu()
+	end
+	
+    slmod.loadPingExemptList()
+    
+    
+    if slmod.config.autoAdmin.forgiveEnabled or slmod.config.autoAdmin.punishEnabled then
+        slmod.createPunishForgiveMenu()
+    end
+    
+    if slmod.create_SlmodVoteMenu then
+        slmod.create_SlmodVoteMenu()
+    end
+	
+	if slmod.create_SlmodMOTDMenu then
+		slmod.create_SlmodMOTDMenu()
+	end
+
+end
+
+
+function mission_config_net(newSettings)
+    if newSettings and type(newSettings) == 'table' then
+        local anyChange = false
+        for setName, setVal in pairs(newSettings) do
+            if setVal and slmod.config and slmod.config[setName] then
+                slmod.config[setName] = setVal
+                anyChange = true
+            end
+        end
+        if anyChange == true then
+            -- reload all applicable functions
+            
+            libConfig()
+        end
+    end
+end
+
 function slmod.reset()
 
 	slmod.reset_dostring_table()
@@ -2631,7 +2685,7 @@ function slmod.reset()
 	slmod.next_event_ind = nil
 	
 	if slmod.eventsFile then
-		slmod.eventsFile:close()
+        slmod.eventsFile:close()
 	end
 	slmod.eventsFile = nil
 
@@ -2686,30 +2740,15 @@ function slmod.reset()
 
 	slmod.create_units_in_zones_server() 
 	
-	if slmod.ConvMenu then
-		slmod.ConvMenu:destroy()
-		slmod.ConvMenu = nil
-	end
-	if slmod.config.coord_converter then
-		slmod.create_ConvMenu()
-	end
-	
-	if SlmodAdminMenu then
-		SlmodAdminMenu.destroyIdBanMenu()
-		SlmodAdminMenu:destroy()
-		SlmodAdminMenu = nil
-	end
-	if slmod.config.admin_tools then
-		slmod.create_SlmodAdminMenu()
-	end
-	
-    slmod.loadPingExemptList()
+
 	slmod.create_getUnitAttributes()
 	slmod.makeUnitAttributesTable()
 	slmod.makeUnitCategories()
     slmod.makeMissionUnitData()
     slmod.importMissionZones()
     slmod.resetConsent()
+    
+    libConfig()
 	
 	--slmod.save_var('net', 'unitCategories.txt', slmod.unitCategories, 'slmod.unitCategories')
 
@@ -2730,17 +2769,7 @@ function slmod.reset()
 
 	end
     
-    if slmod.config.autoAdmin.forgiveEnabled or slmod.config.autoAdmin.punishEnabled then
-        slmod.createPunishForgiveMenu()
-    end
-    
-    if slmod.create_SlmodVoteMenu then
-        slmod.create_SlmodVoteMenu()
-    end
-	
-	if slmod.create_SlmodMOTDMenu then
-		slmod.create_SlmodMOTDMenu()
-	end
+
 	
 	slmod.create_SlmodHelpMenu()
 	--slmod.updateClientStats()

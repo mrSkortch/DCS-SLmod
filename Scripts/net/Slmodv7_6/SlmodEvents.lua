@@ -346,56 +346,156 @@ end
 
 function slmod.outputSlmodEvents()  --output of the latest events since the last run of this function to file.
 	local beginS
-	if slmod.next_event_ind == nil then
-		slmod.next_event_ind = 1
-		beginS = 'slmod.events = {}\n'  -- beginning of file...
-	end
-	slmod.eventsFile = slmod.eventsFile or io.open(lfs.writedir() .. 'Slmod\\slmodEvents.txt', 'w')
-	if slmod.eventsFile then
-		local next_events_st = {}  --table of strings to be concatenated together
-		if beginS then
-			next_events_st[#next_events_st + 1] = beginS
-		end
-		
-		while slmod.next_event_ind <= #slmod.events do
-			next_events_st[#next_events_st + 1] = 'slmod.events['
-			next_events_st[#next_events_st + 1] = tostring(slmod.next_event_ind)
-			next_events_st[#next_events_st + 1] = '] = { '
-			for fldname,fldval in pairs(slmod.events[slmod.next_event_ind]) do 
-				if type(fldname) == 'string' then
-					next_events_st[#next_events_st + 1] = '['
-					next_events_st[#next_events_st + 1] = slmod.basicSerialize(fldname)
-					next_events_st[#next_events_st + 1] = '] = '
-				elseif type(fldname) == 'number' then
-					next_events_st[#next_events_st + 1] = '['
-					next_events_st[#next_events_st + 1] = tostring(fldname)
-					next_events_st[#next_events_st + 1] = '] = '
-				
-				end
-				
-				if (type(fldval) == 'string') then
-				
-					next_events_st[#next_events_st + 1] = slmod.basicSerialize(fldval)
-					next_events_st[#next_events_st + 1] = ', '
-				elseif (type(fldval) == 'number') then
-					
-					next_events_st[#next_events_st + 1] = tostring(fldval)
-					next_events_st[#next_events_st + 1] = ', '
-					
-				else
-					next_events_st[#next_events_st + 1] = 'nil, '  --unknown type or nil
-				
-				end
+	if slmod.next_event_ind == nil then -- stats have been reset
+		slmod.info('Create Events')
+        slmod.next_event_ind = 1
+		beginS = 'slmodEvents = {}\n'  -- beginning of file for lua...
+        
+        local wStr = '' -- file to actively be written to
+        local wLoc = lfs.writedir() .. 'Slmod\\' -- written to location
+        local saveJson = false              -- dumb check so dont need to write a long if state ment
+        local mStats = slmod.stats.getMetaStats()   
+        local missionName = 'TEMPEVENTS'    -- default mission name
+        local lastMissionSaveName = ''
+        
+        --[[
+            Thought process.
+            
+            If writing to lua, then just use the mission name _events_ date format
+            
+            if writing to json. 
+                on mission change open and load currentMissionEvents.lua
+                convert to json
+                save json string to a new file. 
+                
+                begin writing to fresh file. 
+                
+        
+        ]]
+        if (slmod.config.events_format and slmod.config.events_format == 1) then
+            saveJson = true
+            --slmod.info('saveJSON true')
+        end
+        
+        if slmod.config.events_output == 2 then -- mission events
+            wLoc = wLoc .. 'Mission Events\\'
+            if mStats.lastMissionEvents then
+                lastMissionSaveName = slmod.deepcopy(wLoc .. mStats.lastMissionEvents)
+            end
 
-			end
-			next_events_st[#next_events_st + 1] = '}\n'
-			slmod.next_event_ind = slmod.next_event_ind + 1
-		end	
-		
-		local next_events_s = table.concat(next_events_st)  --table.concat is fastest way to concatenate strings
-		
-		slmod.eventsFile:write(next_events_s)
-	end
+            if slmod.current_mission_safe_name then
+                local mName = slmod.current_mission_safe_name .. os.date('%b %d, %Y at %H %M %S')
+                slmod.stats.changeMetaStatsValue(mStats, 'lastMissionEvents', mName)  -- set as new last mission name
+                if saveJson == false then 
+                    missionName = mName
+                end
+            end
+            wStr = wLoc .. missionName
+        else -- global events
+           wStr = wLoc .. 'slmodEvents'
+           lastMissionSaveName = slmod.deepcopy(wStr)
+        end
+        
+        --slmod.info(lastMissionSaveName)
+        if saveJson == true then   -- format is json
+            -- open previous events file. Convert that to json. 
+            --slmod.info('check old file')
+            local lastMissionLoadName = slmod.deepcopy(lastMissionSaveName)
+            if slmod.config.events_output == 2 then
+                lastMissionLoadName = wLoc .. 'TEMPEVENTS'
+                
+            end
+            --slmod.info(lastMissionLoadName)
+            local prevFile = io.open(lastMissionLoadName .. '.lua', 'r')
+            if prevFile then 
+                slmod.info('file exists')
+                local jsonEvents = {}
+                local eString = prevFile:read('*all')
+
+                local eventsFunc, err1 = loadstring(eString)
+
+                prevFile:close()
+                prevFile = nil
+                if eventsFunc then
+                   -- slmod.info('doing env')
+                    local env = {}
+                    setfenv(eventsFunc, env)
+                    local bool, err2 = pcall(eventsFunc)
+                    --slmod.info('if not bool')
+                    if not bool then
+                        slmod.error('unable to load events, reason: ' .. tostring(err2))
+                    else
+                        --slmod.info(slmod.oneLineSerialize(env))
+                        if env['slmodEvents'] then
+                            slmod.info('writing mission events from ' .. lastMissionLoadName)
+                            jsonEvents = env['slmodEvents']
+                        else
+                            slmod.info('no table in file ' .. lastMissionLoadName)
+                        end
+                    end
+                end
+                local jsonStats = net.lua2json(jsonEvents)
+                local jsonF = io.open(lastMissionSaveName .. '.json', 'w')
+                jsonF:write(jsonStats)
+                jsonF:close()
+            end
+        end
+        wStr = wStr .. '.lua'
+        --slmod.info(wStr)
+        slmod.eventsFile = io.open(wStr, 'w')
+        
+        
+        
+
+    end
+     
+	if slmod.eventsFile then
+
+        local next_events_st = {}  --table of strings to be concatenated together
+        if beginS then
+            next_events_st[#next_events_st + 1] = beginS
+        end
+        
+        while slmod.next_event_ind <= #slmod.events do
+            next_events_st[#next_events_st + 1] = 'slmodEvents['
+            next_events_st[#next_events_st + 1] = tostring(slmod.next_event_ind)
+            next_events_st[#next_events_st + 1] = '] = { '
+            for fldname,fldval in pairs(slmod.events[slmod.next_event_ind]) do 
+                if type(fldname) == 'string' then
+                    next_events_st[#next_events_st + 1] = '['
+                    next_events_st[#next_events_st + 1] = slmod.basicSerialize(fldname)
+                    next_events_st[#next_events_st + 1] = '] = '
+                elseif type(fldname) == 'number' then
+                    next_events_st[#next_events_st + 1] = '['
+                    next_events_st[#next_events_st + 1] = tostring(fldname)
+                    next_events_st[#next_events_st + 1] = '] = '
+                
+                end
+                
+                if (type(fldval) == 'string') then
+                
+                    next_events_st[#next_events_st + 1] = slmod.basicSerialize(fldval)
+                    next_events_st[#next_events_st + 1] = ', '
+                elseif (type(fldval) == 'number') then
+                    
+                    next_events_st[#next_events_st + 1] = tostring(fldval)
+                    next_events_st[#next_events_st + 1] = ', '
+                    
+                else
+                    next_events_st[#next_events_st + 1] = 'nil, '  --unknown type or nil
+                
+                end
+
+            end
+            next_events_st[#next_events_st + 1] = '}\n'
+            slmod.next_event_ind = slmod.next_event_ind + 1
+        end	
+        
+        local next_events_s = table.concat(next_events_st)  --table.concat is fastest way to concatenate strings
+        
+        slmod.eventsFile:write(next_events_s)
+    end
+	
 	
 end
 
@@ -403,7 +503,7 @@ end
 --loaded into server env every mission reset.
 
 function slmod.load_weapons_impacting_code_to_server()  -- not just weapons impacting anymore...
-	local weapons_impacting_code = [==[-- world events hook
+	local weapons_impacting_code = [==[-- slmod world events hook
 slmod = slmod or {}
 slmod.old_onEvent = slmod.old_onEvent or world.onEvent  --needs to be global here- otherwise, on mission reloading, we will create a new old_onEvent.
 do 
