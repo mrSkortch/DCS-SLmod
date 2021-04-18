@@ -2930,7 +2930,24 @@ end]]
                         end
                     end                
                 end
-				
+                
+                if event.type == 'landing quality mark' and event.initiator and event.comment and saveStat then
+                    saveStat.nest = getNest({'actions', 'LSO'})
+                    saveStat.default = {['1'] = 0, ['2'] = 0, ['3'] = 0, ['4'] = 0, grades = {}}
+                    local findWire = string.find(event.comment, 'WIRE')
+                    local wire = tostring(string.match(event.comment, '%d', findWire))
+                    --slmod.info(wire)
+                    if wire then --- maybe isn't there, aka NO Communication
+                        saveStat.addValue = {[wire] = 1}
+                        slmod.stats.advChangeStatsValue(saveStat) -- Add LSO stat table
+                    end                                           
+                    saveStat.nest = getNest({'actions', 'LSO', 'grades'})
+                    saveStat.default = {}
+                    saveStat.addValue = nil
+                    saveStat.insert = event.comment
+                    slmod.stats.advChangeStatsValue(saveStat)
+                
+                end
 				
 				----------------------------------------------------------------------------------------------------------
 				if event.type == 'takeoff' then  -- check if this is the valid name.

@@ -950,7 +950,7 @@ do
             newEvent.time = nil
         end
         
-        if event.target then
+        if event.target and event.id ~= 6 and event.id ~= 33 then
             if event.target:getCategory() then
                 newEvent.targetCategory = event.target:getCategory()
                 if newEvent.targetCategory ~= 2 then -- cant be a weapon because getName fails on this
