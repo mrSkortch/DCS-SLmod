@@ -1033,7 +1033,7 @@ do
                    -- env.info('debrief events')
                     local dEvent = slmod.debriefEvents[#slmod.debriefEvents]
                     --env.info(slmod.oneLineSerialize(dEvent))
-                    if dEvent.t == newEvent.t and dEvent.type == newEvent.type then
+                    if dEvent.type == newEvent.type and dEvent.initiatorPilotName == newEvent.initiatorPilotName then 
                         newEvent.weapon = dEvent.weapon
                     end
                 end
