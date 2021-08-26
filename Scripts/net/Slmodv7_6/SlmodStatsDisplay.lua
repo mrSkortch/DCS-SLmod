@@ -10,7 +10,7 @@ do
     local campStats
     
     function slmod.stats.displayInit()
-        --slmod.info('display stats init')
+       --slmod.info('display stats init')
         stats = slmod.stats.getStats()
         penStats = slmod.stats.getPenStats()
         misStats = slmod.stats.getMisStats()
@@ -64,19 +64,25 @@ do
 	
 	
 	-- Creates the simple stats string.
-	local function createSimpleStats(ucid, mode)
+	local function createSimpleStats(ucid, mode, subM)
 		--[[
 		Summarized stats for player: "Speed", SlmodStats ID# 9:
 		  | TIME: 23231.2 hours | PvP KILL/DEATH: 30300/1229 | KILLS: Air = 4132, Grnd/Sea = 3093, Friendly = 9 | LOSSES: 2331
 		
-		
+		TO MODIFY SLIGHTLY
+        
+        add ability to view bestLife and currentLife stats
 		
 		]]
 
 		-- FUNCTION USUALLY EXPECTS A UCID.  However, overload it to directly accept a stats table!
-       --slmod.info('simple')
+        
+        
+        
+      --slmod.info('simple')
         if stats[ucid] or type(ucid) == 'table' then
 			local pStats
+            local sStats
             if type(ucid) == 'string' then
 				if (not mode) or mode == 'server' then
 					pStats = stats[ucid]
@@ -86,7 +92,7 @@ do
 			else
 				pStats = ucid
 			end
-           --slmod.info('if pstats')
+          --slmod.info('if pstats')
 			if pStats then
                 local ppStats
                 if penStats[pStats.ucid] then
@@ -100,34 +106,34 @@ do
 				sTbl[#sTbl + 1] = ':\n   | TIME: '
 				
 				local totalTime = 0
-                       --slmod.info('kill list')
+                      --slmod.info('kill list')
                 local killList = {['Ground Units'] = 0, ['Planes'] = 0, ['Helicopters'] = 0, ['Ships'] = 0, ['Buildings'] = 0}
                 local pvp = {kills = 0, losses = 0}
                 local losses = 0 
-               --slmod.info('platform')
+              --slmod.info('platform')
                 for platform, times in pairs(pStats.times) do
-					--slmod.info(platform)
+					slmod.info(platform)
                     totalTime = totalTime + times.total
                     if times.kills then
-                       --slmod.info('times.kills')
+                      --slmod.info('times.kills')
                         for cat, catData in pairs(times.kills) do
-                           --slmod.info(cat)
+                          --slmod.info(cat)
                             if killList[cat] then
-                               --slmod.info(catData.total)
+                              --slmod.info(catData.total)
                                 killList[cat] = killList[cat] + catData.total
                             end
                         end                    
                     end
                     if times.weapons then
-                       --slmod.info('times.weapons')
+                      --slmod.info('times.weapons')
                         for wepName, wepData in pairs(times.weapons) do
-                           --slmod.info(wepName)
-                            if wepData.kL then
-                               --slmod.info('kil')
+                          --slmod.info(wepName)
+                            if type(wepData) == 'table' and wepData.kL then
+                              --slmod.info('kil')
                                 for cat, catData in pairs(wepData.kL) do
                                     if killList[cat] then
                                         if catData.total then
-                                           --slmod.info(catData.total)
+                                          --slmod.info(catData.total)
                                             killList[cat] = killList[cat] + catData.total
                                         else
                                            if type(catData) == 'table' then
@@ -143,25 +149,25 @@ do
                     
                     end
                     if times.action then 
-                       --slmod.info('action')
+                      --slmod.info('action')
                         if times.actions.losses then
-                           --slmod.info('losses')
+                          --slmod.info('losses')
                             losses = times.actions.losses.crash + losses
                         end
                         
                         if times.actions.pvp then
-                           --slmod.info('pvp')
+                          --slmod.info('pvp')
                             pvp.kills = times.actions.pvp.kills + pvp.kills
                             pvp.losses = times.actions.pvp.losses + pvp.losses
                         end
                     end
 				end
-                       --slmod.info('pvp')
+                      --slmod.info('pvp')
                 if pStats.PvP then
                     pvp.kills = pStats.PvP.kills + pvp.kills
                     pvp.losses = pStats.PvP.losses + pvp.losses
                 end
-                       --slmod.info('losses')
+                      --slmod.info('losses')
                 if pStats.losses then
                     losses = losses + pStats.losses.crash
                 end
@@ -172,7 +178,7 @@ do
 				sTbl[#sTbl + 1] = '/'
 				sTbl[#sTbl + 1] = tostring(pvp.losses)
 				sTbl[#sTbl + 1] = ' | KILLS: Air = '
-                       --slmod.info('kills')
+                      --slmod.info('kills')
                 local vehicleKills, planeKills, heloKills, shipKills, buildingKills = 0, 0, 0, 0 , 0
                 if pStats.kills then -- paranoia if people update stats without deleting old stats. 
                     vehicleKills = pStats.kills['Ground Units'].total or 0
@@ -187,7 +193,7 @@ do
 				if ppStats then
                     friendlyKills = #ppStats.friendlyKills
                 end
-                       --slmod.info('summary')
+                      --slmod.info('summary')
 				sTbl[#sTbl + 1] = tostring(airKills)
 				sTbl[#sTbl + 1] = ', Grnd/Sea = '
 				sTbl[#sTbl + 1] = tostring(surfaceKills)
@@ -231,7 +237,7 @@ do
 				pStats = ucid
 			end
 			if pStats then
-                ----slmod.info('in pStats') 
+                --slmod.info('in pStats') 
 				local acStats
                 if ac and pStats.times[ac] then
                     acStats = pStats.times[ac]
@@ -250,85 +256,93 @@ do
                        platforms[#platforms + 1] = platformName
                     end
 				end
-                --slmod.info('sort plat') 
+               --slmod.info('sort plat') 
 				table.sort(platforms)    
                 local tTime = 0
                 local aTime = 0
                 local killList = slmod.deepcopy(commonStatTbl)
                 local pvp = {kills = 0, losses = 0}
 				local losses = {crash = 0, eject = 0, pilotDeath = 0, pilotError = 0, crashLanding = 0}
-                --slmod.info('do plat') 
+               --slmod.info('do plat') 
 				for i = 1, #platforms do
-					--slmod.info(i)
-                    --slmod.info(platforms[i])
-                    local line = '                                                                                                                             \n'
-					line = stringInsert(line, platforms[i], 5)  -- insert platform name.
-                    aTime =  pStats.times[platforms[i]].inAir + aTime
-                    tTime =  pStats.times[platforms[i]].total + tTime
-					local inAirTime = string.format('%.2f', pStats.times[platforms[i]].inAir/3600)
-					local totalTime = string.format('%.2f', pStats.times[platforms[i]].total/3600)
-					line = stringInsert(line, inAirTime, 27)  -- insert inAirTime
-					line = stringInsert(line, totalTime, 49)  -- insert totalTime
-					p1Tbl[#p1Tbl + 1] = line
-                    --slmod.info('plat kills')
-                    if pStats.times[platforms[i]].kills then
-                        for cat, catData in pairs(pStats.times[platforms[i]].kills) do
-                            if killList[cat] and type(catData) == 'table' then
-                                for killType, killNum in pairs(catData) do
-                                    if killList[cat][killType] then
-                                       killList[cat][killType] = killList[cat][killType] + killNum -- add to the killType
-                                    end                                    
-                                end
-                            end
-                        end                    
-                    end
-                    
-                    if pStats.times[platforms[i]].weapons then 
-                        for wepName, wepData in pairs(pStats.times[platforms[i]].weapons) do
-                            --slmod.info(wepName)
-                            if wepData.kL then
-                                --slmod.info('killList')
-                                for cat, catData in pairs(wepData.kL) do
-                                    --slmod.info(cat)
-                                    if killList[cat] and type(catData) == 'table' then
-                                        for killType, killNum in pairs(catData) do
-                                            --slmod.info(killType)
-                                            --slmod.info(killNum)
-                                            if killList[cat][killType] then
-                                               killList[cat][killType] = killList[cat][killType] + killNum -- add to the killType
-                                            end                                    
-                                        end
+					if pStats.times[platforms[i]].total then 
+                       --slmod.info(i)
+                       --slmod.info(platforms[i])
+                        local line = '                                                                                                                             \n'
+                        line = stringInsert(line, platforms[i], 5)  -- insert platform name.
+                       --slmod.info('insertLine')
+                        aTime =  pStats.times[platforms[i]].inAir + aTime
+                       --slmod.info('aTime')
+                        tTime =  pStats.times[platforms[i]].total + tTime
+                       --slmod.info('tTime')
+                        local inAirTime = string.format('%.2f', pStats.times[platforms[i]].inAir/3600)
+                       --slmod.info('pATime')
+                        local totalTime = string.format('%.2f', pStats.times[platforms[i]].total/3600)
+                       --slmod.info('pTTime')
+                        line = stringInsert(line, inAirTime, 27)  -- insert inAirTime
+                        line = stringInsert(line, totalTime, 49)  -- insert totalTime
+                       --slmod.info('addtotbl')
+                        p1Tbl[#p1Tbl + 1] = line
+                       --slmod.info('plat kills')
+                        if pStats.times[platforms[i]].kills then
+                            for cat, catData in pairs(pStats.times[platforms[i]].kills) do
+                                if killList[cat] and type(catData) == 'table' then
+                                    for killType, killNum in pairs(catData) do
+                                        if killList[cat][killType] then
+                                           killList[cat][killType] = killList[cat][killType] + killNum -- add to the killType
+                                        end                                    
                                     end
-                                end    
-                            end
-                        end
-                    end
-                    
-                    --slmod.info('actions')
-                    if pStats.times[platforms[i]].actions then 
-                        --slmod.info('losses')
-                        if pStats.times[platforms[i]].actions.losses then
-                            for statType, statData in pairs(pStats.times[platforms[i]].actions.losses) do
-                                if not losses[statType] then
-                                    losses[statType] = 0
                                 end
-                                losses[statType] =  losses[statType] + statData
+                            end                    
+                        end
+                        
+                        if pStats.times[platforms[i]].weapons then 
+                            for wepName, wepData in pairs(pStats.times[platforms[i]].weapons) do
+                               --slmod.info(wepName)
+                                if type(wepData) == 'table' and wepData.kL then
+                                   --slmod.info('killList')
+                                    for cat, catData in pairs(wepData.kL) do
+                                       --slmod.info(cat)
+                                        if killList[cat] and type(catData) == 'table' then
+                                            for killType, killNum in pairs(catData) do
+                                               --slmod.info(killType)
+                                               --slmod.info(killNum)
+                                                if killList[cat][killType] then
+                                                   killList[cat][killType] = killList[cat][killType] + killNum -- add to the killType
+                                                end                                    
+                                            end
+                                        end
+                                    end    
+                                end
                             end
                         end
-                        --slmod.info('pvp')
-                        if pStats.times[platforms[i]].actions.pvp then
-                            for statType, statData in pairs(pStats.times[platforms[i]].actions.losses) do
-                                pvp[statType] =  pvp[statType] + statData
-                            end                           
-                        end
-                    end
-                    
                         
-                    
-				end
-                --slmod.info('do kills') 
+                       --slmod.info('actions')
+                        if pStats.times[platforms[i]].actions then 
+                           --slmod.info('losses')
+                            if pStats.times[platforms[i]].actions.losses then
+                                for statType, statData in pairs(pStats.times[platforms[i]].actions.losses) do
+                                    if not losses[statType] then
+                                        losses[statType] = 0
+                                    end
+                                    losses[statType] =  losses[statType] + statData
+                                end
+                            end
+                           --slmod.info('pvp')
+                            if pStats.times[platforms[i]].actions.pvp then
+                                for statType, statData in pairs(pStats.times[platforms[i]].actions.losses) do
+                                    pvp[statType] =  pvp[statType] + statData
+                                end                           
+                            end
+                        end
+                        
+                            
+                        
+                    end
+                end
+               --slmod.info('do kills') 
                 table.insert(p1Tbl, ins, ' Total Flight: ' .. string.format('%.2f', aTime/3600) .. '  Overall: ' .. string.format('%.2f', tTime/3600))
-				p1Tbl[#p1Tbl + 1] = '\nKILLS:\n     GROUND                PLANES                HELOS                 SHIPS             BUILDINGS\n'
+                p1Tbl[#p1Tbl + 1] = '\nKILLS:\n     GROUND                PLANES                HELOS                 SHIPS             BUILDINGS\n'
                 if pStats.kills and not ac then -- new tables for this won't exist, add it to old list if applicable
                     for cat, catData in pairs(pStats.kills) do
                         if killList[cat] and type(catData) == 'table' then
@@ -343,15 +357,15 @@ do
                 
                 if pStats.weapons then
                     for wepName, wepData in pairs(pStats.weapons) do
-                       --slmod.info(wepName)
-                        if wepData.kL then
-                           --slmod.info('killList')
+                      --slmod.info(wepName)
+                        if type(wepData) == 'table' and wepData.kL then
+                          --slmod.info('killList')
                             for cat, catData in pairs(wepData.kL) do
-                               --slmod.info(cat)
+                              --slmod.info(cat)
                                 if killList[cat] and type(catData) == 'table' then
                                     for killType, killNum in pairs(catData) do
-                                       --slmod.info(killType)
-                                       --slmod.info(killNum)
+                                      --slmod.info(killType)
+                                      --slmod.info(killNum)
                                         if killList[cat][killType] then
                                            killList[cat][killType] = killList[cat][killType] + killNum -- add to the killType
                                         end                                    
@@ -361,102 +375,102 @@ do
                         end
                     end
                 end
-               --slmod.info('kill strings')
-				local vehicleKillsStrings = makeKillsColumn(killList['Ground Units'])
-				local planeKillsStrings = makeKillsColumn(killList.Planes)
-				local heloKillsStrings = makeKillsColumn(killList.Helicopters)
-				local shipKillsStrings = makeKillsColumn(killList.Ships)
-				local buildingKillsStrings = makeKillsColumn(killList.Buildings)
-				
-				--slmod.info(slmod.tableshow(vehicleKillsStrings))
-				--slmod.info(slmod.tableshow(planeKillsStrings))
-				--slmod.info(slmod.tableshow(heloKillsStrings))
-				--slmod.info(slmod.tableshow(shipKillsStrings))
-				--slmod.info(slmod.tableshow(buildingKillsStrings))
-				-- probably could simplify this to just base columns off of #vehicleKillsStrings
-				local maxSize = 0
-				if #vehicleKillsStrings > maxSize then
-					maxSize = #vehicleKillsStrings
-				end
-				if #planeKillsStrings > maxSize then
-					maxSize = #planeKillsStrings
-				end
-				if #heloKillsStrings > maxSize then
-					maxSize = #heloKillsStrings
-				end
-				if #shipKillsStrings > maxSize then
-					maxSize = #shipKillsStrings
-				end
-				if #buildingKillsStrings > maxSize then
-					maxSize = #buildingKillsStrings
-				end
-               --slmod.info('maxsize')
-				for i = 1, maxSize do
-					--net.log(i)
-					local line = '                                                                                                                    \n'
-					if vehicleKillsStrings[i] then
-						--net.log('vehicle')
-						line = stringInsert(line, vehicleKillsStrings[i], 5)
-					end
-					--net.log(line)
-					if planeKillsStrings[i] then
-						--net.log('planes')
-						line = stringInsert(line, planeKillsStrings[i], 24) --28
-					end
-					--net.log(line)
-					if heloKillsStrings[i] then
-						--net.log('helo')
-						line = stringInsert(line, heloKillsStrings[i], 46) -- 50
-					end
-					--net.log(line)
-					if shipKillsStrings[i] then
-						--net.log('ships')
-						line = stringInsert(line, shipKillsStrings[i], 66) --72
-					end		
-					--net.log(line)					
-					if buildingKillsStrings[i] then
-						--net.log('buildings')
-						line = stringInsert(line, buildingKillsStrings[i], 88) --92
-					end								
-					--net.log(line)
-					p1Tbl[#p1Tbl + 1] = line
-				end
-               --slmod.info('totals')
-				p1Tbl[#p1Tbl + 1] = '---------------------------------------------------------------------------------------------------------------------------\n'
-				local totalsLine = 'TOTALS:                                                                                                             '
-				totalsLine = stringInsert(totalsLine, tostring(killList['Ground Units'].total), 10)
-				totalsLine = stringInsert(totalsLine, tostring(killList.Planes.total), 36)
-				totalsLine = stringInsert(totalsLine, tostring(killList.Helicopters.total), 62)
-				totalsLine = stringInsert(totalsLine, tostring(killList.Ships.total), 88)
-				totalsLine = stringInsert(totalsLine, tostring(killList.Buildings.total), 110)
-				p1Tbl[#p1Tbl + 1] = totalsLine
-				
+              --slmod.info('kill strings')
+                local vehicleKillsStrings = makeKillsColumn(killList['Ground Units'])
+                local planeKillsStrings = makeKillsColumn(killList.Planes)
+                local heloKillsStrings = makeKillsColumn(killList.Helicopters)
+                local shipKillsStrings = makeKillsColumn(killList.Ships)
+                local buildingKillsStrings = makeKillsColumn(killList.Buildings)
+                
+               --slmod.info(slmod.tableshow(vehicleKillsStrings))
+               --slmod.info(slmod.tableshow(planeKillsStrings))
+               --slmod.info(slmod.tableshow(heloKillsStrings))
+               --slmod.info(slmod.tableshow(shipKillsStrings))
+               --slmod.info(slmod.tableshow(buildingKillsStrings))
+                -- probably could simplify this to just base columns off of #vehicleKillsStrings
+                local maxSize = 0
+                if #vehicleKillsStrings > maxSize then
+                    maxSize = #vehicleKillsStrings
+                end
+                if #planeKillsStrings > maxSize then
+                    maxSize = #planeKillsStrings
+                end
+                if #heloKillsStrings > maxSize then
+                    maxSize = #heloKillsStrings
+                end
+                if #shipKillsStrings > maxSize then
+                    maxSize = #shipKillsStrings
+                end
+                if #buildingKillsStrings > maxSize then
+                    maxSize = #buildingKillsStrings
+                end
+              --slmod.info('maxsize')
+                for i = 1, maxSize do
+                    --net.log(i)
+                    local line = '                                                                                                                    \n'
+                    if vehicleKillsStrings[i] then
+                        --net.log('vehicle')
+                        line = stringInsert(line, vehicleKillsStrings[i], 5)
+                    end
+                    --net.log(line)
+                    if planeKillsStrings[i] then
+                        --net.log('planes')
+                        line = stringInsert(line, planeKillsStrings[i], 24) --28
+                    end
+                    --net.log(line)
+                    if heloKillsStrings[i] then
+                        --net.log('helo')
+                        line = stringInsert(line, heloKillsStrings[i], 46) -- 50
+                    end
+                    --net.log(line)
+                    if shipKillsStrings[i] then
+                        --net.log('ships')
+                        line = stringInsert(line, shipKillsStrings[i], 66) --72
+                    end		
+                    --net.log(line)					
+                    if buildingKillsStrings[i] then
+                        --net.log('buildings')
+                        line = stringInsert(line, buildingKillsStrings[i], 88) --92
+                    end								
+                    --net.log(line)
+                    p1Tbl[#p1Tbl + 1] = line
+                end
+              --slmod.info('totals')
+                p1Tbl[#p1Tbl + 1] = '---------------------------------------------------------------------------------------------------------------------------\n'
+                local totalsLine = 'TOTALS:                                                                                                             '
+                totalsLine = stringInsert(totalsLine, tostring(killList['Ground Units'].total), 10)
+                totalsLine = stringInsert(totalsLine, tostring(killList.Planes.total), 36)
+                totalsLine = stringInsert(totalsLine, tostring(killList.Helicopters.total), 62)
+                totalsLine = stringInsert(totalsLine, tostring(killList.Ships.total), 88)
+                totalsLine = stringInsert(totalsLine, tostring(killList.Buildings.total), 110)
+                p1Tbl[#p1Tbl + 1] = totalsLine
+                
                 local displayPenStats = penStats[pStats.ucid] or {friendlyHits = {}, friendlyKills = {}, friendlyCollisionHits = {}, friendlyCollisionKills = {}}
-				p1Tbl[#p1Tbl + 1] = '\n\nFRIENDLY FIRE:\n              hits: '
-				p1Tbl[#p1Tbl + 1] = tostring(#displayPenStats.friendlyHits)
-				p1Tbl[#p1Tbl + 1] = ';        kills: '
-				p1Tbl[#p1Tbl + 1] = tostring(#displayPenStats.friendlyKills)
-				p1Tbl[#p1Tbl + 1] = ';  Friendly collision hits: '
-				
-				local cHits -- old stats may not have collision hits/kills
-				if displayPenStats.friendlyCollisionHits then
-					cHits = #displayPenStats.friendlyCollisionHits
-				else
-					cHits = 0
-				end
-				
-				p1Tbl[#p1Tbl + 1] = tostring(cHits)
-				p1Tbl[#p1Tbl + 1] = ';  Friendly collision kills: '
-				
-				local cKills -- old stats may not have collision hits/kills
-				if displayPenStats.friendlyCollisionKills then
-					cKills = #displayPenStats.friendlyCollisionKills
-				else
-					cKills = 0
-				end
-		
-				p1Tbl[#p1Tbl + 1] = tostring(cKills)
-				p1Tbl[#p1Tbl + 1] = ';'
+                p1Tbl[#p1Tbl + 1] = '\n\nFRIENDLY FIRE:\n              hits: '
+                p1Tbl[#p1Tbl + 1] = tostring(#displayPenStats.friendlyHits)
+                p1Tbl[#p1Tbl + 1] = ';        kills: '
+                p1Tbl[#p1Tbl + 1] = tostring(#displayPenStats.friendlyKills)
+                p1Tbl[#p1Tbl + 1] = ';  Friendly collision hits: '
+                
+                local cHits -- old stats may not have collision hits/kills
+                if displayPenStats.friendlyCollisionHits then
+                    cHits = #displayPenStats.friendlyCollisionHits
+                else
+                    cHits = 0
+                end
+                
+                p1Tbl[#p1Tbl + 1] = tostring(cHits)
+                p1Tbl[#p1Tbl + 1] = ';  Friendly collision kills: '
+                
+                local cKills -- old stats may not have collision hits/kills
+                if displayPenStats.friendlyCollisionKills then
+                    cKills = #displayPenStats.friendlyCollisionKills
+                else
+                    cKills = 0
+                end
+        
+                p1Tbl[#p1Tbl + 1] = tostring(cKills)
+                p1Tbl[#p1Tbl + 1] = ';'
                  if pStats.PvP and not ac then
                     pvp.kills = pStats.PvP.kills + pvp.kills
                     pvp.losses = pStats.PvP.losses + pvp.losses
@@ -467,26 +481,26 @@ do
                     losses.pilotDeath = losses.pilotDeath + pStats.losses.pilotDeath
                     losses.eject = losses.eject + pStats.losses.eject
                 end
-				
-				p1Tbl[#p1Tbl + 1] = '\nPLAYER VS. PLAYER:\n    Kills: '
-				p1Tbl[#p1Tbl + 1] = tostring(pvp.kills)
-				p1Tbl[#p1Tbl + 1] = ';  Losses: '
-				p1Tbl[#p1Tbl + 1] = tostring(pvp.losses)
-				p1Tbl[#p1Tbl + 1] = ';\n\n'
-
-				p1Tbl[#p1Tbl + 1] = 'LOSSES:\n    Crashes: '
-				p1Tbl[#p1Tbl + 1] = tostring(losses.crash)
-				p1Tbl[#p1Tbl + 1] = ';  Ejections: '
-				p1Tbl[#p1Tbl + 1] = tostring(losses.eject)
-				p1Tbl[#p1Tbl + 1] = ';  Pilot Deaths: '
-				p1Tbl[#p1Tbl + 1] = tostring(losses.pilotDeath)
-                p1Tbl[#p1Tbl + 1] = ';  Pilot Error: '
-				p1Tbl[#p1Tbl + 1] = tostring(losses.pilotError)
-                p1Tbl[#p1Tbl + 1] = ';  Crash Landing: '
-				p1Tbl[#p1Tbl + 1] = tostring(losses.crashLanding)
-				p1Tbl[#p1Tbl + 1] = ';\n\n'
                 
-               --slmod.info('ac check')
+                p1Tbl[#p1Tbl + 1] = '\nPLAYER VS. PLAYER:\n    Kills: '
+                p1Tbl[#p1Tbl + 1] = tostring(pvp.kills)
+                p1Tbl[#p1Tbl + 1] = ';  Losses: '
+                p1Tbl[#p1Tbl + 1] = tostring(pvp.losses)
+                p1Tbl[#p1Tbl + 1] = ';\n\n'
+
+                p1Tbl[#p1Tbl + 1] = 'LOSSES:\n    Crashes: '
+                p1Tbl[#p1Tbl + 1] = tostring(losses.crash)
+                p1Tbl[#p1Tbl + 1] = ';  Ejections: '
+                p1Tbl[#p1Tbl + 1] = tostring(losses.eject)
+                p1Tbl[#p1Tbl + 1] = ';  Pilot Deaths: '
+                p1Tbl[#p1Tbl + 1] = tostring(losses.pilotDeath)
+                p1Tbl[#p1Tbl + 1] = ';  Pilot Error: '
+                p1Tbl[#p1Tbl + 1] = tostring(losses.pilotError)
+                p1Tbl[#p1Tbl + 1] = ';  Crash Landing: '
+                p1Tbl[#p1Tbl + 1] = tostring(losses.crashLanding)
+                p1Tbl[#p1Tbl + 1] = ';\n\n'
+                
+              --slmod.info('ac check')
                 if ac then
                     if acStats.actions and acStats.actions.LSO then -- LSO display, only show if doing aircraft specific stats
                         for i = 1, 5 do -- Forrestal has 5 wires...
@@ -519,31 +533,33 @@ do
                         
                     end
                 end
-				-- END OF FIRST PAGE
-				---------------------------------------
-				--slmod.info('page 2') 
-				local p2Tbl = {}
-				p2Tbl[#p2Tbl + 1] = 'WEAPONS DATA (Note- due to a bug in DCS, some weapon\'s hits cannot be properly counted for multiplayer clients.)\n'
-				-- sort weapons in alphabetical order
-				local weaponNames = {}
+                -- END OF FIRST PAGE
+                ---------------------------------------
+               --slmod.info('page 2') 
+                local p2Tbl = {}
+                p2Tbl[#p2Tbl + 1] = 'WEAPONS DATA (Note- due to a bug in DCS, some weapon\'s hits cannot be properly counted for multiplayer clients.)\n'
+                -- sort weapons in alphabetical order
+                local weaponNames = {}
                 local weaponDat = {}
-               --slmod.info('common weaps') 
-				for acName, acTbl in pairs(pStats.times) do
+              --slmod.info('common weaps') 
+                for acName, acTbl in pairs(pStats.times) do
                      if (ac and ac == acName) or not ac then 
                         if acTbl.weapons then 
                             for wepName, wepData in pairs(acTbl.weapons) do
-                               --slmod.info(wepName)
-                                if not weaponDat[wepName] then
-                                   --slmod.info('created')
+                              --slmod.info(wepName)
+                                if type(wepData) == 'table' and not weaponDat[wepName] then
+                                  --slmod.info('created')
                                     weaponDat[wepName] = wepData
                                     weaponNames[#weaponNames + 1] = wepName
                                 else
-                                    for wepStat, wepVal in pairs(wepData) do
-                                        if type(wepVal) == 'number' then 
-                                            if not weaponDat[wepName][wepStat] then
-                                                weaponDat[wepName][wepStat] = 0
+                                    if type(wepData) == 'table' then 
+                                        for wepStat, wepVal in pairs(wepData) do
+                                            if type(wepVal) == 'number' then 
+                                                if not weaponDat[wepName][wepStat] then
+                                                    weaponDat[wepName][wepStat] = 0
+                                                end
+                                                weaponDat[wepName][wepStat] = weaponDat[wepName][wepStat] + wepVal
                                             end
-                                            weaponDat[wepName][wepStat] = weaponDat[wepName][wepStat] + wepVal
                                         end
                                     end
                                 end
@@ -551,10 +567,10 @@ do
                         end
                     end
                 end
-               --slmod.info('do weaps') 
+              --slmod.info('do weaps') 
                 if pStats.weapons and not ac then -- fix weapon stats if information is available
                     for weaponName, weaponData in pairs(pStats.weapons) do
-                       --slmod.info(weaponName) 
+                      --slmod.info(weaponName) 
                         if not weaponDat[weaponName] then
                             weaponDat[weaponName] = weaponData
                             weaponNames[#weaponNames + 1] = weaponName
@@ -562,28 +578,30 @@ do
                         else
                             for wepStat, wepVal in pairs(weaponData) do
                                 if type(wepVal) == 'number' then 
-                                        if not weaponDat[weaponName][wepStat] then
-                                            weaponDat[weaponName][wepStat] = 0
-                                        end
+                                    if not weaponDat[weaponName][wepStat] then
+                                        weaponDat[weaponName][wepStat] = 0
+                                    end
                                     weaponDat[weaponName][wepStat] = weaponDat[weaponName][wepStat] + wepVal
                                 end
                             end
                         end
                     end
                 end
-               --slmod.info('sort weaps') 
-				table.sort(weaponNames)  -- put in alphabetical order
-				for i = 1, #weaponNames do
-					local line = '                                                                                                                     \n'
-					line = stringInsert(line, weaponNames[i], 1)
-					line = stringInsert(line, 'fired = ' .. tostring(weaponDat[weaponNames[i]].shot), 22)
-					line = stringInsert(line, 'hit = ' .. tostring(weaponDat[weaponNames[i]].hit), 44)
-					line = stringInsert(line, 'kills = ' .. tostring(weaponDat[weaponNames[i]].kills), 66)
-					line = stringInsert(line, 'object hits = ' .. tostring(weaponDat[weaponNames[i]].numHits), 84)
-					p2Tbl[#p2Tbl + 1] = line
-				end
-				return table.concat(p1Tbl), table.concat(p2Tbl)
-			end
+              --slmod.info('sort weaps') 
+                table.sort(weaponNames)  -- put in alphabetical order
+               --slmod.info('sorted')
+                for i = 1, #weaponNames do
+                    local line = '                                                                                                                     \n'
+                    line = stringInsert(line, weaponNames[i], 1)
+                    line = stringInsert(line, 'fired = ' .. tostring(weaponDat[weaponNames[i]].shot), 22)
+                    line = stringInsert(line, 'hit = ' .. tostring(weaponDat[weaponNames[i]].hit), 44)
+                    line = stringInsert(line, 'kills = ' .. tostring(weaponDat[weaponNames[i]].kills), 66)
+                    line = stringInsert(line, 'object hits = ' .. tostring(weaponDat[weaponNames[i]].numHits), 84)
+                    p2Tbl[#p2Tbl + 1] = line
+                end
+                return table.concat(p1Tbl), table.concat(p2Tbl)
+                
+            end
 		end
 	end
 	
@@ -694,7 +712,7 @@ do
 		showVars.onSelect = function(self, vars, clientId)
 			-- get stats for all currently connected players.
 			local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
-           --slmod.info('checkStatsMode')
+          --slmod.info('checkStatsMode')
 			local statsToUse = checkStatsMode(requesterMode)
                 
 			local playerStats = {}
@@ -768,7 +786,7 @@ do
 				if stats[requester.ucid] then
 					local msg = createSimpleStats(requester.ucid, requesterMode)
 					if msg then
-						----slmod.info(msg)
+						--slmod.info(msg)
 						slmod.scopeMsg(msg, self.options.display_time, self.options.display_mode, {clients = {clientId}})
 					end
 				else
@@ -840,16 +858,16 @@ do
             local requester = slmod.clients[clientId]
 			
             if requester then
-                --slmod.info('requester: '.. slmod.oneLineSerialize(requester))
+               --slmod.info('requester: '.. slmod.oneLineSerialize(requester))
                 if not stats then
-                    --slmod.info('Stats table not loaded')
+                   --slmod.info('Stats table not loaded')
                     slmod.stats.displayInit()
                 end
                
 				if stats and stats[requester.ucid] then  -- this check invalid if server stats ever optionally disabled.
-                   --slmod.info('is in stats')
+                  --slmod.info('is in stats')
 					local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
-                   --slmod.info('StatsTouse')
+                  --slmod.info('StatsTouse')
                     local statsToUse = checkStatsMode(requesterMode)
 					--slmod.info('get detailed')
                     local page1, page2 = createDetailedStats(statsToUse[requester.ucid], requesterMode)
@@ -914,8 +932,8 @@ do
 				
                 local pId = vars.id
 				local requesterMode = self:getMenu().modesByUcid[slmod.clients[clientId].ucid]
-				----slmod.info('stats byId select')
-                ----slmod.info(pId)
+				--slmod.info('stats byId select')
+                --slmod.info(pId)
                 local statsToUse = checkStatsMode(requesterMode)
 
 
@@ -1045,7 +1063,7 @@ do
 	
                 local statsToUse = checkStatsMode(requesterMode)
 
-                --slmod.info(pId) 
+               --slmod.info(pId) 
 				for ucid, pStats in pairs(statsToUse) do -- this is inefficient- maybe I need to make a stats by id table.
 					if type(pStats) == 'table' and pStats.id and pStats.id == pId then  -- found the id#.
 						--slmod.info('found, create fullstats') 
@@ -1232,7 +1250,7 @@ do
 			local requester = slmod.clients[clientId]
 			if requester then
 				if stats[requester.ucid] then  -- this check invalid if server stats ever optionally disabled.
-                    ----slmod.info(requester.ucid)
+                    --slmod.info(requester.ucid)
                     local score, detail = slmod.getUserScore(requester.ucid, true)
                     local penScore = slmod.playerPenaltyScoreDisplay(detail, score, {name = requester.name})
                     

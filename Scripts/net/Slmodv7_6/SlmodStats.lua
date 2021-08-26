@@ -1838,7 +1838,7 @@ end]]
         --slmod.info(tName)
         --slmod.info(seatId)
         if multiCrewDefs[tName] and not multiCrewDefs[tName][seatId] then
-            tName = tName .. ' Co-Pilot'
+            tName = tName .. ' CoPilot'
         else
             tName = tName .. ' ' .. multiCrewDefs[tName][seatId]
         end
@@ -2259,7 +2259,7 @@ end]]
                     for seat, data in pairs(deadClient) do
                         ucid[seat] = data.ucid
                         if seat > 1 then
-                            typeName[seat] = multiCrewNameCheck(deadObjType)
+                            typeName[seat] = multiCrewNameCheck(deadObjType, seat)
                         else
                             typeName[seat] = deadObjType
                         end
