@@ -1,7 +1,4 @@
 do
-	--[[ todo:
-	"forgive player" menu
-	]]
 
 	local stats = slmod.stats.getStats()
     local penStats = slmod.stats.getPenStats()
@@ -11,6 +8,7 @@ do
     
     local penaltyCheckActive = false
     
+     
     local function getPlayerNamesString(clients)
         local names = {}
         for cIndex, cData in pairs(clients) do
@@ -63,7 +61,7 @@ do
            local score = slmod.getUserScore(ucid)
            kickMsg = string.gsub(kickMsg, '%.' , ' with: ' .. string.format("%.2f", tostring(score)) .. ' penalty points.') 
         end
-		slmod.scheduleFunctionByRt(checkedKick, {id, ucid, kickMsg}, DCS.getRealTime() + delay)
+		slmod.scheduleFunctionByRt(checkedKick, {id, ucid, kickMsg}, DCS.getRealTime() + delay + 0.3)
 	end
     
     local function delayedKickToSpec(id, ucid, kickMsg, delay)
@@ -73,7 +71,7 @@ do
            local score = slmod.getUserScore(ucid)
            kickMsg = string.gsub(kickMsg, '%.' , ' with: ' .. string.format("%.2f", tostring(score)) .. ' penalty points.') 
         end
-		slmod.scheduleFunctionByRt(checkedKickToSpec, {id, ucid, kickMsg}, DCS.getRealTime() + delay)        
+		slmod.scheduleFunctionByRt(checkedKickToSpec, {id, ucid, kickMsg}, DCS.getRealTime() + delay + 0.3)        
     end
 	
 	if autoAdmin.kickBanDelay.kickDelay then
@@ -139,11 +137,15 @@ do
                     return (time - t1)*slope + w1
 				end
 			end
-			if stats[ucid] and stats[ucid].friendlyKills and not penStats[ucid] then
+			if stats and stats[ucid] and stats[ucid].friendlyKills and not penStats[ucid] then
                 slmod.stats.createPlayerPenaltyStats(ucid)
             end
 		
-			local pStats = penStats[ucid]
+            if not penStats[ucid] then
+                return 0
+            end
+            
+            local pStats = penStats[ucid]
             local d = {penalties = {[1] = {time = math.huge, type = 'ERASEME'}}, misc = {}}
             --[[
             penalties = {[1] = {type = teamHit, player = {if applicable}, time, pointsAdded, expireTime}}
@@ -473,7 +475,7 @@ do
 		end
 		return true  -- allow connection
 	end
-	
+	--slmod.info('func onOffense')
 	-- called on every potentially kickable/bannable offense. 
 	function slmod.autoAdminOnOffense(clients, scoreAdded)  -- client is a slmod.client.
 		--slmod.info('running slmod.autoAdminOnOffense; client = ' .. slmod.oneLineSerialize(clients))
@@ -888,7 +890,7 @@ do
                     local requester = slmod.clients[client_id]
                     if #delayedPenalty > 0 and autoAdmin.forgiveEnabled then -- just to be safe
                         for i = 1, #delayedPenalty do
-                            if delayedPenalty[i].canForgive then -- seriously being paranoid
+                            if delayedPenalty[i] and delayedPenalty[i].canForgive then -- seriously being paranoid
                                 local offData = delayedPenalty[i]
                                 for j = 1, #offData.victim do
                                     if offData.victim[j].ucid == requester.ucid and os.time() < offData.time + offData.canForgive and (not offData.choice) then
@@ -938,7 +940,7 @@ do
                     local requester = slmod.clients[client_id]
                     if #delayedPenalty > 0 and autoAdmin.punishEnabled then -- just to be safe
                         for i = 1, #delayedPenalty do
-                            if delayedPenalty[i].canPunish then -- seriously being paranoid
+                            if delayedPenalty[i] and delayedPenalty[i].canPunish then -- seriously being paranoid
                                 local offData = delayedPenalty[i]
                                 for j = 1, #offData.victim do
                                     if offData.victim[j].ucid == requester.ucid and os.time() < offData.time + offData.canPunish and (not offData.choice) then -- victim is the person who typed the message
@@ -1128,6 +1130,23 @@ do
         
         end
     end
+    
+    function slmod.mission_admin_action(id, action, msg)
+        
+        local checkVal = tonumber(DCS.getUnitProperty(id, DCS.UNIT_RUNTIME_ID))
+        if slmod.clientsByRtId[checkVal] then
+            local client = slmod.clientsByRtId[checkVal]
+            for seat, clientData in pairs(client) do
+                local m = msg
+                
+                if not m then
+                    m = 'You have been moved to specator. Think long and hard about what you did.' 
+                end
+                delayedKickToSpec(clientData.id, clientData.ucid, m, autoAdmin.kickBanDelay.specDelay)
+            end
+        end    
+    end
 
+    
 end
 slmod.info('SlmodAutoAdmin.lua loaded.')

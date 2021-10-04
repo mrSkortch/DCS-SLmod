@@ -166,12 +166,12 @@ do
 			else
 				slmod.error('unable to load server admins, reason: ' .. tostring(err1))
 			end
-			
+			Admins_f:close()
 		else
 			Admins = Admins or {}
             update_admins()
 		end
-        Admins_f:close()
+        Admins_f = nil
 	end
 	----------------------------------------------------------------------------------------
 	
@@ -1589,47 +1589,53 @@ do
             end
             local curTime = os.time()
             for ucid, lStats in pairs(stats) do -- this is inefficient- maybe I need to make a stats by id table.
-                if lStats.friendlyKills then -- stats in old format, add player to new penStats and delete old entries from stats
-                    slmod.stats.createPlayerPenaltyStats(ucid)
-                end
-                for acName, acData in pairs(lStats.times) do
-                    if not acData.total then
-                        slmod.stats.changeStatsValue(stats[ucid].times, acName, nil)
-                    else
-                        if acData.weapons then
-                            for wepName, wepData in pairs(acData.weapons) do
-                                if wepData.shot and wepData.shot == 0 then
-                                    slmod.stats.changeStatsValue(stats[ucid].times[acName].weapons, wepName, nil)
+                if not (string.find(ucid, 'red') or string.find(ucid, 'blue')) then 
+                    if lStats.friendlyKills then -- stats in old format, add player to new penStats and delete old entries from stats
+                        slmod.stats.createPlayerPenaltyStats(ucid)
+                    end
+                    for acName, acData in pairs(lStats.times) do
+                        --slmod.info(acName)
+
+                        if not acData.total then
+                            slmod.stats.changeStatsValue(stats[ucid].times, acName, nil)
+                        else
+                            if acData.weapons then
+                                for wepName, wepData in pairs(acData.weapons) do
+                                    
+                                    --slmod.info(wepName)
+                                    if (type(wepData) == 'table' and wepData.shot and wepData.shot == 0 and wepData.kills and wepData.kills == 0) or wepName == 'unknown' or type(wepData) ~= 'table' then
+                                        slmod.stats.changeStatsValue(stats[ucid].times[acName].weapons, wepName, nil)
+                                    end
                                 end
                             end
                         end
                     end
-                end
-                local uPenStats = penStats[ucid]
-                --- insert days cleanup here. Iterate through each type, compare date. If older then throw it out.
-                -- Write indexes for each type
-                if uPenStats then -- might not exist. Nothing to clenaup then. 
-                    for _, cleanup in pairs(statCleanupTbls) do
-                        if days > 0 and #uPenStats[cleanup] > 0 then
-                            local keep = {}
-                            local size = 0
-                            local anyErase = false
-                            for i = 1, #uPenStats[cleanup] do  
-                                size = size + 1
-                                if curTime > uPenStats[cleanup][i].time + days then -- event is older than specified days, erase it
-                                    anyErase = true
-                                    slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, nil)
-                                else
-                                    keep[#keep+1] = i
+                    local uPenStats = penStats[ucid]
+                    --- insert days cleanup here. Iterate through each type, compare date. If older then throw it out.
+                    -- Write indexes for each type
+                    if uPenStats then -- might not exist. Nothing to clenaup then. 
+                        for _, cleanup in pairs(statCleanupTbls) do
+                            if days > 0 and #uPenStats[cleanup] > 0 then
+                                local keep = {}
+                                local size = 0
+                                local anyErase = false
+                                for i = 1, #uPenStats[cleanup] do  
+                                    size = size + 1
+                                    if curTime > uPenStats[cleanup][i].time + days then -- event is older than specified days, erase it
+                                        anyErase = true
+                                        slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, nil)
+                                    else
+                                        keep[#keep+1] = i
+                                    end
                                 end
-                            end
-                            if anyErase == true then
-                                for i = 1, #keep do -- overwrits values
-                                    local key = keep[i]
-                                    slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, penStats[ucid][cleanup][key])
-                                end
-                                for i = size, #keep + 1, -1 do -- erases old values
-                                    slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, nil)
+                                if anyErase == true then
+                                    for i = 1, #keep do -- overwrits values
+                                        local key = keep[i]
+                                        slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, penStats[ucid][cleanup][key])
+                                    end
+                                    for i = size, #keep + 1, -1 do -- erases old values
+                                        slmod.stats.changePenStatsValue(penStats[ucid][cleanup], i, nil)
+                                    end
                                 end
                             end
                         end
