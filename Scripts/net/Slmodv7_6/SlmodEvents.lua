@@ -285,6 +285,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 							end
 						end
 					end
+                    
 				elseif temp_event.type == 'birth' then
 					--slmod.info('event birth')
                     if slmod.allMissionUnitsByName and slmod.activeUnitsBase and temp_event.type == 'birth' then
@@ -303,8 +304,6 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
 						newUnit.category = temp_event.category
 						
 						local lUnitsBase = slmod.activeUnitsBase
-                        --slmod.info('adding to base')
-                        --slmod.info(slmod.oneLineSerialize(temp_event))
 						lUnitsBase[#lUnitsBase + 1] = slmod.deepcopy(newUnit)
                         if not newUnit.name then
                             slmod.info('temp_event has no unitName')
@@ -320,7 +319,7 @@ function slmod.addSlmodEvents()  -- called every second to build slmod.events.
                         if not err then
                             slmod.error('failed to Append slmod.allMissionUnitsById, reason: ' .. str)
                         end
-                       -- slmod.info('birth added')
+                        --slmod.info('birth added')
 					end
 				--slmod.activeUnitsBase[#slmod.activeUnitsBase + 1] = newUnit
 				end
@@ -347,56 +346,156 @@ end
 
 function slmod.outputSlmodEvents()  --output of the latest events since the last run of this function to file.
 	local beginS
-	if slmod.next_event_ind == nil then
-		slmod.next_event_ind = 1
-		beginS = 'slmod.events = {}\n'  -- beginning of file...
-	end
-	slmod.eventsFile = slmod.eventsFile or io.open(lfs.writedir() .. 'Slmod\\slmodEvents.txt', 'w')
-	if slmod.eventsFile then
-		local next_events_st = {}  --table of strings to be concatenated together
-		if beginS then
-			next_events_st[#next_events_st + 1] = beginS
-		end
-		
-		while slmod.next_event_ind <= #slmod.events do
-			next_events_st[#next_events_st + 1] = 'slmod.events['
-			next_events_st[#next_events_st + 1] = tostring(slmod.next_event_ind)
-			next_events_st[#next_events_st + 1] = '] = { '
-			for fldname,fldval in pairs(slmod.events[slmod.next_event_ind]) do 
-				if type(fldname) == 'string' then
-					next_events_st[#next_events_st + 1] = '['
-					next_events_st[#next_events_st + 1] = slmod.basicSerialize(fldname)
-					next_events_st[#next_events_st + 1] = '] = '
-				elseif type(fldname) == 'number' then
-					next_events_st[#next_events_st + 1] = '['
-					next_events_st[#next_events_st + 1] = tostring(fldname)
-					next_events_st[#next_events_st + 1] = '] = '
-				
-				end
-				
-				if (type(fldval) == 'string') then
-				
-					next_events_st[#next_events_st + 1] = slmod.basicSerialize(fldval)
-					next_events_st[#next_events_st + 1] = ', '
-				elseif (type(fldval) == 'number') then
-					
-					next_events_st[#next_events_st + 1] = tostring(fldval)
-					next_events_st[#next_events_st + 1] = ', '
-					
-				else
-					next_events_st[#next_events_st + 1] = 'nil, '  --unknown type or nil
-				
-				end
+	if slmod.next_event_ind == nil then -- stats have been reset
+		slmod.info('Create Events')
+        slmod.next_event_ind = 1
+		beginS = 'slmodEvents = {}\n'  -- beginning of file for lua...
+        
+        local wStr = '' -- file to actively be written to
+        local wLoc = lfs.writedir() .. 'Slmod\\' -- written to location
+        local saveJson = false              -- dumb check so dont need to write a long if state ment
+        local mStats = slmod.stats.getMetaStats()   
+        local missionName = 'TEMPEVENTS'    -- default mission name
+        local lastMissionSaveName = ''
+        
+        --[[
+            Thought process.
+            
+            If writing to lua, then just use the mission name _events_ date format
+            
+            if writing to json. 
+                on mission change open and load currentMissionEvents.lua
+                convert to json
+                save json string to a new file. 
+                
+                begin writing to fresh file. 
+                
+        
+        ]]
+        if (slmod.config.events_format and slmod.config.events_format == 1) then
+            saveJson = true
+            --slmod.info('saveJSON true')
+        end
+        
+        if slmod.config.events_output == 2 then -- mission events
+            wLoc = wLoc .. 'Mission Events\\'
+            if mStats.lastMissionEvents then
+                lastMissionSaveName = slmod.deepcopy(wLoc .. mStats.lastMissionEvents)
+            end
 
-			end
-			next_events_st[#next_events_st + 1] = '}\n'
-			slmod.next_event_ind = slmod.next_event_ind + 1
-		end	
-		
-		local next_events_s = table.concat(next_events_st)  --table.concat is fastest way to concatenate strings
-		
-		slmod.eventsFile:write(next_events_s)
-	end
+            if slmod.current_mission_safe_name then
+                local mName = slmod.current_mission_safe_name .. os.date('%b %d, %Y at %H %M %S')
+                slmod.stats.changeMetaStatsValue(mStats, 'lastMissionEvents', mName)  -- set as new last mission name
+                if saveJson == false then 
+                    missionName = mName
+                end
+            end
+            wStr = wLoc .. missionName
+        else -- global events
+           wStr = wLoc .. 'slmodEvents'
+           lastMissionSaveName = slmod.deepcopy(wStr)
+        end
+        
+        --slmod.info(lastMissionSaveName)
+        if saveJson == true then   -- format is json
+            -- open previous events file. Convert that to json. 
+            --slmod.info('check old file')
+            local lastMissionLoadName = slmod.deepcopy(lastMissionSaveName)
+            if slmod.config.events_output == 2 then
+                lastMissionLoadName = wLoc .. 'TEMPEVENTS'
+                
+            end
+            --slmod.info(lastMissionLoadName)
+            local prevFile = io.open(lastMissionLoadName .. '.lua', 'r')
+            if prevFile then 
+                slmod.info('file exists')
+                local jsonEvents = {}
+                local eString = prevFile:read('*all')
+
+                local eventsFunc, err1 = loadstring(eString)
+
+                prevFile:close()
+                prevFile = nil
+                if eventsFunc then
+                   -- slmod.info('doing env')
+                    local env = {}
+                    setfenv(eventsFunc, env)
+                    local bool, err2 = pcall(eventsFunc)
+                    --slmod.info('if not bool')
+                    if not bool then
+                        slmod.error('unable to load events, reason: ' .. tostring(err2))
+                    else
+                        --slmod.info(slmod.oneLineSerialize(env))
+                        if env['slmodEvents'] then
+                            slmod.info('writing mission events from ' .. lastMissionLoadName)
+                            jsonEvents = env['slmodEvents']
+                        else
+                            slmod.info('no table in file ' .. lastMissionLoadName)
+                        end
+                    end
+                end
+                local jsonStats = net.lua2json(jsonEvents)
+                local jsonF = io.open(lastMissionSaveName .. '.json', 'w')
+                jsonF:write(jsonStats)
+                jsonF:close()
+            end
+        end
+        wStr = wStr .. '.lua'
+        --slmod.info(wStr)
+        slmod.eventsFile = io.open(wStr, 'w')
+        
+        
+        
+
+    end
+     
+	if slmod.eventsFile then
+
+        local next_events_st = {}  --table of strings to be concatenated together
+        if beginS then
+            next_events_st[#next_events_st + 1] = beginS
+        end
+        
+        while slmod.next_event_ind <= #slmod.events do
+            next_events_st[#next_events_st + 1] = 'slmodEvents['
+            next_events_st[#next_events_st + 1] = tostring(slmod.next_event_ind)
+            next_events_st[#next_events_st + 1] = '] = { '
+            for fldname,fldval in pairs(slmod.events[slmod.next_event_ind]) do 
+                if type(fldname) == 'string' then
+                    next_events_st[#next_events_st + 1] = '['
+                    next_events_st[#next_events_st + 1] = slmod.basicSerialize(fldname)
+                    next_events_st[#next_events_st + 1] = '] = '
+                elseif type(fldname) == 'number' then
+                    next_events_st[#next_events_st + 1] = '['
+                    next_events_st[#next_events_st + 1] = tostring(fldname)
+                    next_events_st[#next_events_st + 1] = '] = '
+                
+                end
+                
+                if (type(fldval) == 'string') then
+                
+                    next_events_st[#next_events_st + 1] = slmod.basicSerialize(fldval)
+                    next_events_st[#next_events_st + 1] = ', '
+                elseif (type(fldval) == 'number') then
+                    
+                    next_events_st[#next_events_st + 1] = tostring(fldval)
+                    next_events_st[#next_events_st + 1] = ', '
+                    
+                else
+                    next_events_st[#next_events_st + 1] = 'nil, '  --unknown type or nil
+                
+                end
+
+            end
+            next_events_st[#next_events_st + 1] = '}\n'
+            slmod.next_event_ind = slmod.next_event_ind + 1
+        end	
+        
+        local next_events_s = table.concat(next_events_st)  --table.concat is fastest way to concatenate strings
+        
+        slmod.eventsFile:write(next_events_s)
+    end
+	
 	
 end
 
@@ -404,7 +503,7 @@ end
 --loaded into server env every mission reset.
 
 function slmod.load_weapons_impacting_code_to_server()  -- not just weapons impacting anymore...
-	local weapons_impacting_code = [==[-- world events hook
+	local weapons_impacting_code = [==[-- slmod world events hook
 slmod = slmod or {}
 slmod.old_onEvent = slmod.old_onEvent or world.onEvent  --needs to be global here- otherwise, on mission reloading, we will create a new old_onEvent.
 do 
@@ -730,8 +829,6 @@ do
         end
     end
     
-    local wepNames = {}
-    
     if not slmod.rawEvents then
         --env.info('no raw events')
         slmod.rawEvents = {}
@@ -830,16 +927,6 @@ do
                 end
             end
         end
-        local st = coalition.getStaticObjects(coaId)
-        for i = 1, #st do
-            local s = st[i]
-            if StaticObject.isExist(s) then
-                if not slmod.allMissionUnitsById[StaticObject.getID(s)] then
-                    --env.info(StaticObject.getID(s) .. ' Not found in DB yet')
-                    addToDB(s, true)
-                end
-            end
-        end
     
     end
 	
@@ -863,13 +950,16 @@ do
             newEvent.time = nil
         end
         
-        if event.target then
-            newEvent.target = event.target:getName()
+        if event.target and event.id ~= 6 and event.id ~= 33 then
             if event.target:getCategory() then
                 newEvent.targetCategory = event.target:getCategory()
-                if newEvent.targetCategory ~= 5 and newEvent.targetCategory ~= 2 then -- world objects and weapon do not have getID
-                    newEvent.targetMissionID = tonumber(event.target:getID())
-                end
+                if newEvent.targetCategory ~= 2 then -- cant be a weapon because getName fails on this
+                    newEvent.target = event.target:getName()
+                    if newEvent.targetCategory ~= 5  then
+                        newEvent.targetMissionID = tonumber(event.target:getID())
+                    end
+                end 
+
             end
         end
         
@@ -877,47 +967,22 @@ do
             newEvent.target = (event.place):getName()
         end
         
-        if event.initiator then
-            initName = lunit:getName()
-            newEvent.initiator = initName
-            newEvent.initiatorID = event.initiator.id_
-            newEvent.initiatorMissionID = tonumber(lunit:getID())
-            if slmod.clientsMission[initName] then
-                newEvent.initiatorPilotName = slmod.clientsMission[initName].name
+        if event.initiator and event.id ~= 31 then  --- no pilot landing event, because object is not acessible
+            if Object.getCategory(event.initiator) ~= 5  then
+                initName = lunit:getName()
+                newEvent.initiator = initName
+                newEvent.initiatorID = event.initiator.id_
+                newEvent.initiatorMissionID = tonumber(lunit:getID())
+                if slmod.clientsMission[initName] then
+                    newEvent.initiatorPilotName = slmod.clientsMission[initName].name
+                end
+            else
+                newEvent.initatorScenery = true
             end
         end
         
         if event.weapon then
             newEvent.weapon = event.weapon:getDesc().displayName
-            if not wepNames[newEvent.weapon] then -- add to wepNames as fallback
-                local tName = event.weapon:getDesc().typeName
-                wepNames[newEvent.weapon] = newEvent.weapon
-                wepNames[tName] = newEvent.weapon
-                if string.find(tName, '%.') then -- it has periods in the name. Might be weapon.<whatever>.typeName
-                    local t1, t2, t3 = string.match(tName, "(%w+)%.(%w+)%.(.+)")
-                    if t3 then
-                        wepNames[t3] = newEvent.weapon
-                    end
-                end
-                
-            end
-        elseif event.weapon_name then -- there is a weapon name but no weapon object. Well try to figure this out
-            if slmod.debriefEvents then  -- first try to grab it from the debriefEvents 
-               -- env.info('debrief events')
-                local dEvent = slmod.debriefEvents[#slmod.debriefEvents]
-                --env.info(slmod.oneLineSerialize(dEvent))
-                if dEvent.t == newEvent.t and dEvent.type == newEvent.type and dEvent.weapon and dEvent.weapon ~= '' then
-                   -- env.info('Weapon grabbed from debrief event')
-                    newEvent.weapon = dEvent.weapon
-                end
-            end
-            if not newEvent.weapon then -- still not found, ugh
-                --env.info('WEAPON STILL NOT FOUND: ' .. event.weapon_name)
-                if wepNames and wepNames[event.weapon_name] then
-                    -- env.info('found in wepNames')
-                     newEvent.weapon = wepNames[event.weapon_name]
-                end
-            end
         end
         
        --------------------------------------------------------------------------------------         
@@ -931,7 +996,7 @@ do
             --env.info('shot event')
 			if event.weapon then
 				slmod.humanWeapons[event.weapon.id_] = nil  --erase this entry if it existed before.
-            end
+			end
 			-------------------------------------------------------------------
 			-- code for use in SlmodStats system and slmod.events
 			if event.weapon then
@@ -955,9 +1020,11 @@ do
             if event.id == world.event.S_EVENT_SHOOTING_START or event.id == world.event.S_EVENT_SHOOTING_END then -- scripting engine shell enum
                 --env.info('line92')
                 lShells = 0
-                for index, data in pairs(lunit:getAmmo()) do
-                    if data.desc.category == 0 then
-                        lShells = lShells + data.count
+                if lunit:getAmmo() then 
+                    for index, data in pairs(lunit:getAmmo()) do
+                        if data.desc.category == 0 then
+                            lShells = lShells + data.count
+                        end
                     end
                 end
                 newEvent.numShells = lShells
@@ -966,7 +1033,7 @@ do
                    -- env.info('debrief events')
                     local dEvent = slmod.debriefEvents[#slmod.debriefEvents]
                     --env.info(slmod.oneLineSerialize(dEvent))
-                    if dEvent.t == newEvent.t and dEvent.type == newEvent.type then
+                    if dEvent.type == newEvent.type and dEvent.initiatorPilotName == newEvent.initiatorPilotName then 
                         newEvent.weapon = dEvent.weapon
                     end
                 end
