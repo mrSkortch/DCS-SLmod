@@ -25,6 +25,21 @@ Donate. If you want to. Likely will go into the "Better than a X52 HOTAS Fund". 
 
 [![](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=X8CHU2343FRKA&currency_code=USD&source=url)
 
+
+Installation
+===
+
+1. Download slmod via code dropdown button and downloading zip or if a release is available.
+2. Navigate to active saved games folder used by DCS. Generally it will be in: C:\Users\<windowsUserName>\Saved Games\DCS.
+3. Extract the scripts folder into your saved games\DCS folder. There should be:
+	DCS\Scripts\Hooks\slmodGameGUI.lua
+	DCS\Scripts\net\SlmodvX_Y\ with a number of lua files within. 
+4. Start game. If loaded correctly slmod will create an Slmod folder in your Saved Games\DCS folder. In this folder you will find your config, chat logs, and stats.
+5. Slmod is only loaded when the game starts and the game must be reloaded in order for changes to the config file to take effect. 
+
+
+
+
 Description
 ===
 Server Lua Mod, "Slmod", is a multiplayer server mod created by "Speed". Despite the uninspired name, it provides a significant set of enhancements for DCS multiplayer servers, including multiplayer server administration tools, multiplayer stats tracking, enhanced multiplayer server operation, enhanced mission scripting capabilities, and several other useful features. As it is a server mod, multiplayer clients do not need to have it installed to use it.
