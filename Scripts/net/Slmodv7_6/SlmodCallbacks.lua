@@ -122,72 +122,28 @@ do
 	
 	--creating slmod.clients and banning code.
 
---modifying on_net_start
 do
-
-	----------------------------------------------------------
-	-- code to protect Slmod from running too early or too late, piggy-backs onto netview.
-	--ghetto, but will work for now.
-	--function on_net_start() end
-	local function createNetviewDetector()
-		local modifyNetviewString = [[slmod = slmod or {}
-
-		if not slmod.oldNetviewStart then  -- if this is the first time this code is running this game session
-			slmod.oldNetviewStart = netview.start
-			function netview.start()
-				slmod.netview = true
-				return slmod.oldNetviewStart()
-			end
-
-			slmod.oldNetviewStop = netview.stop
-			function netview.stop()
-				slmod.netview = false
-				return slmod.oldNetviewStop()
-			end
-		end
-
-		function slmod.getNetview()
-			return tostring(slmod.netview)
-		end]]
-		local str, err = net.dostring_in('config', modifyNetviewString)
-		slmod.info('Modifying netview... results: ' .. tostring(str) .. ', ' .. tostring(err))
-	end
-	----------------------------------------------------------
-	
-	--slmod.func_old.on_net_start = slmod.func_old.on_net_start or on_net_start -- find alt.
-	function slmodCall.on_net_start()
-		createNetviewDetector()  -- prevents slmod from running too early or too late.
-		slmod.clients = slmod.clients or {}
-		slmod.clients[1] = {id = 1, name = net.get_name(1), ucid = slmod.config.host_ucid or 'host' }  -- server host
-	end
-	
-
-end
-	
-	local prevExecTime = 0  -- for once-every-second code.
-	local prevSTest = 0
 	local runF = false
 	
 	local function getNetview()
         if DCS.isMultiplayer() == true and DCS.isServer() == true then
 			if runF == false then
-				slmodCall.on_net_start()
+                slmod.clients = slmod.clients or {}
+                slmod.clients[1] = {id = 1, name = net.get_name(1), ucid = slmod.config.host_ucid or 'host' }  -- server host
 				runF = true
 			end			
-			local str, err = net.dostring_in('config', 'return slmod.getNetview()')
-			if err then
-				if str == 'true' then
-					return true
-				elseif str == 'false' then
-					return false
-				end  -- else will return nil, could be useful to detect code errors.
-			end
+            return true
 		end
 		return false
 	end
+    
 
+	local prevExecTime = 0  -- for once-every-second code.
+	local prevSTest = 0
 	function slmodCall.onSimulationFrame()
-		if getNetview() == true then  -- only run if netview is running.  Netview seems to know the proper times as to when the
+		if runF == false then  
+             getNetview()
+        else   -- only run if netview is running.  Netview seems to know the proper times as to when the
 	        -- game is fully started, and when the game is beginning to stop.
 			---------------------------------------------------------------------------------------------------------------
 			-- data passing code
@@ -367,8 +323,8 @@ end
 
 
 			
-		end
-	
+		
+        end
 	end
 	--slmod.func_old.on_process()
 	
@@ -574,5 +530,5 @@ end
 ]]
 
 DCS.setUserCallbacks(slmodCall)
-
+end
 slmod.info('SlmodCallbacks.lua loaded')
