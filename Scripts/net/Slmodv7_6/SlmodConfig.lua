@@ -93,7 +93,7 @@ slmod.config = slmod.config or {}
 slmod.version = '7_6'  -- file directory
 
 slmod.mainVersion = '7_6'  -- so far, these are only used in MOTD and some load scripts.
-slmod.buildVersion = '150'  
+slmod.buildVersion = '151'  
 
 slmod.configVersion = '28'  -- as new options as are added to SlmodConfig, this will change.
 
