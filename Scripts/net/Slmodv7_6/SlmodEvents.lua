@@ -838,10 +838,23 @@ do
     
         local lgroup
         local newObj = {}
-        if lunit:getCategory() == 3 or lunit:getCategory() == 6 then
+		local cat = Object.getCategory(lunit)
+        if cat == 3 or cat == 6 then
             lgroup = StaticObject.getByName(lunit:getName())
+			newObj.category  = 'static'
         else
             lgroup  = lunit:getGroup()
+			local lCat = tonumber(lgroup:getCategory())
+            if lCat == 0 then
+                lCat = 'plane'
+            elseif lCat == 1 then
+                lCat = 'helicopter'
+            elseif lCat == 2 then
+                lCat = 'vehicle'
+            elseif lCat == 3 then
+                lCat = 'ship'
+            end
+            newObj.category = lCat
         end
         -- env.info('c2')
         --local newUnit = {}
@@ -879,21 +892,6 @@ do
         newObj.countryName = string.lower(country.name[tonumber(lunit:getCountry())])
         newObj.countryId= (lunit:getCountry())
         --env.info('c5')
-        if tonumber(lunit:getCategory()) == 3 or tonumber(lunit:getCategory()) == 6 then
-            newObj.category  = 'static'
-        else
-            local lCat = tonumber(lgroup:getCategory())
-            if lCat == 0 then
-                lCat = 'plane'
-            elseif lCat == 1 then
-                lCat = 'helicopter'
-            elseif lCat == 2 then
-                lCat = 'vehicle'
-            elseif lCat == 3 then
-                lCat = 'vehicle'
-            end
-            newObj.category = lCat
-        end
         --env.info(slmod.tableshow(newUnit))
 
         newObj.type = 'birth'
@@ -951,8 +949,8 @@ do
         end
         
         if event.target and event.id ~= 6 and event.id ~= 33 then
-            if event.target:getCategory() then
-                newEvent.targetCategory = event.target:getCategory()
+            newEvent.targetCategory = Object.getCategory(event.target)
+			if newEvent.targetCategory then
                 if newEvent.targetCategory ~= 2 then -- cant be a weapon because getName fails on this
                     newEvent.target = event.target:getName()
                     if newEvent.targetCategory ~= 5  then
@@ -968,11 +966,14 @@ do
         end
         
         if event.initiator and event.id ~= 31 then  --- no pilot landing event, because object is not acessible
-            if Object.getCategory(event.initiator) ~= 5  then
+            local cat = Object.getCategory(event.initiator)
+			if Object.getCategory(event.initiator) ~= 5  then
                 initName = lunit:getName()
                 newEvent.initiator = initName
                 newEvent.initiatorID = event.initiator.id_
-                newEvent.initiatorMissionID = tonumber(lunit:getID())
+				if cat ~= 2 then 
+					newEvent.initiatorMissionID = tonumber(lunit:getID())
+				end
                 if slmod.clientsMission[initName] then
                     newEvent.initiatorPilotName = slmod.clientsMission[initName].name
                 end
@@ -1090,8 +1091,9 @@ do
 			--env.info('check birth event')
             if event.id == world.event.S_EVENT_BIRTH then -- Event births occuring after mission start
 				--env.info('birth event')
+				local cat = Object.getCategory(lunit)
 		
-                if ((Object.getCategory(lunit) == 1 and not lunit:getPlayerName()) or Object.getCategory(lunit) ~= 1) then -- only run logic on non clients
+                if ((cat == 1 and not lunit:getPlayerName()) or cat ~= 1) then -- only run logic on non clients
 					--env.info('c1')
 					newEvent = addToDB(event.initiator)				
 				else
